@@ -6,6 +6,15 @@ Primary Author: Dylan Nelson (dnelson@cfa.harvard.edu)
 
 Current Version: 0.2 (17 Aug 2011)
 
+Installation/Compilation:
+
+ (1) Get ArepoVTK Source:   hg clone /n/hernquistfs1/hgrepos/ArepoVTK/ ~/ArepoVTK/
+ (2) Get Arepo Source:      svn checkout http://www.mpa-garching.mpg.de/svn/cosmo-group/Arepo ~/Arepo/
+ (3) Copy Arepo Config:     cp ~/ArepoVTK/test/Config_ArepoVTK.sh ~/Arepo/
+ (4) Build Arepo:           cd ~/Arepo && make CONFIG=Config_ArepoVTK.sh EXEC=Arepo
+ (5) Build ArepoVTK:        cd ~/ArepoVTK && make clean && make
+ (6) Run ArepoRT Test:      ./ArepoRT
+
 Design:
 
 -------

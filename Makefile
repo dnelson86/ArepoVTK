@@ -20,7 +20,7 @@ OPT  += -DENABLE_AREPO
 ARCH = $(shell uname)
 
 OPTIMIZE = -Wall -g -m64
-INCL     = -I../../Arepo/
+INCL     = -I ~/Arepo/
 
 CC       = mpic++
 LIBS     = -lm 
@@ -35,7 +35,7 @@ MISC_RM = frame.raw.txt frame.tga
 ifeq (ENABLE_AREPO,$(findstring ENABLE_AREPO,$(OPT)))
   OBJS += arepo.o
   HEAD += arepo.h
-  LIBS += -lgsl -lgslcblas -lgmp -lhdf5 -L../../Arepo/ -larepo
+  LIBS += -lgsl -lgslcblas -lgmp -lhdf5 -L ~/Arepo/ -larepo
 endif
 
 $(EXECNAME): $(OBJS)
