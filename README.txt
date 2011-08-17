@@ -1,7 +1,10 @@
 -------------------------------------------------
 --- ArepoVTK: The Arepo Visualization ToolKit ---
 -------------------------------------------------
-Primary Author: Dylan Nelson
+
+Primary Author: Dylan Nelson (dnelson@cfa.harvard.edu)
+
+Current Version: 0.2 (17 Aug 2011)
 
 Design:
 
