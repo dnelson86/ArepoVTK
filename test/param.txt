@@ -1,0 +1,146 @@
+% Arepo Parameter File (ArepoVTK Testing)
+
+%----  Relevant files 
+
+InitCondFile	      ./Arepo2
+OutputDir           ./output/
+
+EnergyFile          energy.txt
+InfoFile            info.txt
+TimingsFile         timings.txt
+CpuFile             cpu.txt
+RestartFile         restart
+SnapshotFileBase    snap
+OutputListFilename  output_list.txt
+
+%---- File formats
+
+ICFormat           3
+SnapFormat         3
+
+%---- CPU-time limits
+
+TimeLimitCPU              81000  % in seconds
+CpuTimeBetRestartFile     7200   % in seconds
+ResubmitOn                0
+ResubmitCommand           my-scriptfile 
+
+%----- Memory alloction
+
+MaxMemSize        1900         % sets maximum memory use in MByte
+PartAllocFactor   3.5
+BufferSize        200          % in MByte
+
+%----- Mesh regularization options
+
+CellShapingFactor 0.2          % sets threshold for CM-displacement
+CellShapingSpeed  0.5          % sets speed of CM correction
+
+%ErrTolThetaInZeldovich 0.5    % tree opening parameter for inverse Zeldovich mesh correction
+MeanVolume             1.0e30  % desired maximum volume of cells for Zeldovich mesh corrrection
+MeanMass               3.0e-5  % desired maximum mass of cells for Zeldovich mesh corrrection
+
+%---- Caracteristics of run
+
+TimeBegin           0.0        % Begin of the simulation
+TimeMax	            1.0        % End of the simulation
+BoxSize             1.0
+
+%---- Basic code options that set the type of simulation
+
+ComovingIntegrationOn    0
+PeriodicBoundariesOn     1
+CoolingOn		 0
+StarformationOn		 0
+
+%---- Cosmological parameters
+
+Omega0	              0
+OmegaLambda           0
+OmegaBaryon           0
+HubbleParam           1.0
+
+%---- Output frequency and output paramaters
+
+OutputListOn              0
+TimeBetSnapshot           0.1
+TimeOfFirstSnapshot       0.0
+TimeBetStatistics         0.01
+NumFilesPerSnapshot       1
+NumFilesWrittenInParallel 1
+
+%---- Accuracy of time integration
+
+TypeOfTimestepCriterion  0
+ErrTolIntAccuracy        0.025 
+CourantFac               0.4
+MaxRMSDisplacementFac    0.2
+MaxSizeTimestep          1e-2
+MinSizeTimestep          1e-10
+EntropyTolFactor         0.05    % only used for cold-flow treatment without mach-numbers
+
+%---- Treatment of empty space and temperature limits
+
+MinimumDensityOnStartUp               1.0e-20
+LimitUBelowThisDensity                1.0e-20
+LimitUBelowCertainDensityToThisValue  1.0
+
+InitGasTemp            0
+MinGasTemp             0
+MinEgySpec             0
+
+%---- Tree algorithm, force accuracy, domain update frequency
+
+TypeOfOpeningCriterion       1
+ErrTolTheta                  0.7
+ErrTolForceAcc               0.0025
+TreeDomainUpdateFrequency    0.1
+
+%---- Initial density estimate
+
+DesNumNgb              32
+MaxNumNgbDeviation     2
+
+%---- System of units
+
+UnitLength_in_cm         1.0
+UnitMass_in_g            1.0
+UnitVelocity_in_cm_per_s 1.0
+GravityConstantInternal  0
+
+%---- Gravitational softening lengths
+
+MinGasHsmlFractional 0.25   % in principal obsolete
+
+GasSoftFactor      1.5
+
+SofteningGas       2.0     % obsolete
+SofteningHalo      2.0
+SofteningDisk      0.0
+SofteningBulge     0.0
+SofteningStars     2.0
+SofteningBndry     0.0
+
+SofteningGasMaxPhys       2.0  % obsolete
+SofteningHaloMaxPhys      2.0
+SofteningDiskMaxPhys      2.0
+SofteningBulgeMaxPhys     2.0           
+SofteningStarsMaxPhys     2.0
+SofteningBndryMaxPhys     2.0
+
+%---- Image generation
+
+PicXpixels  512
+PicYpixels  512
+PicXaxis    0 
+PicYaxis    1
+PicZaxis    2
+PicXmin    -25.0
+PicXmax     25.0
+PicYmin    -25.0
+PicYmax     25.0
+PicZmin    -10.0
+PicZmax    +10.0
+
+% End
+
