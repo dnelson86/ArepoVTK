@@ -104,13 +104,13 @@ void RendererTask::Run() {
     //} */
 
 		// testing: acquire and rasterize edges of VR/AM BBox
-	/*	edges.clear();
+		edges.clear();
 		if (scene->arepoMesh->WorldBound().Edges(&edges)) {
 				for (int i = 0; i < edges.size(); ++i) {
 						// rasterize individual line segment
 						camera->RasterizeLine(edges[i].p1,edges[i].p2,Ledge);
 				}
-		} */
+		} 
 
 		time = (float)timer2.Time();
 		cout << " Rasterization phase: [" << time << "] seconds." << endl;		

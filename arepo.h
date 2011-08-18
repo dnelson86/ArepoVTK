@@ -14,6 +14,7 @@
 #include "transform.h"
 #include "spectrum.h"
 #include "volume.h"
+#include "transfer.h"
 
 #include "mpi.h" //as in Sunrise, need to include outside the C-linkage block
 #include "gmp.h"
@@ -46,7 +47,7 @@ private:
 class ArepoMesh : public VolumeRegion {
 public:
 		// construction
-		ArepoMesh(const Spectrum &sa, const Spectrum &ss, const Spectrum &emit, const Transform &VolumeToWorld);
+		ArepoMesh(const TransferFunction *tf, const Transform &VolumeToWorld);
     ~ArepoMesh() {
         if (EdgeList)     delete EdgeList;
         if (Nedges)       delete Nedges;
@@ -99,7 +100,7 @@ public:
 		
 private:
 		BBox extent;
-    Spectrum sig_a, sig_s, le;
+    const TransferFunction *transferFunction;
 		
     tessellation *T;
 		
@@ -108,7 +109,7 @@ private:
 		int *NedgesOffset;
 };
 
-ArepoMesh *CreateArepoMesh(const Transform &volume2world);
+ArepoMesh *CreateArepoMesh(const TransferFunction *tf, const Transform &volume2world);
 
 #endif //ENABLE_AREPO
 #endif //AREPO_RT_AREPO_H

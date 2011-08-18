@@ -93,10 +93,10 @@ struct ConfigStruct {
 			filename         = "test/Arepo2b.hdf5";
 			//filename         = "test/test2.txt";
 			paramFilename    = "test/param.txt";
-			imageXPixels     = 1000; //1024, 1920
-			imageYPixels     = 1000; //768, 1080
+			imageXPixels     = 800; //1024, 1920
+			imageYPixels     = 800; //768, 1080
 			viStepSize       = 0.1f;
-			swScale          = 0.52f; //8.0 to capture tetra -1,-2,-3,-4 on Arepo2.hdf5
+			swScale          = 1.0f; //0.52 for face on ortho with small border
 			
 			rgbEmit[0]    = 1.0f;   rgbEmit[1]    = 0.0f;   rgbEmit[2]    = 0.0f;
 			rgbLine[0]    = 0.0f;   rgbLine[1]    = 0.0f;   rgbLine[2]    = 0.2f;
