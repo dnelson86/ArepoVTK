@@ -101,6 +101,7 @@ public:
 private:
 		BBox extent;
     const TransferFunction *transferFunction;
+		float viStepSize;
 		
     tessellation *T;
 		

@@ -13,14 +13,14 @@
 void rtTestRenderScene(string filename)
 {
 		// config - camera
-		//Point cameraPos    = Point(10.5,10.5,0.0); //centered on z=0 plane edge, x/y axis aligned
-		//Point cameraLook   = Point(10.5,10.5,1.0);
+		Point cameraPos    = Point(10.5,10.5,0.0); //centered on z=0 plane edge, x/y axis aligned
+		Point cameraLook   = Point(10.5,10.5,1.0);
 		
 		//Point cameraPos      = Point(10.0,10.5,40.0); //centered on x=1.0 plane edge
 		//Point cameraLook     = Point(10.5,10.5,40.5); //looking -zhat, y/z axis aligned
 		
-		Point cameraPos    = Point(14.0,12.0,38.0); //angled above
-		Point cameraLook   = Point(10.5,10.5,40.5); //looking at center of box
+		//Point cameraPos    = Point(12.0,12.0,38.0); //angled above
+		//Point cameraLook   = Point(10.5,10.5,40.5); //looking at center of box
 		
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
 		
@@ -53,14 +53,26 @@ void rtTestRenderScene(string filename)
 		// transfer function
 		TransferFunction *tf = CreateTransferFunction();
 		
+		// debugging:
+		Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit);
+		Spectrum s2 = Spectrum::FromNamed("green");
+		Spectrum s3 = Spectrum::FromNamed("blue");
+		tf->AddConstant(TF_VAL_DENS,s2);
+		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,spec);
+		//tf->AddGaussian(TF_VAL_DENS,0.0,15.0,4.0,0.2,s1);
+		//tf->AddGaussian(TF_VAL_DENS,0.0,15.0,8.0,0.2,s2);
+		
 		// create volume/density/scene geometry (debugging only)
 		//VolumeRegion *vr     = CreateGridVolumeRegion(volume2world, filename);
 		VolumeRegion *vr      = NULL;
 		
 		// voronoi mesh
 		ArepoMesh *arepoMesh  = CreateArepoMesh(tf, volume2world);
-		arepoMesh->DumpMesh();
 
+		//for (int i=0; i < N_gas; i++) {
+		//		cout << SphP[i].Density << endl;
+		//}		
+		
 		// scene
 		Scene *scene          = new Scene(vr, arepoMesh);
 		
@@ -71,6 +83,17 @@ void rtTestRenderScene(string filename)
 		//Point testp(0.2, 0.2, 0.2);
 		//cout << "VR Test @ (" << testp.x << " " << testp.y << " " << testp.z << ") result = "
 		//		 << vr->Density(testp) << endl;
+		
+		float vals[2];
+		vals[1] = 0.0; //utherm
+		
+		for (float rho = 0.0; rho < 10.0; rho += 1.0) {
+		  vals[0] = rho;
+			Spectrum Lve = tf->Lve(vals);
+			
+			cout << "TF Test @ (" << vals[1] << "," << vals[0] << ") R = " << setw(7) << Lve.r() 
+					 << " G = " << setw(7) << Lve.g() << " B = " << setw(7) << Lve.b() << endl;
+		}
 #endif
 				 
 		// render

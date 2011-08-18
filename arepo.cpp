@@ -70,6 +70,7 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf, const Transform &VolumeToWorld)
 		
 		// transfer function and transform
 		transferFunction = tf;
+		viStepSize       = Config.viStepSize;
 		WorldToVolume    = Inverse(VolumeToWorld);
 		
 		// set NULL
@@ -95,6 +96,9 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf, const Transform &VolumeToWorld)
 		
 		// boxsize
 		extent = BBox(Point(0.0,0.0,0.0),Point(boxSize,boxSize,boxSize));
+		
+		// debugging
+		//arepoMesh->DumpMesh();
 }
 
 void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
@@ -222,8 +226,9 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 		// check for proper exit point
 		if (qmin != -1) {
 		
-				// clamp min_t (TODO) verify
-				//min_t = Clamp(min_t,0.0,(t1-t0)); //V
+				// clamp min_t to avoid integrating outside the box
+				IF_DEBUG(cout << " min_t = " << min_t << " (t1=" << *t1 << " t0=" << *t0 << ")" << endl);
+				min_t = Clamp(min_t,0.0,(*t1-*t0)); //V
 				
 				IF_DEBUG(ray(ray.min_t-*t0).print(" hcell W "));
 				IF_DEBUG(ray(min_t).print(" ecell W "));
@@ -232,7 +237,7 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				IF_DEBUG(WorldToVolume(ray(min_t+*t0)).print(" ecell V "));
 
 				// find interpolated value at midpoint of line segment through voronoi cell
-				// TODO: or sample at stepsize through cell (needed for smooth transfer functions)
+				// or sample at stepsize through cell (needed for smooth transfer functions)
 		
 				Vector sphCen = Vector(SphP[ray.index].Center[0],
 															 SphP[ray.index].Center[1],
@@ -242,34 +247,69 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 																		SphP[ray.index].Grad.drho[2]);
 														 
 				norm = exitbox - hitbox;
-				midp = Vector(hitbox) + 0.5 * (ray.min_t-*t0 + min_t) * norm - sphCen;
-				//midp = Vector(hitbox) + 0.5 * (min_t - *t0) * norm - sphCen;
+
 				
 				IF_DEBUG(norm.print(" norm V "));
 				IF_DEBUG(sphCen.print(" sphCen V "));
 				IF_DEBUG(midp.print(" midp V "));
 				
-				//for (int i=0; i < N_gas; i++) {
-				//		cout << SphP[i].Density << endl;
-				//}
-				
-				// compute scalar quantities
+				// compute total path length through cell
 				double len = (min_t - (ray.min_t-*t0)) * norm.Length();
-				double rho = SphP[ray.index].Density;// + Dot(sphDensGrad,midp);
-				double utherm = 0.0;
 				
-				rho    *= len;
-				utherm *= len;
-				
-				IF_DEBUG(cout << " segment len = " << len << " rho = " << SphP[ray.index].Density 
-											<< " rho w/ grad = " << rho << endl);
+				// decide on sub-stepping
+				if (viStepSize && len > viStepSize) {
+						// sub-stepping (cell too large), get a number of values along the segment
+						int nSamples = (int)ceilf(len / viStepSize);
+						float step = len / nSamples;
+						float t0step = *t0;
+						
+						IF_DEBUG(cout << " sub-stepping len = " << len << " nSamples = " << nSamples 
+													<< " (step = " << step << ")" << endl);
+						
+						for (int i = 0; i < nSamples; ++i, t0step += step) {
+								midp = Vector(hitbox) + 0.5 * (ray.min_t-*t0 + t0step) * norm - sphCen;
+								
+								double rho = SphP[ray.index].Density + Dot(sphDensGrad,midp);
+								double utherm = 0.0;
+								
+								rho    *= len;
+								utherm *= len;
+								
+								IF_DEBUG(cout << " segment[" << i << "] trange [" << t0step << "," << t0step+step << "] rho = " 
+															<< SphP[ray.index].Density 
+															<< " grad.x = " << sphDensGrad.x << " rho w/ grad = " << rho << endl);
+								
+								// TODO tau calculation
+								
+								// Compute emission-only source term with transfer function
+								float vals[2]; vals[0] = (float)rho; vals[1] = (float)utherm;
+								
+								Lv += Tr * transferFunction->Lve(vals);
+						}
+						
+				} else {
+						// no sub-stepping (cell sufficiently small), get interpolated values at segment center
+						midp = Vector(hitbox) + 0.5 * (ray.min_t-*t0 + min_t) * norm - sphCen;
+						//midp = Vector(hitbox) + 0.5 * (min_t - *t0) * norm - sphCen;
+						
+						double rho = SphP[ray.index].Density + Dot(sphDensGrad,midp);
+						double utherm = 0.0;
+						
+						rho    *= len;
+						utherm *= len;
+						
+						IF_DEBUG(cout << " segment len = " << len << " rho = " << SphP[ray.index].Density 
+													<< " grad.x = " << sphDensGrad.x << " rho w/ grad = " << rho << endl);
 
-				//TODO tau calculation
-        //Spectrum stepTau = scene->volumeRegion->tau(tauRay,0.5f * stepSize, rng.RandomFloat());
-        //Tr *= Exp(-stepTau);
+						//TODO tau calculation
+						//Spectrum stepTau = scene->volumeRegion->tau(tauRay,0.5f * stepSize, rng.RandomFloat());
+						//Tr *= Exp(-stepTau);
 
-        // Compute emission-only source term with transfer function
-        Lv += Tr * transferFunction->Lve(rho,utherm);
+						// Compute emission-only source term with transfer function
+						float vals[2]; vals[0] = (float)rho; vals[1] = (float)utherm;
+						
+						Lv += Tr * transferFunction->Lve(vals);
+				}
 				
 				// update ray: transfer to next voronoi cell (possibly on different task)
 				ray.task  = DC[qmin].task;
@@ -279,14 +319,15 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				IF_DEBUG(cout << " updated ray new task = " << ray.task << " index = " << ray.index 
 											<< " (" << DC[qmin].index << ") min_t = " << ray.min_t << endl);
 				
-				if (ray.min_t == ray.max_t) {
+				if (fabs(ray.min_t - ray.max_t) <= INSIDE_EPS) {
 						// apparently this ray is done?
 						IF_DEBUG(cout << " min_t == t1 = " << *t1 << ", ray done." << endl);
 						return false;
 				}
 				if (ray.index == -1) {
 						// no connection on other side of face?
-						cout << " ERROR. next cell index = -1" << endl;
+						cout << " ERROR. next cell index = -1" << " (ray.min_t=" << ray.min_t 
+								 << " max_t=" << ray.max_t << " diff = " << fabs(ray.min_t - ray.max_t) << ")" << endl;
 						endrun(1109);
 				}
 		} else {
