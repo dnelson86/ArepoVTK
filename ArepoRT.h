@@ -11,6 +11,7 @@
 #define L1_CACHE_LINE_SIZE 64
 #define FILTER_TABLE_SIZE  16
 #define INFINITY           FLT_MAX
+#define INSIDE_EPS         1.0e-6
 
 //#define USE_LINEALGO_BRESENHAM
 #define USE_LINEALGO_WU
@@ -91,14 +92,13 @@ struct ConfigStruct {
       imageFile        = "frame.tga";
 			rawRGBFile       = "frame.raw.txt";
 			filename         = "test/Arepo2b.hdf5";
-			//filename         = "test/test2.txt";
 			paramFilename    = "test/param.txt";
-			imageXPixels     = 800; //1024, 1920
-			imageYPixels     = 800; //768, 1080
-			viStepSize       = 0.1f;
-			swScale          = 1.0f; //0.52 for face on ortho with small border
+			imageXPixels     = 1000; // 1024, 1920
+			imageYPixels     = 1000; // 768, 1080
+			viStepSize       = 0.0f; // volume integration sub-stepping size (0=disabled)
+			swScale          = 0.52f; // 0.52 for face on ortho with small border
 			
-			rgbEmit[0]    = 1.0f;   rgbEmit[1]    = 0.0f;   rgbEmit[2]    = 0.0f;
+			rgbEmit[0]    = 0.1f;   rgbEmit[1]    = 0.0f;   rgbEmit[2]    = 0.0f;
 			rgbLine[0]    = 0.0f;   rgbLine[1]    = 0.0f;   rgbLine[2]    = 0.2f;
       rgbTetra[0]   = 0.1f;   rgbTetra[1]   = 0.1f;   rgbTetra[2]   = 0.1f;
       rgbVoronoi[0] = 0.00f;   rgbVoronoi[1] = 0.05f;   rgbVoronoi[2] = 0.00f;

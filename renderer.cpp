@@ -66,6 +66,8 @@ void RendererTask::Run() {
 
 		float time = (float)timer2.Time();
 		cout << " Raytracing phase: [" << time << "] seconds." << endl;
+		timer2.Reset();
+		timer2.Start();
 		
     /* Second Pass - Rasterize Mesh Faces */
 
@@ -75,7 +77,7 @@ void RendererTask::Run() {
     Spectrum Lvor   = Spectrum::FromRGB(Config.rgbVoronoi);
 		
 		// testing: rasterize edges of AM tetra
-/*		for (int i = 0; i < scene->arepoMesh->Ndt; i++) {
+		for (int i = 0; i < scene->arepoMesh->Ndt; i++) {
 				edges.clear();
 				
 				if(scene->arepoMesh->TetraEdges(i,&edges)) {
@@ -86,12 +88,13 @@ void RendererTask::Run() {
 								camera->RasterizeLine(edges[j].p1,edges[j].p2,Ltetra);
 						}
 				}
-		} */
+		} 
 
     // testing: rasterize Voronoi faces of AM
 	/*	edges.clear();
 
     //for (int i = 0; i < scene->arepoMesh->Nvf; i++) {
+		int i = 26;
         if (scene->arepoMesh->VoronoiEdges(i,&edges)) {
             for (int j = 0; j < edges.size(); j++) {
 						    cout << " VE p1.x = " << edges[j].p1.x << " p1.y = " << edges[j].p1.y
@@ -161,7 +164,7 @@ void Renderer::Render(const Scene *scene)
 		int nTasks = 1;
 		int i=0;
 		
-		cout << "Render Setup: Using [" << nTasks << "] tasks for " << camera->film->xResolution << "x"
+		cout << endl << "Render Setup: Using [" << nTasks << "] tasks for " << camera->film->xResolution << "x"
 		     << camera->film->yResolution << " image (" << nPixels << " pixels)." << endl << endl;
 				 
 		cout << "Rendering..." << endl << endl;

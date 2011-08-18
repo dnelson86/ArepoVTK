@@ -127,6 +127,8 @@ public:
     RGBSpectrum(const RGBSpectrum &s) {
         *this = s;
     }
+		
+		// conversions
     static RGBSpectrum FromRGB(const float rgb[3]) {
         RGBSpectrum s;
         s.c[0] = rgb[0];
@@ -145,6 +147,31 @@ public:
     const RGBSpectrum &ToRGBSpectrum() const {
         return *this;
     }
+		
+		// TODO: lookup from table
+		static RGBSpectrum FromNamed(const string &name) {
+				RGBSpectrum s;
+				if (name == "red") {
+						s.c[0] = 0.1f;
+						s.c[1] = 0.0f;
+						s.c[2] = 0.0f;
+				} else if (name == "green") {
+						s.c[0] = 0.0f;
+						s.c[1] = 0.1f;
+						s.c[2] = 0.0f;
+				} else if (name == "blue") {
+						s.c[0] = 0.0f;
+						s.c[1] = 0.0f;
+						s.c[2] = 0.1f;
+				}
+				return s;
+		}
+		
+		// components
+		float r() { return c[0]; }
+		float g() { return c[1]; }
+		float b() { return c[2]; }
+		
     float y() const {
         const float YWeight[3] = { 0.212671f, 0.715160f, 0.072169f };
         return YWeight[0] * c[0] + YWeight[1] * c[1] + YWeight[2] * c[2];
