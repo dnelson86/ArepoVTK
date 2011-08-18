@@ -8,14 +8,20 @@
 #include "renderer.h"
 #include "volume.h"
 #include "arepo.h"
+#include "transfer.h"
 
 void rtTestRenderScene(string filename)
 {
 		// config - camera
-		Point cameraPos    = Point(10.5,10.5,0.0); //on z=0 plane
-		Point cameraLook   = Point(10.5,10.5,1.0);
-		//Point cameraPos    = Point(14.0,11.6,2.0);
-		//Point cameraLook   = Point(10.5,10.5,3.5); //center of box
+		//Point cameraPos    = Point(10.5,10.5,0.0); //centered on z=0 plane edge, x/y axis aligned
+		//Point cameraLook   = Point(10.5,10.5,1.0);
+		
+		//Point cameraPos      = Point(10.0,10.5,40.0); //centered on x=1.0 plane edge
+		//Point cameraLook     = Point(10.5,10.5,40.5); //looking -zhat, y/z axis aligned
+		
+		Point cameraPos    = Point(14.0,12.0,38.0); //angled above
+		Point cameraLook   = Point(10.5,10.5,40.5); //looking at center of box
+		
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
 		
 		// set transform
@@ -29,11 +35,9 @@ void rtTestRenderScene(string filename)
 		IF_DEBUG(Inverse(world2camera).print("camera2world:"));
 		IF_DEBUG(volume2world.print("volume2world:"));
 		
-		// MakeCamera(): filter and film
+		// Camera (Filter, Film)
 		Filter *filter       = CreateBoxFilter();
 		Film *film           = CreateFilm(filter);
-		
-		// ::MakeCamera(): camera
 		Camera *camera       = CreateOrthographicCamera(Inverse(world2camera), film);
 		
 		// Sampler
@@ -46,16 +50,19 @@ void rtTestRenderScene(string filename)
 		// renderer
 		Renderer *re         = new Renderer(sampler, camera, vi);
 		
-		// create volume/density/scene geometry
+		// transfer function
+		TransferFunction *tf = CreateTransferFunction();
+		
+		// create volume/density/scene geometry (debugging only)
 		//VolumeRegion *vr     = CreateGridVolumeRegion(volume2world, filename);
 		VolumeRegion *vr      = NULL;
 		
 		// voronoi mesh
-		ArepoMesh *arepoMesh  = CreateArepoMesh(volume2world);
-		//arepoMesh->DumpMesh();
+		ArepoMesh *arepoMesh  = CreateArepoMesh(tf, volume2world);
+		arepoMesh->DumpMesh();
 
 		// scene
-		Scene *scene          = new Scene(vr,arepoMesh);
+		Scene *scene          = new Scene(vr, arepoMesh);
 		
 #ifdef DEBUG
     if(arepoMesh) arepoMesh->WorldBound().print("ArepoMesh WorldBound ");
@@ -67,33 +74,12 @@ void rtTestRenderScene(string filename)
 #endif
 				 
 		// render
-		if (filter && film && camera && sampler && vi && scene && re)
+		if (filter && film && camera && sampler && vi && scene && tf && re)
 				re->Render(scene);
 				
-
 		delete re;
 		delete scene;
 }
-
-/*
-    Renderer *renderer = renderOptions->MakeRenderer();
-		  Renderer *renderer = NULL;
-			Camera *camera = MakeCamera();
-			  Filter *filter = MakeFilter(FilterName, FilterParams);
-				Film *film = MakeFilm(FilmName, FilmParams, filter);
-				Camera *camera = ::MakeCamera(CameraName, CameraParams,CameraToWorld, renderOptions->transformStartTime,
-				                              renderOptions->transformEndTime, film);
-			Sampler *sampler = MakeSampler(SamplerName, SamplerParams, camera->film, camera);
-			VolumeIntegrator *volumeIntegrator = MakeVolumeIntegrator(VolIntegratorName,VolIntegratorParams);
-			renderer = new SamplerRenderer(sampler, camera, surfaceIntegrator,volumeIntegrator, visIds);
-    Scene *scene = renderOptions->MakeScene();
-		  VolumeRegion *volumeRegion;
-			Scene *scene = new Scene(accelerator, lights, volumeRegion);
-    if (scene && renderer) renderer->Render(scene);
-    TasksCleanup();
-    delete renderer;
-    delete scene;
-*/
 
 ConfigStruct Config;
 

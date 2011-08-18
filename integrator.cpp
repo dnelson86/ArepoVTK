@@ -150,6 +150,13 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 #endif
 				if (count > 10)
 						break;
+						
+        // Possibly terminate ray marching if transmittance is small
+        if (Tr.y() < 1e-3) {
+            const float continueProb = 0.5f;
+            if (rng.RandomFloat() > continueProb) break;
+            Tr /= continueProb;
+        }
 		}
 #ifdef DEBUG
 		p = scene->arepoMesh->WorldToVolume(ray(ray.min_t));

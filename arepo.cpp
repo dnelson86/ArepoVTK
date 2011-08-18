@@ -64,15 +64,13 @@ bool Arepo::LoadSnapshot()
 		return true;
 }
 
-ArepoMesh::ArepoMesh(const Spectrum &sa, const Spectrum &ss, const Spectrum &emit, const Transform &VolumeToWorld)
+ArepoMesh::ArepoMesh(const TransferFunction *tf, const Transform &VolumeToWorld)
 {
 		IF_DEBUG(cout << "ArepoMesh() constructor." << endl);
 		
-		// spectra and transforms
-    sig_a = sa;
-		sig_s = ss;
-		le    = emit;
-		WorldToVolume = Inverse(VolumeToWorld);
+		// transfer function and transform
+		transferFunction = tf;
+		WorldToVolume    = Inverse(VolumeToWorld);
 		
 		// set NULL
 		Nedges       = NULL;
@@ -91,8 +89,6 @@ ArepoMesh::ArepoMesh(const Spectrum &sa, const Spectrum &ss, const Spectrum &emi
 		Ndp = T->Ndp;
 		Ndt = T->Ndt;
 		Nvf = T->Nvf;
-		
-		// zero DTF and compute_circumcircles(T) (seems to be done already)
 		
 		// preprocessing
 		//ArepoMesh::ComputeVoronoiEdges();
@@ -257,28 +253,23 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				//		cout << SphP[i].Density << endl;
 				//}
 				
+				// compute scalar quantities
 				double len = (min_t - (ray.min_t-*t0)) * norm.Length();
 				double rho = SphP[ray.index].Density;// + Dot(sphDensGrad,midp);
+				double utherm = 0.0;
+				
+				rho    *= len;
+				utherm *= len;
 				
 				IF_DEBUG(cout << " segment len = " << len << " rho = " << SphP[ray.index].Density 
 											<< " rho w/ grad = " << rho << endl);
 
-				//TODO transfer function
-				
 				//TODO tau calculation
         //Spectrum stepTau = scene->volumeRegion->tau(tauRay,0.5f * stepSize, rng.RandomFloat());
         //Tr *= Exp(-stepTau);
-				
-        // Possibly terminate ray marching if transmittance is small
-    /*    if (Tr.y() < 1e-3) {
-            const float continueProb = 0.5f;
-            if (rng.RandomFloat() > continueProb) break;
-            Tr /= continueProb;
-        } */
 
-        // Compute emission-only source term at _p_
-        //Lv += Tr * transfer_function(rho,temp,...);
-				Lv += Tr * (rho * len)/100.0;
+        // Compute emission-only source term with transfer function
+        Lv += Tr * transferFunction->Lve(rho,utherm);
 				
 				// update ray: transfer to next voronoi cell (possibly on different task)
 				ray.task  = DC[qmin].task;
@@ -558,6 +549,19 @@ void ArepoMesh::DumpMesh()
 														 << " iy = " << DP[i].iy 
 														 << " iz = " << DP[i].iz << endl;
 		}
+		
+		cout << endl << "SphP Hydro [" << N_gas << "]:" << endl;
+		for (int i=0; i < N_gas; i++) {
+				cout << setw(3) << i << " dens = " << SphP[i].Density
+														 << " pres = " << SphP[i].Pressure
+														 << " uthm = " << SphP[i].Utherm
+														 << " energy = " << SphP[i].Energy
+														 << " p[0] = " << SphP[i].Momentum[0]
+														 << " p[1] = " << SphP[i].Momentum[1]
+														 << " p[2] = " << SphP[i].Momentum[2]
+														 << " vol = " << SphP[i].Volume
+														 << " oldmass = " << SphP[i].OldMass << endl;		
+		}
 
 		cout << endl << "Delaunay Tetra [" << Ndt << "] [DIMS=" << DIMS << "]:" << endl;
 		for (int i=0; i < Ndt; i++) {
@@ -609,12 +613,13 @@ void ArepoMesh::DumpMesh()
 				cout << " DC.last = " << SphP[i].last_connection << endl;		
 		}
 		
-		/*
-		cout << endl << "Voronoi Edges (N_gas=" << N_gas << "):" << endl;
-		for (int i=0; i < N_gas; i++) {
-				cout << setw(3) << i << " Nedges = " << setw(2) << Nedges[i] << " NedgesOffset = " 
-						 << setw(3) << NedgesOffset[i] << endl;
-		} */
+		if (Nedges) {
+			cout << endl << "Voronoi Edges (N_gas=" << N_gas << "):" << endl;
+			for (int i=0; i < N_gas; i++) {
+					cout << setw(3) << i << " Nedges = " << setw(2) << Nedges[i] << " NedgesOffset = " 
+							 << setw(3) << NedgesOffset[i] << endl;
+			}
+		}
 }
 
 bool ArepoMesh::TetraEdges(const int i, vector<Line> *edges)
@@ -685,14 +690,9 @@ bool ArepoMesh::VoronoiEdges(const int i_face, vector<Line> *edges)
 		return true;
 }
 
-ArepoMesh *CreateArepoMesh(const Transform &volume2world)
+ArepoMesh *CreateArepoMesh(const TransferFunction *tf, const Transform &volume2world)
 {
-    // Initialize common volume region parameters
-    Spectrum sigma_a = 0.0;
-    Spectrum sigma_s = 0.0;
-    Spectrum Le = Spectrum::FromRGB(Config.rgbEmit);
-		
-    return new ArepoMesh(sigma_a, sigma_s, Le, volume2world);
+    return new ArepoMesh(tf, volume2world);
 }
 
 #endif //ENABLE_AREPO
