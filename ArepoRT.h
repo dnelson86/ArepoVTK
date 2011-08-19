@@ -95,7 +95,7 @@ struct ConfigStruct {
 			paramFilename    = "test/param.txt";
 			imageXPixels     = 1000; // 1024, 1920
 			imageYPixels     = 1000; // 768, 1080
-			viStepSize       = 0.0f; // volume integration sub-stepping size (0=disabled)
+			viStepSize       = 0.1; // volume integration sub-stepping size (0=disabled)
 			swScale          = 0.52f; // 0.52 for face on ortho with small border
 			
 			rgbEmit[0]    = 0.1f;   rgbEmit[1]    = 0.0f;   rgbEmit[2]    = 0.0f;
@@ -107,7 +107,7 @@ struct ConfigStruct {
 		
     int nCores;
 		int imageXPixels, imageYPixels;
-		float viStepSize;
+		double viStepSize;
 		float rgbEmit[3], rgbLine[3], rgbTetra[3], rgbVoronoi[3];
 		float swScale; // screenWindow mult factor * [-1,1]
     bool quickRender, quiet, verbose, openWindow;

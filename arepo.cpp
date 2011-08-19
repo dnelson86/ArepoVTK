@@ -35,6 +35,8 @@ bool Arepo::LoadSnapshot()
 {
     IF_DEBUG(cout << "Arepo::LoadSnapshot(" << snapFilename << ")." << endl);
 		
+		freopen("/dev/null","w",stdout); //hide arepo stdout
+		
 		// set startup options
 		WriteMiscFiles = 0;
 		RestartSnapNum = -1;
@@ -61,6 +63,8 @@ bool Arepo::LoadSnapshot()
 		// units
 		// TODO
 	
+		freopen("/dev/tty","w",stdout); //return stdout to terminal
+		
 		return true;
 }
 
@@ -248,7 +252,6 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 														 
 				norm = exitbox - hitbox;
 
-				
 				IF_DEBUG(norm.print(" norm V "));
 				IF_DEBUG(sphCen.print(" sphCen V "));
 				IF_DEBUG(midp.print(" midp V "));
@@ -260,8 +263,8 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				if (viStepSize && len > viStepSize) {
 						// sub-stepping (cell too large), get a number of values along the segment
 						int nSamples = (int)ceilf(len / viStepSize);
-						float step = len / nSamples;
-						float t0step = *t0;
+						double step = len / nSamples;
+						double t0step = *t0;
 						
 						IF_DEBUG(cout << " sub-stepping len = " << len << " nSamples = " << nSamples 
 													<< " (step = " << step << ")" << endl);
@@ -272,12 +275,13 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 								double rho = SphP[ray.index].Density + Dot(sphDensGrad,midp);
 								double utherm = 0.0;
 								
-								rho    *= len;
-								utherm *= len;
+								rho    *= step;
+								utherm *= step;
 								
-								IF_DEBUG(cout << " segment[" << i << "] trange [" << t0step << "," << t0step+step << "] rho = " 
-															<< SphP[ray.index].Density 
-															<< " grad.x = " << sphDensGrad.x << " rho w/ grad = " << rho << endl);
+								IF_DEBUG(cout << "  segment[" << i << "] trange [" << (ray.min_t-*t0 + t0step) << "," 
+															<< (ray.min_t-*t0 + t0step)+step << "] rho = " << SphP[ray.index].Density*step
+															<< " rho w/ grad = " << rho << " (grad.x = " << sphDensGrad.x
+															<< " grad.y = " << sphDensGrad.y << " grad.z = " << sphDensGrad.z << ")" << endl);
 								
 								// TODO tau calculation
 								

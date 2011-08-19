@@ -177,7 +177,7 @@ void Renderer::Render(const Scene *scene)
 		
     float seconds = (float)timer->Time();
 		
-		cout << "Render complete (" << seconds << " seconds)." << endl << endl;
+		cout << endl << "Render complete (" << seconds << " seconds)." << endl << endl;
 		
 		// cleanup and store image
     delete renderTask;
