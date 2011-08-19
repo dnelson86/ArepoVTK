@@ -69,9 +69,22 @@ void rtTestRenderScene(string filename)
 		// voronoi mesh
 		ArepoMesh *arepoMesh  = CreateArepoMesh(tf, volume2world);
 
-		//for (int i=0; i < N_gas; i++) {
-		//		cout << SphP[i].Density << endl;
-		//}		
+		// debugging only (Arepo2b overrides)
+		for (int i=0; i < N_gas; i++) {
+				SphP[i].Density      = 0.05;
+				SphP[i].Grad.drho[0] = 0.0;
+				SphP[i].Grad.drho[1] = 0.0;
+				SphP[i].Grad.drho[2] = 0.0;
+				if (i == 6) {
+						SphP[i].Density      = 10.0;
+						SphP[i].Grad.drho[0] = 0.2;
+						SphP[i].Grad.drho[1] = 0.2;
+						SphP[i].Grad.drho[2] = 0.0;
+				}
+				cout << "SphP[" << setw(2) << i << "] dens = " << setw(10) << SphP[i].Density 
+						 << " grad.x = " << setw(10) << SphP[i].Grad.drho[0] << " grad.y = " 
+						 << setw(10) << SphP[i].Grad.drho[1] << " grad.z = " << setw(10) << SphP[i].Grad.drho[2] << endl;
+	  }
 		
 		// scene
 		Scene *scene          = new Scene(vr, arepoMesh);

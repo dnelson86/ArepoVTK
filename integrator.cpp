@@ -144,14 +144,14 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 				count++;
 #ifdef DEBUG
 				p = scene->arepoMesh->WorldToVolume(ray(ray.min_t));
-				cout << " VoronoiIntegrator::Li(iter=" << count << ") Lv.y = " << setw(6) << Lv.y()
-						 << " Tr.y = " << Tr.y() << " ray.x = " << setw(5) << p.x 
+				cout << " VoronoiIntegrator::Li(iter=" << count << ") Lv.y = " << setw(5) << Lv.y()
+						 << " Tr.y = " << setw(2) << Tr.y() << " ray.x = " << setw(5) << p.x 
 						 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl;
 #endif
 				if (count > 10)
 						break;
 						
-        // Possibly terminate ray marching if transmittance is small
+        // roulette terminate ray marching if transmittance is small
         if (Tr.y() < 1e-3) {
             const float continueProb = 0.5f;
             if (rng.RandomFloat() > continueProb) break;
