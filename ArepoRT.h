@@ -7,7 +7,7 @@
 #define AREPO_RT_H
 
 // defines
-#define AREPO_RT_VERSION   0.1
+#define AREPO_RT_VERSION   0.2
 #define L1_CACHE_LINE_SIZE 64
 #define FILTER_TABLE_SIZE  16
 #define INFINITY           FLT_MAX
@@ -29,7 +29,7 @@
 typedef int ArepoMesh; //pointers
 #endif
 
-// standard libraries
+// includes
 #include <math.h>
 #include <sys/time.h>
 
@@ -47,6 +47,10 @@ using std::string;
 using std::vector;
 
 #include <malloc.h> //memalign
+
+#include "fileio.h" //Config
+
+extern ConfigSet Config;
 
 // global forward declarations
 template <typename T, int logBlockSize = 2> class BlockedArray;
@@ -81,41 +85,10 @@ class Scene;
 class VolumeRegion;
 class DensityRegion;
 class VolumeGridDensity;
+class TransferFunction;
+
 class VolumeIntegrator;
-
-// configuration options
-struct ConfigStruct {
-    ConfigStruct()
-		{
-		  nCores           = 0;
-      quickRender      = quiet = openWindow = verbose = false;
-      imageFile        = "frame.tga";
-			rawRGBFile       = "frame.raw.txt";
-			filename         = "test/Arepo2b.hdf5";
-			paramFilename    = "test/param.txt";
-			imageXPixels     = 1000; // 1024, 1920
-			imageYPixels     = 1000; // 768, 1080
-			viStepSize       = 0.1; // volume integration sub-stepping size (0=disabled)
-			swScale          = 0.52f; // 0.52 for face on ortho with small border
-			
-			rgbEmit[0]    = 0.1f;   rgbEmit[1]    = 0.0f;   rgbEmit[2]    = 0.0f;
-			rgbLine[0]    = 0.0f;   rgbLine[1]    = 0.0f;   rgbLine[2]    = 0.2f;
-      rgbTetra[0]   = 0.1f;   rgbTetra[1]   = 0.1f;   rgbTetra[2]   = 0.1f;
-      rgbVoronoi[0] = 0.00f;   rgbVoronoi[1] = 0.05f;   rgbVoronoi[2] = 0.00f;
-
-		}
-		
-    int nCores;
-		int imageXPixels, imageYPixels;
-		double viStepSize;
-		float rgbEmit[3], rgbLine[3], rgbTetra[3], rgbVoronoi[3];
-		float swScale; // screenWindow mult factor * [-1,1]
-    bool quickRender, quiet, verbose, openWindow;
-    string imageFile, rawRGBFile;
-		string filename, paramFilename;
-};
-
-extern struct ConfigStruct Config;
+class VoronoiIntegrator;
 
 // global inlines
 inline float Lerp(float t, float v1, float v2) {

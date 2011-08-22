@@ -161,7 +161,7 @@ void Renderer::Render(const Scene *scene)
     int nPixels = camera->film->xResolution * camera->film->yResolution;
     //int nTasks = max(32 * NumSystemCores(), nPixels / (16*16));
     //nTasks = RoundUpPow2(nTasks);
-		int nTasks = 1;
+		int nTasks = Config.nTasks;
 		int i=0;
 		
 		cout << endl << "Render Setup: Using [" << nTasks << "] tasks for " << camera->film->xResolution << "x"

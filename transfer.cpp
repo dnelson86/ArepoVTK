@@ -37,15 +37,15 @@ TransferFunc1D::TransferFunc1D(short int ty, short int vn,
 		
 		// gaussian (same width for each RGB channel)
 		if (type == 3) {
-				if (spec.empty() || spec.size() > 1 || params.size() != 4) {
+				if (spec.empty() || spec.size() > 1 || params.size() != 2) {
 						IF_DEBUG(cout << "TF1D: Error! Gaussian type but spec/params out of bounds." << endl);
 						exit(1113);
 				}
 		
-				range[0]      = params[0];
-				range[1]      = params[1];
-				gaussParam[0] = params[2];
-				gaussParam[1] = params[3];
+				range[0]      = params[0] - 3.0f * params[1]; //cut at +/- 3s
+				range[1]      = params[0] + 3.0f * params[1];
+				gaussParam[0] = params[0]; //mean
+				gaussParam[1] = params[1]; //sigma
 				le            = spec[0];
 		}
 		
@@ -183,10 +183,10 @@ bool TransferFunction::AddTophat(int valNum, float min, float max, Spectrum &sp)
 		return true;
 }
 
-bool TransferFunction::AddGaussian(int valNum, float min, float max, float mean, float sigma, Spectrum &sp)
+bool TransferFunction::AddGaussian(int valNum, float mean, float sigma, Spectrum &sp)
 {
-		IF_DEBUG(cout << "TF::AddGaussian(" << valNum << ",sp) range [" << min << "," << max 
-									<< "] mean = " << mean << " sigma = " << sigma << " new numFuncs = " << numFuncs+1 << endl);
+		IF_DEBUG(cout << "TF::AddGaussian(" << valNum << ",sp)"
+									<< " mean = " << mean << " sigma = " << sigma << " new numFuncs = " << numFuncs+1 << endl);
 		
 		TransferFunc1D *f;
 		vector<float> params;
@@ -195,8 +195,6 @@ bool TransferFunction::AddGaussian(int valNum, float min, float max, float mean,
 		// set constant type and spectrum
 		short int type = 3;
 		spec.push_back(sp);
-		params.push_back(min);
-		params.push_back(max);
 		params.push_back(mean);
 		params.push_back(sigma);
 		

@@ -5,6 +5,162 @@
 
 #include "fileio.h"
 
+// ConfigSet
+void ConfigSet::ReadFile(string cfgfile)
+{
+		IF_DEBUG(cout << "ConfigSet::ReadFile(" << cfgfile << ")." << endl);
+		
+		ifstream is(cfgfile.c_str());
+		if (!is) {
+				cout << "ConfigSet: ERROR opening configuration file [" << cfgfile << "]." << endl;
+				exit(1113);
+		}
+		
+		// prepare to parse
+		const string::size_type skip = delim.length();
+		string nextLine = "";
+		
+		static const char whitespace[] = " \n\t\v\r\f";
+		
+		while (is || nextLine.length() > 0) {
+				// read line
+				string line = "";
+				bool term   = false;
+				
+				if (nextLine.length() > 0) {
+						line     = nextLine;
+						nextLine = "";
+				} else {
+						getline(is,line);
+				}
+				
+				// ignore inline and full line comments
+				line = line.substr(0,line.find(comment));
+				
+				// split into key = value pair
+				string::size_type offset = line.find(delim);
+				
+				if (offset < string::npos) {
+						// get key
+						string key = line.substr(0,offset);
+						line.replace(0,offset+skip,"");
+				
+						// trim
+						key.erase( 0, key.find_first_not_of(whitespace) );
+						key.erase( key.find_last_not_of(whitespace) + 1U );
+						
+						line.erase( 0, line.find_first_not_of(whitespace) );
+						line.erase( line.find_last_not_of(whitespace) + 1U );
+				
+						// store key,value (map type, keys unique)
+						parsedParams[key] = line;
+						//IF_DEBUG(cout << " [" << key << "] = " << line << endl);
+				}
+		}
+		
+		// do basic validation, fill public data members
+		imageFile     = readValue<string>("imageFile",  "frame.tga");
+		rawRGBFile    = readValue<string>("rawRGBFile", "frame.raw.txt");
+		filename      = readValue<string>("filename");
+		paramFilename = readValue<string>("paramFilename");
+		
+		nTasks        = readValue<int> ("nTasks",        1);
+		quickRender   = readValue<bool>("quickRender",   false);
+		openWindow    = readValue<bool>("openWindow",    false);
+		verbose       = readValue<bool>("verbose",       false);
+		
+		imageXPixels  = readValue<int>  ("imageXPixels", 500);
+		imageYPixels  = readValue<int>  ("imageYPixels", 500);
+		swScale       = readValue<float>("swScale",      1.0f);
+		
+		viStepSize    = readValue<float>("viStepSize",   0.0f); // disabled by default
+		
+		//TODO: temp rgb triplets input		
+		splitStrArray( readValue<string>("rgbEmit",     "0.1  0.0  0.0")  , &rgbEmit[0]    );
+		splitStrArray( readValue<string>("rgbLine",     "0.1  0.1  0.1")  , &rgbLine[0]    );
+		splitStrArray( readValue<string>("rgbTetra",    "0.01 0.01 0.01") , &rgbTetra[0]   );
+		splitStrArray( readValue<string>("rgbVoronoi",  "0.0  0.05 0.0")  , &rgbVoronoi[0] );
+}
+
+void ConfigSet::print()
+{
+		map_i pi;
+		
+		// TODO: fix output of rgb triplets / store in some other way
+		cout << endl << "CONFIGURATION PARAMETERS USED:" << endl << endl;
+		for (pi = parsedParams.begin(); pi != parsedParams.end(); ++pi) {
+				cout << " " << pi->first << " " << delim << " " << pi->second << endl;
+		}
+		cout << endl;
+
+}
+
+template<class T> T ConfigSet::readValue(const string &key) const
+{
+		// no default value = required key, die if missing
+		map_ci pi = parsedParams.find(key);
+		
+		if( pi == parsedParams.end() ) {
+				cout << " ERROR: Required parameter [" << key << "] missing from configuration file." << endl;
+				exit(1114);
+		}
+		
+		return string_to_T<T>( pi->second );
+}
+
+template<class T> T ConfigSet::readValue(const string &key, const T &defaultValue) const
+{
+		// default value supplied = optional param in config file
+		map_ci pi = parsedParams.find(key);
+		
+		if( pi == parsedParams.end() )
+				return defaultValue;
+				
+		return string_to_T<T>( pi->second );
+}
+
+template<class T> T ConfigSet::string_to_T(const string &str)
+{
+		T t;
+		istringstream ist(str);
+		
+		ist >> t; // use >> operator to typecast to T
+		return t;
+}
+
+template<> inline bool ConfigSet::string_to_T<bool>(const string &str)
+{
+		// special case conversion to bool
+		bool ret   = true;
+		string strUpper = str;
+		
+		// uppercase
+		for(string::iterator p = strUpper.begin(); p != strUpper.end(); ++p)
+				*p = toupper(*p);
+			
+		if(strUpper == string("FALSE") || strUpper == string("NO") || strUpper == string("0"))
+				ret = false;
+			
+		return ret;
+}
+
+template<> inline string ConfigSet::string_to_T<string>(const string &str)
+{
+	// special case conversion to string, otherwise spaces get lost with >>
+	return str;
+}
+
+void ConfigSet::splitStrArray(const string &str, float *rgb) //size=3
+{
+		char *pch = strtok((char*)str.c_str(), " ,");
+		for (int i=0; i < 3; i++) {
+				rgb[i] = atof(pch);
+				pch = strtok(NULL," ,");
+		}
+}
+
+// Image Output
+
 static void WriteImageTGA(const string &name, float *pixels, float *alpha, int xRes, int yRes,
                           int totalXRes, int totalYRes, int xOffset, int yOffset);
 //static RGBSpectrum *ReadImageTGA(const string &name, int *w, int *h);

@@ -11,7 +11,6 @@
 #include "util.h"
 
 // TODO: dynamic
-#define TF_NUM_QUANT 2
 #define TF_MAX_FUNCS 10
 
 // TODO: bit field approach, such that TransferFunction keeps a record of all the 
@@ -45,7 +44,7 @@ public:
 		~TransferFunction();
 
     // methods
-		bool AddGaussian(int valNum, float min, float max, float midp, float sigma, Spectrum &spec);
+		bool AddGaussian(int valNum, float midp, float sigma, Spectrum &spec);
     bool AddTophat(int valNum, float min, float max, Spectrum &spec);
 		bool AddConstant(int valNum, Spectrum &spec);
 		bool AddPiecewise(int valNum, vector<float> &params);
