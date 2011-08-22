@@ -195,8 +195,8 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 											 (DP[dp].y - P[ray.index].Pos[1]),
 											 (DP[dp].z - P[ray.index].Pos[2]) );
 				
-				IF_DEBUG(midp.print(" midp "));
-				IF_DEBUG(norm.print(" norm "));
+				//IF_DEBUG(midp.print(" midp "));
+				//IF_DEBUG(norm.print(" norm "));
 				
 				// find intersection of ray with this face
 				//double dotprod = Dot( (exitbox - hitbox), norm );
@@ -210,7 +210,7 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 						//double t = Dot( Vector(midp.x - ray.o.x,
 						//                       midp.y - ray.o.y,
 						//											 midp.z - ray.o.z), norm ) / dotprod;
-						IF_DEBUG(cout << " q[" << q << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
+						//IF_DEBUG(cout << " q[" << q << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
 						
 						if (t > (ray.min_t-*t0) && t < min_t) {
 								IF_DEBUG(cout << " intersection V t = " << t << " setting new min_t, qmin = q = " << q << endl);
@@ -221,11 +221,11 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 		
 				// move to next face
 				if (q == SphP[ray.index].last_connection) {
-						IF_DEBUG(cout << " q = last_connection = " << q << " (done with faces)" << endl);
+						//IF_DEBUG(cout << " q = last_connection = " << q << " (done with faces)" << endl);
 						break;
 				}
 						
-				IF_DEBUG(cout << " done with q = " << q << " (dp=" << dp << ") next = " << DC[q].next << endl);
+				//IF_DEBUG(cout << " done with q = " << q << " (dp=" << dp << ") next = " << DC[q].next << endl);
 				q = DC[q].next;
 		}
 		
@@ -239,8 +239,11 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				IF_DEBUG(ray(ray.min_t-*t0).print(" hcell W "));
 				IF_DEBUG(ray(min_t).print(" ecell W "));
 				
-				IF_DEBUG(WorldToVolume(ray(ray.min_t)).print(" hcell V "));
-				IF_DEBUG(WorldToVolume(ray(min_t+*t0)).print(" ecell V "));
+				Point hitcell  = WorldToVolume(ray(ray.min_t));
+				Point exitcell = WorldToVolume(ray(*t0 + min_t));
+				
+				IF_DEBUG(hitcell.print(" hcell V "));
+				IF_DEBUG(exitcell.print(" ecell V "));
 
 				// find interpolated value at midpoint of line segment through voronoi cell
 				// or sample at stepsize through cell (needed for smooth transfer functions)
@@ -252,29 +255,35 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 																		SphP[ray.index].Grad.drho[1],
 																		SphP[ray.index].Grad.drho[2]);
 														 
-				norm = exitbox - hitbox;
+				norm = exitcell - hitcell;
 
 				IF_DEBUG(norm.print(" norm V "));
 				IF_DEBUG(sphCen.print(" sphCen V "));
-				IF_DEBUG(midp.print(" midp V "));
 				
 				// compute total path length through cell
-				double len = (min_t - (ray.min_t-*t0)) * norm.Length();
+				//double len = (min_t - (ray.min_t-*t0)) * norm.Length();
+				double len = norm.Length();
+				
+				// TODO: sub-step length should be adaptive based on gradients
 				
 				// decide on sub-stepping
 				if (viStepSize && len > viStepSize) {
 						// sub-stepping (cell too large), get a number of values along the segment
 						int nSamples = (int)ceilf(len / viStepSize);
-						double step = len / nSamples;
-						double t0step = *t0;
+						double fracstep = 1.0 / nSamples;
+						double halfstep = 0.5 / nSamples;
 						
 						IF_DEBUG(cout << " sub-stepping len = " << len << " nSamples = " << nSamples 
-													<< " (step = " << step << ")" << endl);
+													<< " (step = " << len/nSamples << ")" << endl);
 						
-						for (int i = 0; i < nSamples; ++i, t0step += step) {
-								midp = Vector(hitbox) + 0.5 * (ray.min_t-*t0 + t0step) * norm - sphCen;
+						for (int i = 0; i < nSamples; ++i) {
+								Vector midpt = Vector(hitcell[0] + (i*fracstep+halfstep) * norm[0],
+																			hitcell[1] + (i*fracstep+halfstep) * norm[1],
+																			hitcell[2] + (i*fracstep+halfstep) * norm[2]) - sphCen;
 								
-								double rho = SphP[ray.index].Density + Dot(sphDensGrad,midp);
+								IF_DEBUG(midpt.print(" substep midpt rel sphcen "));
+								
+								double rho = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
 								double utherm = 0.0;
 								
 								// multiplying by the stepsize makes these integrated (total) quantities, e.g. for 
@@ -284,8 +293,8 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 								//rho    *= step;
 								//utherm *= step;
 								
-								IF_DEBUG(cout << "  segment[" << i << "] trange [" << (ray.min_t-*t0 + t0step) << "," 
-															<< (ray.min_t-*t0 + t0step)+step << "] rho = " << SphP[ray.index].Density*step
+								IF_DEBUG(cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
+															<< (i*fracstep)+fracstep << "] rho = " << SphP[ray.index].Density
 															<< " rho w/ grad = " << rho << " (grad.x = " << sphDensGrad.x
 															<< " grad.y = " << sphDensGrad.y << " grad.z = " << sphDensGrad.z << ")" << endl);
 								
@@ -299,15 +308,15 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 						
 				} else {
 						// no sub-stepping (cell sufficiently small), get interpolated values at segment center
-						midp = Vector(hitbox) + 0.5 * (ray.min_t-*t0 + min_t) * norm - sphCen;
-						//midp = Vector(hitbox) + 0.5 * (min_t - *t0) * norm - sphCen;
+						Vector midpt = Vector(hitcell[0] + 0.5 * norm[0],
+																	hitcell[1] + 0.5 * norm[1],
+																	hitcell[2] + 0.5 * norm[2]) - sphCen;
 						
-						double rho = SphP[ray.index].Density + Dot(sphDensGrad,midp);
+						IF_DEBUG(midpt.print(" onestep midp rel sphcen "));
+						
+						double rho = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
 						double utherm = 0.0;
 						
-						// multiplying by the stepsize makes these integrated (total) quantities, e.g. for 
-						// a "projected column density" image. for sampling quantities with a transfer 
-						// function we just want their true value at every point in space
 						//rho    *= len;
 						//utherm *= len;
 						
