@@ -13,16 +13,14 @@
 void rtTestRenderScene(string filename)
 {
 		// config - camera
-		Point cameraPos    = Point(10.5,10.5,0.0); //centered on z=0 plane edge, x/y axis aligned
-		Point cameraLook   = Point(10.5,10.5,1.0);
+		//Point cameraPos    = Point(10.5,10.5,0.0); //centered on z=0 plane edge, x/y axis aligned
+		//Point cameraLook   = Point(10.5,10.5,1.0);
 		
-		//Point cameraPos      = Point(10.5,11.0,40.0); //centered on x=1.0 plane edge
-		//Point cameraLook     = Point(10.5,10.5,40.5); //looking -zhat, y/z axis aligned
+		//Point cameraPos      = Point(11.0,10.5,40.5); //centered on x=1.0 plane edge
+		//Point cameraLook     = Point(0.0,10.5,40.5); //looking -zhat, y/z axis aligned
 		
-		//TODO: gaussian transfer functions disappear at this view? or something?
-		
-		//Point cameraPos    = Point(12.0,12.0,38.0); //angled above
-		//Point cameraLook   = Point(10.5,10.5,40.5); //looking at center of box
+		Point cameraPos    = Point(12.0,12.0,38.0); //angled above
+		Point cameraLook   = Point(10.5,10.5,40.5); //looking at center of box
 		
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
 		
@@ -61,8 +59,8 @@ void rtTestRenderScene(string filename)
 		Spectrum s3 = Spectrum::FromNamed("blue");
 		tf->AddConstant(TF_VAL_DENS,s3);
 		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,spec);
-		tf->AddGaussian(TF_VAL_DENS,1.8,0.2,s1);
-		tf->AddGaussian(TF_VAL_DENS,4.0,1.0,s2);
+		tf->AddGaussian(TF_VAL_DENS,2.8,0.1,s1);
+		tf->AddGaussian(TF_VAL_DENS,5.0,0.5,s2);
 		
 		// create volume/density/scene geometry (debugging only)
 		//VolumeRegion *vr     = CreateGridVolumeRegion(volume2world, filename);
@@ -78,10 +76,10 @@ void rtTestRenderScene(string filename)
 				SphP[i].Grad.drho[1] = 0.0;
 				SphP[i].Grad.drho[2] = 0.0;
 				if (i == 6) {
-						SphP[i].Density      = 1.0;
+						SphP[i].Density      = 3.0;
 						SphP[i].Grad.drho[0] = 10.0;
 						SphP[i].Grad.drho[1] = 10.0;
-						SphP[i].Grad.drho[2] = 0.0;
+						SphP[i].Grad.drho[2] = 2.0;
 				}
 				cout << "SphP[" << setw(2) << i << "] dens = " << setw(10) << SphP[i].Density 
 						 << " grad.x = " << setw(10) << SphP[i].Grad.drho[0] << " grad.y = " 

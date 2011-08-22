@@ -7,7 +7,7 @@
 #define AREPO_RT_H
 
 // defines
-#define AREPO_RT_VERSION   0.2
+#define AREPO_RT_VERSION   0.3
 #define L1_CACHE_LINE_SIZE 64
 #define FILTER_TABLE_SIZE  16
 #define INFINITY           FLT_MAX

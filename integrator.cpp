@@ -119,7 +119,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
     }
 		
 		IF_DEBUG(cout << " t0 = " << t0 << " t1 = " << t1
-									<< " ray.min_t = " << ray.min_t << " ray.max_t = " << ray.max_t << endl);		
+									<< " ray.min_t = " << ray.min_t << " ray.max_t = " << ray.max_t << endl);
 		
 		// do emission only volume integration in AM
 		Spectrum Lv(0.0);
@@ -128,7 +128,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		// find the cell the ray will enter first on the edge of the box
 		scene->arepoMesh->LocateEntryCell(ray, &t0, &t1);
 		
-		// propagate ray to arepo box
+		// propagate ray to arepo box, set exit point
 		ray.min_t = t0;
 		ray.max_t = t1;
 		

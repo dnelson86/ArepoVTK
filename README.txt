@@ -4,7 +4,7 @@
 
 Primary Author: Dylan Nelson (dnelson@cfa.harvard.edu)
 
-Current Version: 0.2 (17 Aug 2011)
+Current Version: 0.3 (22 Aug 2011)
 
 Installation/Compilation:
 
@@ -20,9 +20,13 @@ Design:
 -------
 ArepoRT
 -------
-Goal:
+Goal:     Produce high quality, presentation-ready visualizations of hydrodynamic simulations produced
+          with Arepo. Ray cast through linearly reconstructed scalar and vector fields defined on an 
+			    unstructured Voronoi tessellation of space. Support multi-dimensional transfer functions to 
+			    explore fluid quantities, and explore novel visualization techniques for combining such a 
+			    volume rendering approach with coincident point particle sets (both luminous and dark).
 
-Approach:
+Approach: Todo.
 
 Version Roadmap:
  + v0.1
@@ -45,31 +49,33 @@ Version Roadmap:
 	 - cell averaged constant
 	 - gradients
 	- transfer function on a single quantity
-	- camera path splining in space (AnimatedTransform?)
+  - configuration file
+	
++v0.4
+  - parallel (MPI)
+	- large snapshot support and optimizations
+	 - exchange_rays()?
+  - GUI on node=0 as client	(openWindow=true)
 	 
-	+v0.4
+ +v0.6
+ - camera path splining in space (AnimatedTransform?)
+ - movie pipeline
+  - frame metadata (XML/MKV container?)
+ - time navigation (multiple snapshots, interpolation?)	 
+	 
++v0.5
   - interactive component (OpenGL)
 	 - alternative/quick rendering modes
 	 - navigation
 	 - movie setup
 	 - (single node only)
-	 
- +v0.5
-  - parallel (MPI)
-	- large snapshot support and optimizations
-	 - exchange_rays()?
-  - GUI on node=0 as client	 
-	 
- +v0.6
- - movie pipeline
-  - frame metadata (XML/MKV container?)
- - time navigation (multiple snapshots)
- 
+
  +v0.7
-  - GPU acceleration?
+  - GPU acceleration (ray tracing)?
 	- intersection acceleration? (BVH / kdTree)
-	- memory optimizations?
+	- memory optimizations (wipe out / rearrange some Arepo stuff)
 	- speed optimizations?
+	 - scratch Volume2World transform?
 	
  +v0.8
   - tetrahedra decomposition: VisIT exporter
@@ -86,6 +92,7 @@ Ideas:
  - lightweight desktop client
  - realtime and interactive
  - openGL
+  - windowing: freeglut/glew, QT?
  - c++? python? (cross platform?)
  - Q: connect to a "server" or spawn the GUI of ArepoRT at MPI node==0 
 

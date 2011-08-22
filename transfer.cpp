@@ -42,8 +42,8 @@ TransferFunc1D::TransferFunc1D(short int ty, short int vn,
 						exit(1113);
 				}
 		
-				range[0]      = params[0] - 3.0f * params[1]; //cut at +/- 3s
-				range[1]      = params[0] + 3.0f * params[1];
+				range[0]      = params[0] - 4.0f * params[1]; //cut at +/- 4s
+				range[1]      = params[0] + 4.0f * params[1];
 				gaussParam[0] = params[0]; //mean
 				gaussParam[1] = params[1]; //sigma
 				le            = spec[0];
