@@ -30,7 +30,11 @@ swScale        = 0.52       % screenWindow mult factor * [-1,1]
 % Render
 % ------
 
-viStepSize     = 0.05              % volume integration sub-stepping size (0=disabled)
+drawBBox       = true
+drawTetra      = true
+drawVoronoi    = false
+
+viStepSize     = 0.1              % volume integration sub-stepping size (0=disabled)
                                    % in (Arepo) code units
 
 rgbEmit        = 0.1 0.0 0.0       % (R G B) gas emission spectrum - debugging

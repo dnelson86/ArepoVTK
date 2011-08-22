@@ -73,6 +73,10 @@ void ConfigSet::ReadFile(string cfgfile)
 		imageYPixels  = readValue<int>  ("imageYPixels", 500);
 		swScale       = readValue<float>("swScale",      1.0f);
 		
+		drawBBox      = readValue<bool>("drawBBox",      true);
+		drawTetra     = readValue<bool>("drawTetra",     true);	
+		drawVoronoi   = readValue<bool>("drawVoronoi",   false);		
+		
 		viStepSize    = readValue<float>("viStepSize",   0.0f); // disabled by default
 		
 		//TODO: temp rgb triplets input		

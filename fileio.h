@@ -40,6 +40,7 @@ public:
 		float rgbEmit[3], rgbLine[3], rgbTetra[3], rgbVoronoi[3];
 		float swScale; // screenWindow mult factor * [-1,1]
     bool quickRender, verbose, openWindow;
+		bool drawBBox, drawTetra, drawVoronoi;
     string imageFile, rawRGBFile;
 		string filename, paramFilename;
 
