@@ -265,6 +265,7 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				double len = norm.Length();
 				
 				// TODO: sub-step length should be adaptive based on gradients
+				//       should only substep if the TF will evaluate nonzero somewhere inside
 				
 				// decide on sub-stepping
 				if (viStepSize && len > viStepSize) {
