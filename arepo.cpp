@@ -36,6 +36,7 @@ bool Arepo::LoadSnapshot()
     IF_DEBUG(cout << "Arepo::LoadSnapshot(" << snapFilename << ")." << endl);
 		
 		freopen("/dev/null","w",stdout); //hide arepo stdout
+		freopen("/dev/null","w",stderr); //hide MPI errors (TODO:temp)
 		
 		// set startup options
 		WriteMiscFiles = 0;
@@ -64,6 +65,7 @@ bool Arepo::LoadSnapshot()
 		// TODO
 	
 		freopen("/dev/tty","w",stdout); //return stdout to terminal
+		freopen("/dev/tty","w",stderr);
 		
 		return true;
 }
@@ -275,8 +277,12 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 								double rho = SphP[ray.index].Density + Dot(sphDensGrad,midp);
 								double utherm = 0.0;
 								
-								rho    *= step;
-								utherm *= step;
+								// multiplying by the stepsize makes these integrated (total) quantities, e.g. for 
+								// a "projected column density" image. for sampling quantities with a transfer 
+								// function we just want their true value at every point in space
+								// TODO: make this multiplication optional based on Config
+								//rho    *= step;
+								//utherm *= step;
 								
 								IF_DEBUG(cout << "  segment[" << i << "] trange [" << (ray.min_t-*t0 + t0step) << "," 
 															<< (ray.min_t-*t0 + t0step)+step << "] rho = " << SphP[ray.index].Density*step
@@ -299,8 +305,11 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 						double rho = SphP[ray.index].Density + Dot(sphDensGrad,midp);
 						double utherm = 0.0;
 						
-						rho    *= len;
-						utherm *= len;
+						// multiplying by the stepsize makes these integrated (total) quantities, e.g. for 
+						// a "projected column density" image. for sampling quantities with a transfer 
+						// function we just want their true value at every point in space
+						//rho    *= len;
+						//utherm *= len;
 						
 						IF_DEBUG(cout << " segment len = " << len << " rho = " << SphP[ray.index].Density 
 													<< " grad.x = " << sphDensGrad.x << " rho w/ grad = " << rho << endl);
