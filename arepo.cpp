@@ -24,6 +24,8 @@ void Arepo::Init(int *argc, char*** argv)
 		MPI_Init(argc, argv);
 		MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
 		MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+		
+		cout << "AREPO ENABLED. (NTask = " << NTask << " ThisTask = " << ThisTask << ")" << endl;
 }
 
 void Arepo::Cleanup()
@@ -117,13 +119,11 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 		pos[1] = hitbox.y;
 		pos[2] = hitbox.z;
 		
-		IF_DEBUG(cout << " ray hits box at W x = " << ray(*t0).x << " y = " << ray(*t0).y << " z = " << ray(*t0).z << endl);
-		IF_DEBUG(cout << " ray hits box at V x = " << hitbox.x << " y = " << hitbox.y << " z = " << hitbox.z << endl);
-		IF_DEBUG(cout << " ray exit box at W x = " << ray(*t1).x << " y = " << ray(*t1).y << " z = " << ray(*t1).z << endl);
-		IF_DEBUG(cout << " ray exit box at V x = " << exitbox.x << " y = " << exitbox.y << " z = " << exitbox.z << endl);
+		IF_DEBUG(cout << " ray hits box at x = " << hitbox.x << " y = " << hitbox.y << " z = " << hitbox.z << endl);
+		IF_DEBUG(cout << " ray exit box at x = " << exitbox.x << " y = " << exitbox.y << " z = " << exitbox.z << endl);
 		
 		// use tree-finding function to find closest gas point (local only)
-		const int corig2 = ngb_treefind_nearest_local(&pos[0], &mindist);
+		IF_DEBUG(const int corig2 = ngb_treefind_nearest_local(&pos[0], &mindist));
 				 
 		// refine nearest point search
 	/*	int cc;
@@ -136,6 +136,7 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 				c = cc;
 		}		*/
 		
+#ifdef DEBUG
 		int corig;
 		mindist = MAX_REAL_NUMBER;
 		for (int i=0; i < Ndp; i++) {
@@ -148,15 +149,36 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 						corig = i;
 				}
 		}
+#endif
+		
+		int corig3;
+		mindist = MAX_REAL_NUMBER;
+		for (int i=0; i < N_gas; i++) {
+				double dist = sqrt( (pos[0]-P[i].Pos[0])*(pos[0]-P[i].Pos[0]) + 
+													  (pos[1]-P[i].Pos[1])*(pos[1]-P[i].Pos[1]) + 
+														(pos[2]-P[i].Pos[2])*(pos[2]-P[i].Pos[2]) );
+				//cout << " DP[" << i << "] dist = " << dist << endl;
+				if (dist < mindist) {
+						mindist = dist;
+						corig3 = i;
+				}
+		}
 		
 		IF_DEBUG(cout << " corig = " << corig << " DP[corig].index = " << DP[corig].index 
 									<< " dist = " << mindist << " (x = " << DP[corig].x << " y = "
 									<< DP[corig].y << " z = " << DP[corig].z << ")" << endl);
 		IF_DEBUG(cout << " corig2 = " << corig2 << " DP[corig2].index = " << DP[corig2].index 
 									<< " dist = " << mindist << " (x = " << DP[corig2].x << " y = "
-									<< DP[corig2].y << " z = " << DP[corig2].z << ")" << endl);					
+									<< DP[corig2].y << " z = " << DP[corig2].z << ")" << endl);		
 
-		ray.index = corig; //cc
+		IF_DEBUG(cout << " corig3 = " << corig3 << " P[corig3].index = none" 
+									<< " dist = " << mindist << " (x = " << P[corig3].Pos[0] << " y = "
+									<< P[corig2].Pos[1] << " z = " << P[corig3].Pos[2] << ")" << endl);		
+		IF_DEBUG(cout << "          "					  << " P[corig2].index = none" 
+									<< " dist = " << mindist << " (x = " << P[corig2].Pos[0] << " y = "
+									<< P[corig2].Pos[1] << " z = " << P[corig2].Pos[2] << ")" << endl);	
+
+		ray.index = corig3; //cc
 		ray.task  = 0; //TODO
 		
 		//cout << " iterates i = " << i << " picked ray.index = " << ray.index << endl;
