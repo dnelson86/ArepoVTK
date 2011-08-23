@@ -128,28 +128,35 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		// find the cell the ray will enter first on the edge of the box
 		scene->arepoMesh->LocateEntryCell(ray, &t0, &t1);
 		
+		// TODO: exchange?
+		
 		// propagate ray to arepo box, set exit point
 		ray.min_t = t0;
 		ray.max_t = t1;
 		
 		// advance ray through voronoi cells
-		int count = 0;
 #ifdef DEBUG
-		Point p = scene->arepoMesh->WorldToVolume(ray(ray.min_t));
+		int count = 0;
+
+		Point p = ray(ray.min_t);
 		cout << " VoronoiIntegrator::Li(iter=" << count << ") Lv.y = " << setw(6) << Lv.y()
 				 << " Tr.y = " << Tr.y() << " ray.x = " << setw(5) << p.x 
 				 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl;
 #endif			 
 		while( scene->arepoMesh->AdvanceRayOneCell(ray, &t0, &t1, Lv, Tr) ) {
-				count++;
 #ifdef DEBUG
-				p = scene->arepoMesh->WorldToVolume(ray(ray.min_t));
+				count++;
+
+				p = ray(ray.min_t);
 				cout << " VoronoiIntegrator::Li(iter=" << count << ") Lv.y = " << setw(5) << Lv.y()
 						 << " Tr.y = " << setw(2) << Tr.y() << " ray.x = " << setw(5) << p.x 
 						 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl;
-#endif
-				if (count > 10)
+
+				if (count > 1000) {
+						cout << "COUNT > 1000 (Breaking)" << endl;
 						break;
+				}
+#endif
 						
         // roulette terminate ray marching if transmittance is small
         if (Tr.y() < 1e-3) {
@@ -159,7 +166,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
         }
 		}
 #ifdef DEBUG
-		p = scene->arepoMesh->WorldToVolume(ray(ray.min_t));
+		p = ray(ray.min_t);
 		cout << " VoronoiIntegrator::Li(done_f) Lv.y = " << setw(6) << Lv.y()
 				 << " Tr.y = " << Tr.y() << " ray.x = " << setw(5) << p.x 
 				 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl << endl;

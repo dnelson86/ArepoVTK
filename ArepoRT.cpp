@@ -10,30 +10,71 @@
 #include "arepo.h"
 #include "transfer.h"
 
+void rtTestIsoDiskRender()
+{
+		// constant setup		
+		VolumeIntegrator *vi  = CreateVoronoiVolumeIntegrator();	
+		TransferFunction *tf  = CreateTransferFunction();
+		ArepoMesh *arepoMesh  = new ArepoMesh(tf);
+		Scene *scene          = new Scene(NULL, arepoMesh);
+				
+		// per frame:
+		
+		// set camera
+		//Point cameraPos    = Point(50.0,50.0,0.0); //face on
+		//Point cameraLook   = Point(50.0,50.0,1.0);
+		
+		Point cameraPos    = Point(100.0,50.0,50.0); //edge on
+		Point cameraLook   = Point(50.0,50.0,50.0);
+		Vector cameraVecUp = Vector(0.0,1.0,0.0);
+		
+		Transform world2camera = LookAt(cameraPos, cameraLook, cameraVecUp);
+		
+		// debugging - TF
+		Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit) * 1000;
+		Spectrum s2 = Spectrum::FromNamed("green") * 1000;
+		Spectrum s3 = Spectrum::FromNamed("blue") * 1000;
+		
+		tf->AddConstant(TF_VAL_DENS,s1);
+		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,spec);
+		//tf->AddGaussian(TF_VAL_DENS,0.005,0.0005,s1);
+		//tf->AddGaussian(TF_VAL_DENS,0.0010,0.00005,s2);
+		//tf->AddGaussian(TF_VAL_DENS,0.0005,0.00005,s3);
+		
+		// camera(film) and camera dependent
+		Filter *filter       = CreateBoxFilter();
+		Film *film           = CreateFilm(filter);
+		Camera *camera       = CreateOrthographicCamera(Inverse(world2camera), film);
+		Sampler *sampler     = CreateStratifiedSampler(film, camera);
+		Renderer *re         = new Renderer(sampler, camera, vi);
+		
+		// render
+		if (filter && film && camera && sampler && vi && scene && tf && re)
+				re->Render(scene);
+				
+		delete re;
+		delete scene;
+}
+
 void rtTestRenderScene(string filename)
 {
 		// config - camera
-		//Point cameraPos    = Point(10.5,10.5,0.0); //centered on z=0 plane edge, x/y axis aligned
-		//Point cameraLook   = Point(10.5,10.5,1.0);
+		Point cameraPos    = Point(0.5,0.5,0.0); //centered on z=0 plane edge, x/y axis aligned
+		Point cameraLook   = Point(0.5,0.5,1.0);
 		
-		//Point cameraPos      = Point(11.0,10.5,40.5); //centered on x=1.0 plane edge
-		//Point cameraLook     = Point(0.0,10.5,40.5); //looking -zhat, y/z axis aligned
+		//Point cameraPos      = Point(1.0,0.5,0.5); //centered on x=1.0 plane edge
+		//Point cameraLook     = Point(0.0,0.5,0.5); //looking -zhat, y/z axis aligned
 		
-		Point cameraPos    = Point(12.0,12.0,38.0); //angled above
-		Point cameraLook   = Point(10.5,10.5,40.5); //looking at center of box
+		//Point cameraPos    = Point(2.0,2.0,-2.0); //angled above
+		//Point cameraLook   = Point(0.5,0.5,0.5); //looking at center of box
 		
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
 		
 		// set transform
-		Transform volume2world;
-		Transform world2camera;
-
-		volume2world = volume2world * Translate(Vector(10.0,10.0,40.0));
-		world2camera = world2camera * LookAt(cameraPos, cameraLook, cameraVecUp);
+		Transform world2camera = LookAt(cameraPos, cameraLook, cameraVecUp);
 		
 		IF_DEBUG(world2camera.print("world2camera:"));
 		IF_DEBUG(Inverse(world2camera).print("camera2world:"));
-		IF_DEBUG(volume2world.print("volume2world:"));
 		
 		// Camera (Filter, Film)
 		Filter *filter       = CreateBoxFilter();
@@ -63,11 +104,12 @@ void rtTestRenderScene(string filename)
 		tf->AddGaussian(TF_VAL_DENS,5.0,0.5,s2);
 		
 		// create volume/density/scene geometry (debugging only)
+		//Transform volume2world; volume2world = volume2world * Translate(Vector(10.0,10.0,40.0));
 		//VolumeRegion *vr     = CreateGridVolumeRegion(volume2world, filename);
 		VolumeRegion *vr      = NULL;
 		
 		// voronoi mesh
-		ArepoMesh *arepoMesh  = CreateArepoMesh(tf, volume2world);
+		ArepoMesh *arepoMesh  = new ArepoMesh(tf);
 
 		// debugging only (Arepo2b overrides)
 		for (int i=0; i < N_gas; i++) {
@@ -125,16 +167,16 @@ int main (int argc, char* argv[])
 				 << "--------------------------\n";
 		IF_DEBUG(cout << "DEBUGGING ENALBED.\n\n");
 		
-		// command line arguments
-	/*	if (argc != 2) {
+		// command line arguments (config file)
+		if (argc != 2) {
 				cout << "usage: ArepoRT <configfile.txt>\n";
 				return 0;
 		} else {
 				Config.ReadFile( argv[1] );
-		} */
+		} 
 
 		// read config
-		Config.ReadFile("config.txt");
+		//Config.ReadFile("config.txt");
 		IF_DEBUG(Config.print());
 		
 		// init
@@ -150,6 +192,8 @@ int main (int argc, char* argv[])
 
 		// debug test render
 		rtTestRenderScene(Config.filename);
+		
+		//rtTestIsoDiskRender();
 		
 		// cleanup
 #ifdef ENABLE_AREPO
