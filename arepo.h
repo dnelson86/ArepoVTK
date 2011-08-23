@@ -7,9 +7,6 @@
 #define AREPO_RT_AREPO_H
 #ifdef ENABLE_AREPO
 
-// Arepo overrides
-// #define mpi_printf(expr) ((void)0)
-
 #include "geometry.h"
 #include "transform.h"
 #include "spectrum.h"
@@ -47,7 +44,7 @@ private:
 class ArepoMesh : public VolumeRegion {
 public:
 		// construction
-		ArepoMesh(const TransferFunction *tf, const Transform &VolumeToWorld);
+		ArepoMesh(const TransferFunction *tf);
     ~ArepoMesh() {
         if (EdgeList)     delete EdgeList;
         if (Nedges)       delete Nedges;
@@ -56,10 +53,11 @@ public:
 
 		// preprocessing
 		void ComputeVoronoiEdges();
+		void ComputeQuantityBounds();
 		
 		// methods
 		void DumpMesh();
-    BBox WorldBound() const { return Inverse(WorldToVolume)(extent); }
+		BBox WorldBound() const { return extent; }
     BBox VolumeBound() const { return extent; }
 
 		// raster return
@@ -67,9 +65,7 @@ public:
     bool VoronoiEdges(const int i_face, vector<Line> *edges);
 		
     bool IntersectP(const Ray &r, float *t0, float *t1) const {
-				//IF_DEBUG(*r->printRay("AM IntersectP W "));
-        Ray ray = WorldToVolume(r);
-        return extent.IntersectP(ray, t0, t1);
+        return extent.IntersectP(r, t0, t1);
     }
 		
 		void LocateEntryCell(const Ray &ray, float *t0, float *t1);
@@ -94,14 +90,14 @@ public:
 		tetra_center *DTC; // circumcenters of delaunay tetrahedra
 		char *DTF;         // tetra faces
 		face *VF;          // voronoi faces
-    //connection *DC;    // voronoi connections		
-		
-		Transform WorldToVolume;
+    //connection *DC;    // voronoi connections
 		
 private:
 		BBox extent;
     const TransferFunction *transferFunction;
 		float viStepSize;
+		
+		float densBounds[3]; // min,max,mean
 		
     tessellation *T;
 		
@@ -109,8 +105,6 @@ private:
 		int *Nedges;
 		int *NedgesOffset;
 };
-
-ArepoMesh *CreateArepoMesh(const TransferFunction *tf, const Transform &volume2world);
 
 #endif //ENABLE_AREPO
 #endif //AREPO_RT_AREPO_H

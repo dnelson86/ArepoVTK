@@ -36,7 +36,6 @@ bool Arepo::LoadSnapshot()
     IF_DEBUG(cout << "Arepo::LoadSnapshot(" << snapFilename << ")." << endl);
 		
 		freopen("/dev/null","w",stdout); //hide arepo stdout
-		freopen("/dev/null","w",stderr); //hide MPI errors (TODO:temp)
 		
 		// set startup options
 		WriteMiscFiles = 0;
@@ -65,19 +64,17 @@ bool Arepo::LoadSnapshot()
 		// TODO
 	
 		freopen("/dev/tty","w",stdout); //return stdout to terminal
-		freopen("/dev/tty","w",stderr);
 		
 		return true;
 }
 
-ArepoMesh::ArepoMesh(const TransferFunction *tf, const Transform &VolumeToWorld)
+ArepoMesh::ArepoMesh(const TransferFunction *tf)
 {
 		IF_DEBUG(cout << "ArepoMesh() constructor." << endl);
 		
 		// transfer function and transform
 		transferFunction = tf;
 		viStepSize       = Config.viStepSize;
-		WorldToVolume    = Inverse(VolumeToWorld);
 		
 		// set NULL
 		Nedges       = NULL;
@@ -99,9 +96,12 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf, const Transform &VolumeToWorld)
 		
 		// preprocessing
 		//ArepoMesh::ComputeVoronoiEdges();
+		ArepoMesh::ComputeQuantityBounds();
 		
 		// boxsize
 		extent = BBox(Point(0.0,0.0,0.0),Point(boxSize,boxSize,boxSize));
+		
+		IF_DEBUG(extent.print(" ArepoMesh extent "));
 		
 		// debugging
 		//arepoMesh->DumpMesh();
@@ -110,8 +110,8 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf, const Transform &VolumeToWorld)
 void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 {
 		double pos[3], mindist;
-		Point hitbox  = WorldToVolume(ray(*t0));
-		Point exitbox = WorldToVolume(ray(*t1));
+		Point hitbox  = ray(*t0);
+		Point exitbox = ray(*t1);
 		
 		pos[0] = hitbox.x;
 		pos[1] = hitbox.y;
@@ -123,7 +123,18 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 		IF_DEBUG(cout << " ray exit box at V x = " << exitbox.x << " y = " << exitbox.y << " z = " << exitbox.z << endl);
 		
 		// use tree-finding function to find closest gas point (local only)
-		const int corig2 = ngb_treefind_nearest_local(&pos[0], &mindist); //,0
+		const int corig2 = ngb_treefind_nearest_local(&pos[0], &mindist);
+				 
+		// refine nearest point search
+	/*	int cc;
+		int c = corig;
+		
+		for (i = 0; i <= 4; i++) {
+				cc = find_closest_neighbor_in_cell(p,c); //TODO
+				if (cc = c)
+						break;
+				c = cc;
+		}		*/
 		
 		int corig;
 		mindist = MAX_REAL_NUMBER;
@@ -143,24 +154,27 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 									<< DP[corig].y << " z = " << DP[corig].z << ")" << endl);
 		IF_DEBUG(cout << " corig2 = " << corig2 << " DP[corig2].index = " << DP[corig2].index 
 									<< " dist = " << mindist << " (x = " << DP[corig2].x << " y = "
-									<< DP[corig2].y << " z = " << DP[corig2].z << ")" << endl);						
-				 
-		// refine nearest point search
-/*		int cc, c = corig;
-		
-		for (i = 0; i <= 4; i++) {
-				cc = find_closest_neighbor_in_cell(p,c); //TODO
-				if (cc = c)
-						break;
-				c = cc;
-		} */
-		
+									<< DP[corig2].y << " z = " << DP[corig2].z << ")" << endl);					
+
 		ray.index = corig; //cc
+		ray.task  = 0; //TODO
+		
 		//cout << " iterates i = " << i << " picked ray.index = " << ray.index << endl;
 		
-		if (ray.index < 0 || ray.index >= N_gas) {
-				cout << "ERROR! ray.index = " << ray.index << " out of bounds." << endl;
+		// check for local ghosts
+		if (ray.task == ThisTask && ray.index >= N_gas) {
+				cout << "ERROR! ray.index = " << ray.index << " (N_gas=" << N_gas << " Ndp=" << Ndp 
+						 << ") [task=" << ray.task << "] out of bounds." << endl;
+				cout << " hit pos: " << pos[0] << " " << pos[1] << " " << pos[2] << endl;
+				cout << " DP nearest pos: " << DP[ray.index].x << " " << DP[ray.index].y << " " << DP[ray.index].z << endl;
+				cout << " local N_gas pos: " << P[ray.index-N_gas].Pos[0] << " " << P[ray.index-N_gas].Pos[1]
+						 << " " << P[ray.index-N_gas].Pos[2] << endl;
 				endrun(1107);
+		}
+		// verify task assignment
+		if (ray.task < 0 || ray.task >= NTask) {
+				cout << "ERROR! ray has bad task=" << ray.task << endl;
+				endrun(1115);
 		}
 		
 }
@@ -168,6 +182,11 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr)
 {
 		int qmin = -1;
+		
+		if (ray.task != ThisTask) {
+				cout << "[" << ThisTask << "] ERROR! ray.task = " << ray.task << " differs from ThisTask!" << endl;
+				endrun(1117);
+		}
 		
 		int q        = SphP[ray.index].first_connection;
 		double min_t = MAX_REAL_NUMBER;
@@ -177,8 +196,8 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 		
 		IF_DEBUG(cout << " starting face q = " << q << endl);
 		
-		Point hitbox  = WorldToVolume(ray(*t0));
-		Point exitbox = WorldToVolume(ray(*t1));		
+		Point hitbox  = ray(*t0);
+		Point exitbox = ray(*t1);
 		
 		// examine faces to find exit point
 		while (q >= 0)
@@ -207,14 +226,11 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 						double t = ((midp.x - hitbox.x) * norm.x +
 											  (midp.y - hitbox.y) * norm.y +
 											  (midp.z - hitbox.z) * norm.z)	/ dotprod;
-						//double t = Dot( Vector(midp.x - ray.o.x,
-						//                       midp.y - ray.o.y,
-						//											 midp.z - ray.o.z), norm ) / dotprod;
 						//IF_DEBUG(cout << " q[" << q << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
 						
 						if (t > (ray.min_t-*t0) && t < min_t) {
-								IF_DEBUG(cout << " intersection V t = " << t << " setting new min_t, qmin = q = " << q << endl);
-								min_t = t; //V
+								IF_DEBUG(cout << " intersection t = " << t << " setting new min_t, qmin = q = " << q << endl);
+								min_t = t;
 								qmin = q;
 						}
 				}
@@ -234,16 +250,13 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 		
 				// clamp min_t to avoid integrating outside the box
 				IF_DEBUG(cout << " min_t = " << min_t << " (t1=" << *t1 << " t0=" << *t0 << ")" << endl);
-				min_t = Clamp(min_t,0.0,(*t1-*t0)); //V
+				min_t = Clamp(min_t,0.0,(*t1-*t0));
 				
-				IF_DEBUG(ray(ray.min_t-*t0).print(" hcell W "));
-				IF_DEBUG(ray(min_t).print(" ecell W "));
+				Point hitcell  = ray(ray.min_t);
+				Point exitcell = ray(*t0 + min_t);
 				
-				Point hitcell  = WorldToVolume(ray(ray.min_t));
-				Point exitcell = WorldToVolume(ray(*t0 + min_t));
-				
-				IF_DEBUG(hitcell.print(" hcell V "));
-				IF_DEBUG(exitcell.print(" ecell V "));
+				IF_DEBUG(hitcell.print(" hcell "));
+				IF_DEBUG(exitcell.print(" ecell "));
 
 				// find interpolated value at midpoint of line segment through voronoi cell
 				// or sample at stepsize through cell (needed for smooth transfer functions)
@@ -257,11 +270,10 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 														 
 				norm = exitcell - hitcell;
 
-				IF_DEBUG(norm.print(" norm V "));
-				IF_DEBUG(sphCen.print(" sphCen V "));
+				IF_DEBUG(norm.print(" norm "));
+				IF_DEBUG(sphCen.print(" sphCen "));
 				
 				// compute total path length through cell
-				//double len = (min_t - (ray.min_t-*t0)) * norm.Length();
 				double len = norm.Length();
 				
 				// TODO: sub-step length should be adaptive based on gradients
@@ -337,7 +349,7 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				// update ray: transfer to next voronoi cell (possibly on different task)
 				ray.task  = DC[qmin].task;
 				ray.index = DC[qmin].index;
-				ray.min_t = Clamp(min_t + *t0,ray.min_t,ray.max_t); //W [t0,t1]
+				ray.min_t = Clamp(min_t + *t0,ray.min_t,ray.max_t);
 				
 				IF_DEBUG(cout << " updated ray new task = " << ray.task << " index = " << ray.index 
 											<< " (" << DC[qmin].index << ") min_t = " << ray.min_t << endl);
@@ -360,6 +372,29 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 		}
 
 		return true;
+}
+
+void ArepoMesh::ComputeQuantityBounds()
+{
+		float pmax  = 0.0;
+		float pmin  = INFINITY;
+		float pmean = 0.0;
+		
+		for (int i=0; i < N_gas; i++) {
+				if (SphP[i].Density > pmax)
+						pmax = SphP[i].Density;
+				if (SphP[i].Density < pmin)
+						pmin = SphP[i].Density;
+				pmean += SphP[i].Density;
+		}
+		
+		densBounds[0] = pmin;
+		densBounds[1] = pmax;
+		densBounds[2] = pmean / N_gas;
+		
+		IF_DEBUG(cout << " Density min = " << densBounds[0] << " max = " << densBounds[1] 
+									<< " mean = " << densBounds[2] << endl);
+
 }
 
 void ArepoMesh::ComputeVoronoiEdges()
@@ -699,9 +734,9 @@ bool ArepoMesh::TetraEdges(const int i, vector<Line> *edges)
 						return false;
 				}				
 					
-				pts[j] = Inverse(WorldToVolume)(Point(DP[DT[i].p[j]].x,
-																						  DP[DT[i].p[j]].y, 
-																						  DP[DT[i].p[j]].z));
+				pts[j] = Point(DP[DT[i].p[j]].x,
+											 DP[DT[i].p[j]].y, 
+											 DP[DT[i].p[j]].z);													
 				IF_DEBUG(cout << " edge[" << i << "] pt[" << j << "] DP ind = " << DT[i].p[j] 
       			 << " x = " << pts[j].x << " y = " << pts[j].y << " z = " << pts[j].z << endl);
 		}
@@ -742,7 +777,7 @@ bool ArepoMesh::VoronoiEdges(const int i_face, vector<Line> *edges)
 						continue;
 				}
 				
-				edges->push_back(Line(Inverse(WorldToVolume)(prev),Inverse(WorldToVolume)(next)));
+				edges->push_back(Line(prev,next));
 				
 				IF_DEBUG(cout << " edge[" << i_face << "," << i 
 											<< "] prev.x = " << prev.x << " prev.y = " << prev.y << " prev.z = " << prev.z
@@ -752,11 +787,6 @@ bool ArepoMesh::VoronoiEdges(const int i_face, vector<Line> *edges)
 		}
 		
 		return true;
-}
-
-ArepoMesh *CreateArepoMesh(const TransferFunction *tf, const Transform &volume2world)
-{
-    return new ArepoMesh(tf, volume2world);
 }
 
 #endif //ENABLE_AREPO
