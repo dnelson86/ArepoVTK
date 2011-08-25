@@ -37,7 +37,7 @@ private:
 		float gaussParam[2]; // mean, sigma
 };
 
-class TransferFunction {
+class TransferFunction /*: public VolumeRegion*/ {
 public:
     // construction
     TransferFunction();
@@ -50,12 +50,19 @@ public:
 		bool AddPiecewise(int valNum, vector<float> &params);
 		
 		// evaluation
+    //Spectrum sigma_a(const Point &p, const Vector &, float) const {    }
+    //Spectrum sigma_s(const Point &p, const Vector &, float) const {    }
+		Spectrum sigma_t() const { return sig_t; }
     Spectrum Lve(const float *vals) const;
+    //Spectrum tau(const Ray &r, float stepSize, float offset) const {   }
 		
 private:
     // data
     short int numFuncs;
 		vector<TransferFunc1D *> f_1D;
+		
+		// tau = scatter + abs
+		Spectrum sig_a, sig_s, sig_t;
 };
 
 

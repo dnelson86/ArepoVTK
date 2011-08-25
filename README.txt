@@ -20,11 +20,11 @@ Design:
 -------
 ArepoRT
 -------
-Goal:     Produce high quality, presentation-ready visualizations of hydrodynamic simulations produced
+Goal:     Produce high quality, presentation-ready visualizations of hydrodynamic simulations run 
           with Arepo. Ray cast through linearly reconstructed scalar and vector fields defined on an 
 			    unstructured Voronoi tessellation of space. Support multi-dimensional transfer functions to 
-			    explore fluid quantities, and explore novel visualization techniques for combining such a 
-			    volume rendering approach with coincident point particle sets (both luminous and dark).
+			    investigate fluid quantities, and explore novel visualization techniques for combining such 
+			    a volume rendering approach with coincident point particle sets (both luminous and dark).
 
 Approach: Todo.
 
@@ -54,10 +54,11 @@ Version Roadmap:
 +v0.4
   - parallel (MPI)
 	- large snapshot support and optimizations
-	 - exchange_rays()?
-  - GUI on node=0 as client	(openWindow=true)
+   - use treefind for entry cells
+   - handle local and foreign ghosts
+	 - exchange_rays() type approach
 	 
- +v0.6
++v0.6
  - camera path splining in space (AnimatedTransform?)
  - movie pipeline
   - frame metadata (XML/MKV container?)
@@ -69,6 +70,7 @@ Version Roadmap:
 	 - navigation
 	 - movie setup
 	 - (single node only)
+  - GUI on node=0 as client (openWindow=true)
 
  +v0.7
   - GPU acceleration (ray tracing)?

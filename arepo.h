@@ -41,7 +41,7 @@ private:
 };
 
 // ArepoMesh: expose the Voronoi data structures and encapsulate mesh related functions
-class ArepoMesh : public VolumeRegion {
+class ArepoMesh {
 public:
 		// construction
 		ArepoMesh(const TransferFunction *tf);
@@ -72,15 +72,6 @@ public:
 		void LocateEntryCellBrute(const Ray &ray, float *t0, float *t1);
 		int FindNearestGasParticle(Point &p, double *mindist);
 		bool AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr);
-		
-		//TODO: change these from taking inputs=Point p, which would require we go into the mesh and calculate the
-		//      hydro quantites at that point (extremely expensive). Rather, this is already accessible inside the
-		//      integration stage, so pass these quantities in and have e.g. Lve encapsulate the transfer functions.
-    Spectrum sigma_a(const Point &p, const Vector &, float) const {    }
-    Spectrum sigma_s(const Point &p, const Vector &, float) const {    }
-    Spectrum sigma_t(const Point &p, const Vector &, float) const {    }
-    Spectrum Lve(const Point &p, const Vector &, float) const {    }
-    Spectrum tau(const Ray &r, float stepSize, float offset) const {   }
 		
 		// data
 		int Ndp;           // number of delaunay points
