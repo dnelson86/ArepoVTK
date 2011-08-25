@@ -109,80 +109,124 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		//arepoMesh->DumpMesh();
 }
 
-void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
+void ArepoMesh::LocateEntryCellBrute(const Ray &ray, float *t0, float *t1)
 {
-		double pos[3], mindist;
+		// note: using the brute force search is O(N_rays * NumPart) - not good
 		Point hitbox  = ray(*t0);
-		Point exitbox = ray(*t1);
 		
-		pos[0] = hitbox.x;
-		pos[1] = hitbox.y;
-		pos[2] = hitbox.z;
-		
-		IF_DEBUG(cout << " ray hits box at x = " << hitbox.x << " y = " << hitbox.y << " z = " << hitbox.z << endl);
-		IF_DEBUG(cout << " ray exit box at x = " << exitbox.x << " y = " << exitbox.y << " z = " << exitbox.z << endl);
-		
-		// use tree-finding function to find closest gas point (local only)
-		IF_DEBUG(const int corig2 = ngb_treefind_nearest_local(&pos[0], &mindist));
-				 
-		// refine nearest point search
-	/*	int cc;
-		int c = corig;
-		
-		for (i = 0; i <= 4; i++) {
-				cc = find_closest_neighbor_in_cell(p,c); //TODO
-				if (cc = c)
-						break;
-				c = cc;
-		}		*/
-		
-#ifdef DEBUG
 		int corig;
-		mindist = MAX_REAL_NUMBER;
-		for (int i=0; i < Ndp; i++) {
-				double dist = sqrt( (pos[0]-DP[i].x)*(pos[0]-DP[i].x) + 
-													  (pos[1]-DP[i].y)*(pos[1]-DP[i].y) + 
-														(pos[2]-DP[i].z)*(pos[2]-DP[i].z) );
-				//cout << " DP[" << i << "] dist = " << dist << endl;
+		double mindist = MAX_REAL_NUMBER;
+		
+		for (int i=0; i < N_gas; i++) {
+				double dist = sqrt( (hitbox.x-P[i].Pos[0])*(hitbox.x-P[i].Pos[0]) + 
+													  (hitbox.y-P[i].Pos[1])*(hitbox.y-P[i].Pos[1]) + 
+														(hitbox.z-P[i].Pos[2])*(hitbox.z-P[i].Pos[2]) );
 				if (dist < mindist) {
 						mindist = dist;
 						corig = i;
 				}
 		}
-#endif
-		
-		int corig3;
-		mindist = MAX_REAL_NUMBER;
-		for (int i=0; i < N_gas; i++) {
-				double dist = sqrt( (pos[0]-P[i].Pos[0])*(pos[0]-P[i].Pos[0]) + 
-													  (pos[1]-P[i].Pos[1])*(pos[1]-P[i].Pos[1]) + 
-														(pos[2]-P[i].Pos[2])*(pos[2]-P[i].Pos[2]) );
-				//cout << " DP[" << i << "] dist = " << dist << endl;
-				if (dist < mindist) {
-						mindist = dist;
-						corig3 = i;
-				}
-		}
-		
-		IF_DEBUG(cout << " corig = " << corig << " DP[corig].index = " << DP[corig].index 
-									<< " dist = " << mindist << " (x = " << DP[corig].x << " y = "
-									<< DP[corig].y << " z = " << DP[corig].z << ")" << endl);
-		IF_DEBUG(cout << " corig2 = " << corig2 << " DP[corig2].index = " << DP[corig2].index 
-									<< " dist = " << mindist << " (x = " << DP[corig2].x << " y = "
-									<< DP[corig2].y << " z = " << DP[corig2].z << ")" << endl);		
 
-		IF_DEBUG(cout << " corig3 = " << corig3 << " P[corig3].index = none" 
-									<< " dist = " << mindist << " (x = " << P[corig3].Pos[0] << " y = "
-									<< P[corig2].Pos[1] << " z = " << P[corig3].Pos[2] << ")" << endl);		
-		IF_DEBUG(cout << "          "					  << " P[corig2].index = none" 
-									<< " dist = " << mindist << " (x = " << P[corig2].Pos[0] << " y = "
-									<< P[corig2].Pos[1] << " z = " << P[corig2].Pos[2] << ")" << endl);	
-
-		ray.index = corig3; //cc
+		IF_DEBUG(cout << " brute corig = " << corig << " P[corig].index = none" 
+									<< " dist = " << mindist << " (x = " << P[corig].Pos[0] << " y = "
+									<< P[corig].Pos[1] << " z = " << P[corig].Pos[2] << ")" << endl);
+		
+		ray.index = corig;
 		ray.task  = 0; //TODO
 		
-		//cout << " iterates i = " << i << " picked ray.index = " << ray.index << endl;
+		// check for local ghosts
+		if (ray.task == ThisTask && ray.index >= N_gas) {
+				cout << "ERROR! ray.index = " << ray.index << " (N_gas=" << N_gas << " Ndp=" << Ndp 
+						 << ") [task=" << ray.task << "] out of bounds." << endl;
+				cout << " hitbox: " << hitbox.x << " " << hitbox.y << " " << hitbox.z << endl;
+				cout << " DP nearest pos: " << DP[ray.index].x << " " << DP[ray.index].y << " " << DP[ray.index].z << endl;
+				cout << " local N_gas pos: " << P[ray.index-N_gas].Pos[0] << " " << P[ray.index-N_gas].Pos[1]
+						 << " " << P[ray.index-N_gas].Pos[2] << endl;
+				endrun(1107);
+		}
+		// verify task assignment
+		if (ray.task < 0 || ray.task >= NTask) {
+				cout << "ERROR! ray has bad task=" << ray.task << endl;
+				endrun(1115);
+		}
 		
+}
+
+void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
+{
+		Point hitbox  = ray(*t0);
+		Point exitbox = ray(*t1);
+		
+		IF_DEBUG(cout << " ray hits box at x = " << hitbox.x << " y = " << hitbox.y << " z = " << hitbox.z << endl);
+		IF_DEBUG(cout << " ray exit box at x = " << exitbox.x << " y = " << exitbox.y << " z = " << exitbox.z << endl);		
+		
+		// use peanokey to find domain and task for ray
+		if (ray.task == -1) {
+				// TODO
+				ray.task = 0;
+		}
+		
+		// TODO: exchange
+	
+		double pos[3], mindist, newdist;
+		pos[0] = hitbox.x;
+		pos[1] = hitbox.y;
+		pos[2] = hitbox.z;
+		
+		// use tree to find nearest gas particle (local only)
+		const int corig = ArepoMesh::FindNearestGasParticle(hitbox, &mindist);
+	 
+		IF_DEBUG(cout << " corig = " << corig 
+									<< " dist = " << mindist << " (x = " << P[corig].Pos[0] << " y = "
+									<< P[corig].Pos[1] << " z = " << P[corig].Pos[2] << ")" << endl); 
+	 
+		// refine nearest point search to account for local ghosts
+	/*
+		int count = 0;
+		int corig_min, dp;
+	
+		int q = SphP[corig].first_connection;
+		
+		// look at all neighbors of the starting point (across its voronoi faces)
+		while (q >= 0)
+		{
+				dp = DC[q].dp_index;
+				
+				// calculate distance
+				newdist = sqrt( (pos[0] - P[dp].Pos[0])*(pos[0] - P[dp].Pos[0]) + 
+												(pos[1] - P[dp].Pos[1])*(pos[1] - P[dp].Pos[1]) + 
+												(pos[2] - P[dp].Pos[2])*(pos[2] - P[dp].Pos[2]) );
+				
+				cout << " q=" << q << " (neighbor dp=" << dp << ") newdist = " << newdist << endl;
+				
+				// set new mindist if found
+				if (newdist < mindist) {
+						cout << " newdist<mindist, setting new corig_min=" << dp << endl;
+						mindist = newdist;
+						corig_min = dp;
+				}
+				
+				// move to next face
+				if (q == SphP[corig].last_connection) {
+						cout << " done with faces, breaking" << endl;
+						break;
+				}
+						
+				q = DC[q].next;
+				count++;
+		}	
+		
+		IF_DEBUG(cout << " iterates count = " << count << " picked ray.index = " << ray.index << endl);
+
+		IF_DEBUG(cout << " corig_min = " << corig_min
+									<< " dist = " << mindist << " (x = " << P[corig_min].Pos[0] << " y = "
+									<< P[corig_min].Pos[1] << " z = " << P[corig_min].Pos[2] << ")" << endl);
+		
+		*/
+		
+		ray.index = corig; //corig_min
+		ray.task  = 0; //TODO
+							
 		// check for local ghosts
 		if (ray.task == ThisTask && ray.index >= N_gas) {
 				cout << "ERROR! ray.index = " << ray.index << " (N_gas=" << N_gas << " Ndp=" << Ndp 
@@ -199,6 +243,116 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 				endrun(1115);
 		}
 		
+}
+
+int ArepoMesh::FindNearestGasParticle(Point &pt, double *mindist)
+{
+		// based on ngb.c:treefind_nearest_local() but without periodic modifiers
+		
+		int node, nearest, p;
+		struct NODE *current;
+		double dx, dy, dz, cur_mindist;
+
+		// top node
+		node = All.MaxPart;
+		
+		// pick random gas particle for guess of the min distance (why?)
+		//nearest = floor(get_random_number(SelRnd++) * N_gas);
+		nearest = (int)floor(N_gas/2.0);
+		dx = P[nearest].Pos[0] - pt.x;
+		dy = P[nearest].Pos[1] - pt.y;
+		dz = P[nearest].Pos[2] - pt.z;
+		cur_mindist = sqrt(dx * dx + dy * dy + dz * dz);
+
+		while(node >= 0)
+    {
+				if(node < All.MaxPart)  // single particle
+				{
+						p = node;
+						node = Nextnode[node];
+
+						if(P[p].Type > 0) // not gas particle
+							continue;
+
+						//if(P[p].Ti_current != All.Ti_Current)
+						//	drift_particle(p, All.Ti_Current);
+
+						dx = P[p].Pos[0] - pt.x;
+						if(dx > cur_mindist)
+								continue;
+								
+						dy = P[p].Pos[1] - pt.y;
+						if(dy > cur_mindist)
+								continue;
+							
+						dz = P[p].Pos[2] - pt.z;
+						if(dz > cur_mindist)
+								continue;
+							
+						double curdist2 = dx * dx + dy * dy + dz * dz;
+						if(curdist2 > cur_mindist * cur_mindist)
+								continue;
+
+						cur_mindist = sqrt(curdist2);
+						nearest = p;
+				}
+				else
+				{
+						if(node >= All.MaxPart + MaxNodes) { // pseudo particle
+								// what's going on here is fuzzy to me
+								node = Nextnode[node - MaxNodes];
+								continue;
+						}
+
+						current = &Nodes[node];
+
+						//if(current->Ti_current != All.Ti_Current)
+						//force_drift_node(node, All.Ti_Current);
+
+						if(!(current->u.d.bitflags & (1 << BITFLAG_MULTIPLEPARTICLES)))
+						{
+								if(current->u.d.mass) // open cell
+								{
+										node = current->u.d.nextnode;
+										continue;
+								}
+						}
+
+						// in case the node can be discarded
+						node = current->u.d.sibling;
+
+						// first quick tests along the axes
+						double test_dist = cur_mindist + 0.5 * current->len;
+						
+						dx = current->center[0] - pt.x;
+						if(dx > test_dist)
+								continue;
+								
+						dy = current->center[1] - pt.y;
+						if(dy > test_dist)
+								continue;
+								
+						dz = current->center[2] - pt.z;
+						if(dz > test_dist)
+								continue;
+
+						// now test against the minimal sphere enclosing everything
+						test_dist += FACT1 * current->len;
+						if(dx * dx + dy * dy + dz * dz > test_dist * test_dist)
+								continue;
+
+						node = current->u.d.nextnode; // need to open the node
+				}
+		}
+
+		*mindist = cur_mindist;
+
+		if (nearest < 0 || nearest > N_gas) {
+				cout << "ERROR: FindNearestGasParticle nearest=" << nearest << " out of bounds." << endl;
+				endrun(1118);
+		}
+		
+		return nearest;
 }
 
 bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr)

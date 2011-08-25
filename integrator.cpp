@@ -126,6 +126,18 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		Spectrum Tr(1.0f);
 		
 		// find the cell the ray will enter first on the edge of the box
+#ifdef DEBUG
+		// debug: verify treefind vs brute
+		scene->arepoMesh->LocateEntryCellBrute(ray, &t0, &t1);
+		int oldi = ray.index;
+		scene->arepoMesh->LocateEntryCell(ray, &t0, &t1);
+		if (ray.index != oldi) {
+				cout << "MISMATCH brute = " << oldi << " tree = " << ray.index << endl;
+				exit(1119);
+		}
+#endif
+
+		// release: use treefind
 		scene->arepoMesh->LocateEntryCell(ray, &t0, &t1);
 		
 		// TODO: exchange?
