@@ -274,9 +274,6 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, double *mindist)
 						if(P[p].Type > 0) // not gas particle
 							continue;
 
-						//if(P[p].Ti_current != All.Ti_Current)
-						//	drift_particle(p, All.Ti_Current);
-
 						dx = P[p].Pos[0] - pt.x;
 						if(dx > cur_mindist)
 								continue;
@@ -299,15 +296,11 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, double *mindist)
 				else
 				{
 						if(node >= All.MaxPart + MaxNodes) { // pseudo particle
-								// what's going on here is fuzzy to me
 								node = Nextnode[node - MaxNodes];
 								continue;
 						}
 
 						current = &Nodes[node];
-
-						//if(current->Ti_current != All.Ti_Current)
-						//force_drift_node(node, All.Ti_Current);
 
 						if(!(current->u.d.bitflags & (1 << BITFLAG_MULTIPLEPARTICLES)))
 						{
@@ -390,11 +383,7 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 											 (DP[dp].y - P[ray.index].Pos[1]),
 											 (DP[dp].z - P[ray.index].Pos[2]) );
 				
-				//IF_DEBUG(midp.print(" midp "));
-				//IF_DEBUG(norm.print(" norm "));
-				
 				// find intersection of ray with this face
-				//double dotprod = Dot( (exitbox - hitbox), norm );
 				double dotprod = Dot( ray.d, norm );
 				
 				if (dotprod > 0) {
@@ -434,9 +423,7 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				IF_DEBUG(hitcell.print(" hcell "));
 				IF_DEBUG(exitcell.print(" ecell "));
 
-				// find interpolated value at midpoint of line segment through voronoi cell
-				// or sample at stepsize through cell (needed for smooth transfer functions)
-		
+				// cell gradient
 				Vector sphCen = Vector(SphP[ray.index].Center[0],
 															 SphP[ray.index].Center[1],
 															 SphP[ray.index].Center[2]);
@@ -451,6 +438,21 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				
 				// compute total path length through cell
 				double len = norm.Length();
+				
+				// find interpolated density at midpoint of line segment through voronoi cell
+				Vector midpt = Vector(hitcell[0] + 0.5 * norm[0],
+															hitcell[1] + 0.5 * norm[1],
+															hitcell[2] + 0.5 * norm[2]) - sphCen;
+				
+				IF_DEBUG(midpt.print(" onestep midp rel sphcen "));
+				
+				double rho = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
+				double utherm = 0.0;
+				
+				// optical depth: treat as constant for single cell
+				Spectrum stepTau(0.0);
+				stepTau += transferFunction->sigma_t() * rho * len;
+				Tr *= Exp(-stepTau);
 				
 				// TODO: sub-step length should be adaptive based on gradients
 				//       should only substep if the TF will evaluate nonzero somewhere inside
@@ -475,19 +477,10 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 								double rho = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
 								double utherm = 0.0;
 								
-								// multiplying by the stepsize makes these integrated (total) quantities, e.g. for 
-								// a "projected column density" image. for sampling quantities with a transfer 
-								// function we just want their true value at every point in space
-								// TODO: make this multiplication optional based on Config
-								//rho    *= step;
-								//utherm *= step;
-								
 								IF_DEBUG(cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
 															<< (i*fracstep)+fracstep << "] rho = " << SphP[ray.index].Density
 															<< " rho w/ grad = " << rho << " (grad.x = " << sphDensGrad.x
 															<< " grad.y = " << sphDensGrad.y << " grad.z = " << sphDensGrad.z << ")" << endl);
-								
-								// TODO tau calculation
 								
 								// Compute emission-only source term with transfer function
 								float vals[2]; vals[0] = (float)rho; vals[1] = (float)utherm;
@@ -497,24 +490,15 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 						
 				} else {
 						// no sub-stepping (cell sufficiently small), get interpolated values at segment center
-						Vector midpt = Vector(hitcell[0] + 0.5 * norm[0],
-																	hitcell[1] + 0.5 * norm[1],
-																	hitcell[2] + 0.5 * norm[2]) - sphCen;
-						
-						IF_DEBUG(midpt.print(" onestep midp rel sphcen "));
-						
-						double rho = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
-						double utherm = 0.0;
-						
-						//rho    *= len;
-						//utherm *= len;
+
+						// apply TF to integrated (total) quantities (only appropriate for constant?)
+						if (Config.projColDens) {
+								rho    *= len;
+								utherm *= len;
+						}
 						
 						IF_DEBUG(cout << " segment len = " << len << " rho = " << SphP[ray.index].Density 
 													<< " grad.x = " << sphDensGrad.x << " rho w/ grad = " << rho << endl);
-
-						//TODO tau calculation
-						//Spectrum stepTau = scene->volumeRegion->tau(tauRay,0.5f * stepSize, rng.RandomFloat());
-						//Tr *= Exp(-stepTau);
 
 						// Compute emission-only source term with transfer function
 						float vals[2]; vals[0] = (float)rho; vals[1] = (float)utherm;

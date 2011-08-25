@@ -108,6 +108,15 @@ TransferFunction::TransferFunction()
 {
 		IF_DEBUG(cout << "TransferFunction() constructor." << endl);
 		numFuncs = 0;
+		
+		// scattering
+		sig_s = 0.0f;
+		
+		// absorption
+		sig_a = Spectrum::FromRGB(Config.rgbAbsorb);
+		
+		// tau/trans
+		sig_t = sig_a + sig_s;
 }
 
 TransferFunction::~TransferFunction()

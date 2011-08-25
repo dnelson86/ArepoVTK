@@ -9,6 +9,9 @@ rawRGBFile     = frame.raw.txt       % output: raw dump of floats (debug only)
 filename       = test/Arepo2b.hdf5   % input: simulation snapshot
 paramFilename  = test/param.txt      % input: Arepo parameter file
 
+%filename       = test2/Arepo3.1k-with-grid
+%paramFilename  = test2/param.txt
+
 
 % General
 % -------
@@ -22,23 +25,30 @@ verbose        = true       % unused
 % Frame
 % -----
 
-imageXPixels   = 1000       % frame resolution (X), e.g. 1024, 1920
-imageYPixels   = 1000       % frame resolution (Y), e.g. 768,  1080
-swScale        = 0.52       % screenWindow mult factor * [-1,1]
-                            % 0.52 ortho face, 0.80 angled above
+imageXPixels   = 2          % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 2          % frame resolution (Y), e.g. 768,  1080
+swScale        = 0.3        % screenWindow mult factor * [-1,1]
+                            % 0.52 ortho face, 0.80 angled above, boxsize/2 in
+                            % general if centering camera at
+                            % [boxsize/2,boxsize/2,0]
 
 % Render
 % ------
 
-drawBBox       = true
-drawTetra      = true
-drawVoronoi    = false
+drawBBox       = true              % draw simulation bounding box
+drawTetra      = false             % draw delaunay tetrahedra
+drawVoronoi    = false             % DO NOT CHANGE
 
-viStepSize     = 0.1              % volume integration sub-stepping size (0=disabled)
+projColDens    = false             % integrate quantities (density, etc) along
+                                   % each path length, to make e.g. a
+                                   % "projected column density" image
+
+viStepSize     = 0.0               % volume integration sub-stepping size (0=disabled)
                                    % in (Arepo) code units
 
-rgbEmit        = 0.1 0.0 0.0       % (R G B) gas emission spectrum - debugging
-rgbLine        = 0.1 0.1 0.1       % (R G B) bounding box
-rgbTetra       = 0.01 0.01 0.01    % (R G B) tetra edges
-rgbVoronoi     = 0.0 0.05 0.0      % (R G B) voronoi edges
+rgbEmit        = 1.0 0.0 0.0       % (RGB) gas emission spectrum - debugging
+rgbLine        = 0.1 0.1 0.1       % (RGB) bounding box
+rgbTetra       = 0.01 0.01 0.01    % (RGB) tetra edges
+rgbVoronoi     = 0.0 0.05 0.0      % (RGB) voronoi edges
 
+rgbAbsorb      = 0.1 0.1 0.1       % (RGB) absorption

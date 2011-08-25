@@ -8,7 +8,7 @@
 // ConfigSet
 void ConfigSet::ReadFile(string cfgfile)
 {
-		IF_DEBUG(cout << "ConfigSet::ReadFile(" << cfgfile << ")." << endl);
+		cout << "Reading Configuration File [" << cfgfile << "]." << endl;
 		
 		ifstream is(cfgfile.c_str());
 		if (!is) {
@@ -58,7 +58,7 @@ void ConfigSet::ReadFile(string cfgfile)
 				}
 		}
 		
-		// do basic validation, fill public data members
+		// fill public data members
 		imageFile     = readValue<string>("imageFile",  "frame.tga");
 		rawRGBFile    = readValue<string>("rawRGBFile", "frame.raw.txt");
 		filename      = readValue<string>("filename");
@@ -75,7 +75,9 @@ void ConfigSet::ReadFile(string cfgfile)
 		
 		drawBBox      = readValue<bool>("drawBBox",      true);
 		drawTetra     = readValue<bool>("drawTetra",     true);	
-		drawVoronoi   = readValue<bool>("drawVoronoi",   false);		
+		drawVoronoi   = readValue<bool>("drawVoronoi",   false);
+
+		projColDens   = readValue<bool>("projColDens",   false);
 		
 		viStepSize    = readValue<float>("viStepSize",   0.0f); // disabled by default
 		
@@ -84,6 +86,14 @@ void ConfigSet::ReadFile(string cfgfile)
 		splitStrArray( readValue<string>("rgbLine",     "0.1  0.1  0.1")  , &rgbLine[0]    );
 		splitStrArray( readValue<string>("rgbTetra",    "0.01 0.01 0.01") , &rgbTetra[0]   );
 		splitStrArray( readValue<string>("rgbVoronoi",  "0.0  0.05 0.0")  , &rgbVoronoi[0] );
+
+		splitStrArray( readValue<string>("rgbAbsorb",   "0.0  0.05 0.0")  , &rgbAbsorb[0]  );
+		
+		// basic validation
+		if (projColDens && viStepSize) {
+				cout << "Config: ERROR! projColDens and viStepSize are incompatible options!" << endl;
+				exit(1120);
+		}
 }
 
 void ConfigSet::print()
