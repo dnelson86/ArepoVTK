@@ -69,6 +69,8 @@ public:
     }
 		
 		void LocateEntryCell(const Ray &ray, float *t0, float *t1);
+		void LocateEntryCellBrute(const Ray &ray, float *t0, float *t1);
+		int FindNearestGasParticle(Point &p, double *mindist);
 		bool AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr);
 		
 		//TODO: change these from taking inputs=Point p, which would require we go into the mesh and calculate the
