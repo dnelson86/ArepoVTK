@@ -19,6 +19,11 @@
 
 #define TF_VAL_DENS   0
 #define TF_VAL_UTHERM 1
+#define TF_VAL_VEL_X  2
+#define TF_VAL_VEL_Y  3
+#define TF_VAL_VEL_Z  4
+
+#define TF_NUM_VALS   5
 
 class TransferFunc1D {
 public:
@@ -40,7 +45,7 @@ private:
 class TransferFunction /*: public VolumeRegion*/ {
 public:
     // construction
-    TransferFunction();
+    TransferFunction(const Spectrum &sig_a);
 		~TransferFunction();
 
     // methods
@@ -64,10 +69,5 @@ private:
 		// tau = scatter + abs
 		Spectrum sig_a, sig_s, sig_t;
 };
-
-
-
-TransferFunction *CreateTransferFunction();
-
 
 #endif

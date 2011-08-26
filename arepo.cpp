@@ -37,7 +37,9 @@ bool Arepo::LoadSnapshot()
 {
     IF_DEBUG(cout << "Arepo::LoadSnapshot(" << snapFilename << ")." << endl);
 		
+#ifndef DEBUG		
 		freopen("/dev/null","w",stdout); //hide arepo stdout
+#endif		
 		
 		// set startup options
 		WriteMiscFiles = 0;
@@ -49,10 +51,17 @@ bool Arepo::LoadSnapshot()
 		// call arepo: run setup
 		begrun1();
 		
-		// load snapshot
-		if (snapFilename.substr(snapFilename.size()-5,5) == ".hdf5")
+		// check snapshot exists
+		if (!ifstream(snapFilename.c_str())) {
+				freopen("/dev/tty","w",stdout);
+				cout << "Arepo::LoadSnapshot() ERROR! Snapshot [" << snapFilename << "] not found." << endl;
+				endrun(1121);
+		}
+		
+		if (snapFilename.substr(snapFilename.size()-5,5) == ".hdf5") // cut off extension
 		  snapFilename = snapFilename.substr(0,snapFilename.size()-5);
-			
+
+		// load snapshot
 		read_ic(snapFilename.c_str());
 		
 		// call arepo: read snapshot, allocate storage for tree, 
@@ -61,12 +70,11 @@ bool Arepo::LoadSnapshot()
 				cout << "Arepo::LoadSnapshot() ERROR: Arepo did not return successfully." << endl;
 				return false;
 		}
+
+#ifndef DEBUG
+		freopen("/dev/tty","w",stdout); //return stdout to terminal	
+#endif
 	
-		// units
-		// TODO
-	
-		freopen("/dev/tty","w",stdout); //return stdout to terminal
-		
 		return true;
 }
 
@@ -96,6 +104,9 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		Ndt = T->Ndt;
 		Nvf = T->Nvf;
 		
+		cout << "[" << ThisTask << "] ArepoMesh: Ndp = " << Ndp << " Ndt = " << Ndt << " Nvf = " << Nvf 
+				 << " N_gas = " << N_gas << " NumPart = " << NumPart << endl;
+		
 		// preprocessing
 		//ArepoMesh::ComputeVoronoiEdges();
 		ArepoMesh::ComputeQuantityBounds();
@@ -104,6 +115,13 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		extent = BBox(Point(0.0,0.0,0.0),Point(boxSize,boxSize,boxSize));
 		
 		IF_DEBUG(extent.print(" ArepoMesh extent "));
+		
+		// TODO: temp units
+		unitConversions[TF_VAL_DENS]   = All.UnitDensity_in_cgs / MSUN_PER_PC3_IN_CGS;
+		unitConversions[TF_VAL_UTHERM] = All.UnitEnergy_in_cgs;
+		
+		IF_DEBUG(cout << "unitConv[dens]   = " << unitConversions[TF_VAL_DENS] << endl);
+		IF_DEBUG(cout << "unitConv[utherm] = " << unitConversions[TF_VAL_UTHERM] << endl);
 		
 		// debugging
 		//arepoMesh->DumpMesh();
@@ -447,7 +465,7 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				IF_DEBUG(midpt.print(" onestep midp rel sphcen "));
 				
 				double rho = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
-				double utherm = 0.0;
+				double utherm = SphP[ray.index].Utherm; //TODO: gradient (MATERIALS)
 				
 				// optical depth: treat as constant for single cell
 				Spectrum stepTau(0.0);
@@ -455,7 +473,7 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				Tr *= Exp(-stepTau);
 				
 				// TODO: sub-step length should be adaptive based on gradients
-				//       should only substep if the TF will evaluate nonzero somewhere inside
+				// TODO: should only substep if the TF will evaluate nonzero somewhere inside
 				
 				// decide on sub-stepping
 				if (viStepSize && len > viStepSize) {
@@ -475,16 +493,23 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 								IF_DEBUG(midpt.print(" substep midpt rel sphcen "));
 								
 								double rho = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
-								double utherm = 0.0;
+								double utherm = SphP[ray.index].Utherm; //TODO: gradient (MATERIALS)
 								
 								IF_DEBUG(cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
 															<< (i*fracstep)+fracstep << "] rho = " << SphP[ray.index].Density
 															<< " rho w/ grad = " << rho << " (grad.x = " << sphDensGrad.x
 															<< " grad.y = " << sphDensGrad.y << " grad.z = " << sphDensGrad.z << ")" << endl);
 								
-								// Compute emission-only source term with transfer function
-								float vals[2]; vals[0] = (float)rho; vals[1] = (float)utherm;
+								// pack cell quantities for TF
+								float vals[TF_NUM_VALS];
 								
+								vals[TF_VAL_DENS]   = (float)rho;
+								vals[TF_VAL_UTHERM] = (float)utherm;
+								vals[TF_VAL_VEL_X]  = (float) P[ray.index].Vel[0]; //TODO check
+								vals[TF_VAL_VEL_Y]  = (float) P[ray.index].Vel[1];
+								vals[TF_VAL_VEL_Z]  = (float) P[ray.index].Vel[2];
+								
+								// compute emission-only source term using transfer function
 								Lv += Tr * transferFunction->Lve(vals);
 						}
 						
@@ -500,9 +525,16 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 						IF_DEBUG(cout << " segment len = " << len << " rho = " << SphP[ray.index].Density 
 													<< " grad.x = " << sphDensGrad.x << " rho w/ grad = " << rho << endl);
 
-						// Compute emission-only source term with transfer function
-						float vals[2]; vals[0] = (float)rho; vals[1] = (float)utherm;
+						// pack cell quantities for TF
+						float vals[TF_NUM_VALS];
 						
+						vals[TF_VAL_DENS]   = (float)rho;
+						vals[TF_VAL_UTHERM] = (float)utherm;
+						vals[TF_VAL_VEL_X]  = (float) P[ray.index].Vel[0]; //TODO check
+						vals[TF_VAL_VEL_Y]  = (float) P[ray.index].Vel[1];
+						vals[TF_VAL_VEL_Z]  = (float) P[ray.index].Vel[2];
+						
+						// compute emission-only source term using transfer function
 						Lv += Tr * transferFunction->Lve(vals);
 				}
 				
@@ -526,8 +558,8 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 						endrun(1109);
 				}
 		} else {
-				// apparently this ray is done?
-				cout << " failed to intersect a face, hope this ray is done?" << endl;
+				// failed to intersect a face (shouldn't really happen?)
+				IF_DEBUG(cout << " failed to intersect a face, hope this ray is done?" << endl);
 				return false;
 		}
 
@@ -540,21 +572,40 @@ void ArepoMesh::ComputeQuantityBounds()
 		float pmin  = INFINITY;
 		float pmean = 0.0;
 		
+		float umax = 0.0;
+		float umin = INFINITY;
+		float umean = 0.0;
+		
 		for (int i=0; i < N_gas; i++) {
 				if (SphP[i].Density > pmax)
 						pmax = SphP[i].Density;
 				if (SphP[i].Density < pmin)
 						pmin = SphP[i].Density;
 				pmean += SphP[i].Density;
+				
+				if (SphP[i].Utherm > umax)
+						umax = SphP[i].Utherm;
+				if (SphP[i].Utherm < umin)
+						umin = SphP[i].Utherm;
+				umean += SphP[i].Utherm;
 		}
 		
-		densBounds[0] = pmin;
-		densBounds[1] = pmax;
-		densBounds[2] = pmean / N_gas;
+		valBounds[TF_VAL_DENS*3 + 0] = pmin;
+		valBounds[TF_VAL_DENS*3 + 1] = pmax;
+		valBounds[TF_VAL_DENS*3 + 2] = pmean / N_gas;
 		
-		IF_DEBUG(cout << " Density min = " << densBounds[0] << " max = " << densBounds[1] 
-									<< " mean = " << densBounds[2] << endl);
-
+		valBounds[TF_VAL_UTHERM*3 + 0] = umin;
+		valBounds[TF_VAL_UTHERM*3 + 1] = umax;
+		valBounds[TF_VAL_UTHERM*3 + 2] = umean / N_gas;
+		
+		IF_DEBUG(cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0] 
+									<< " max = " << valBounds[TF_VAL_DENS*3 + 1] 
+									<< " mean = " << valBounds[TF_VAL_DENS*3 + 2] << endl);
+									
+		IF_DEBUG(cout << " Utherm  min = " << valBounds[TF_VAL_UTHERM*3 + 0] 
+									<< " max = " << valBounds[TF_VAL_UTHERM*3 + 1] 
+									<< " mean = " << valBounds[TF_VAL_UTHERM*3 + 2] << endl);
+									
 }
 
 void ArepoMesh::ComputeVoronoiEdges()

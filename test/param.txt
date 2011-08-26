@@ -27,8 +27,8 @@ ResubmitCommand           my-scriptfile
 
 %----- Memory alloction
 
-MaxMemSize        1900         % sets maximum memory use in MByte
-PartAllocFactor   3.5
+MaxMemSize        3500         % sets maximum memory use in MByte
+PartAllocFactor   10.0
 BufferSize        200          % in MByte
 
 %----- Mesh regularization options

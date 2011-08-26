@@ -64,14 +64,19 @@ public:
 		bool TetraEdges(const int i, vector<Line> *edges);
     bool VoronoiEdges(const int i_face, vector<Line> *edges);
 		
+		// world geometry
     bool IntersectP(const Ray &r, float *t0, float *t1) const {
         return extent.IntersectP(r, t0, t1);
     }
 		
+		// mesh traversal
 		void LocateEntryCell(const Ray &ray, float *t0, float *t1);
 		void LocateEntryCellBrute(const Ray &ray, float *t0, float *t1);
 		int FindNearestGasParticle(Point &p, double *mindist);
 		bool AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr);
+		
+		// fluid data introspection
+		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
 		// data
 		int Ndp;           // number of delaunay points
@@ -86,12 +91,16 @@ public:
     //connection *DC;    // voronoi connections
 		
 private:
+    // rendering
 		BBox extent;
     const TransferFunction *transferFunction;
 		float viStepSize;
 		
-		float densBounds[3]; // min,max,mean
+		// units, etc
+		float valBounds[TF_NUM_VALS*3];     // min,max,mean for each non-derived quantity
+		float unitConversions[TF_NUM_VALS]; // mult factor from code units to ArepoVTK "units"
 		
+		// mesh
     tessellation *T;
 		
 		int *EdgeList;

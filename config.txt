@@ -6,11 +6,14 @@
 
 imageFile      = frame.tga           % output: TGA image filename
 rawRGBFile     = frame.raw.txt       % output: raw dump of floats (debug only)
-filename       = test/Arepo2b.hdf5   % input: simulation snapshot
-paramFilename  = test/param.txt      % input: Arepo parameter file
+%filename       = test/Arepo2b.hdf5   % input: simulation snapshot
+%paramFilename  = test/param.txt      % input: Arepo parameter file
 
-%filename       = test2/Arepo3.1k-with-grid
+%filename       = test2/Arepo3.10k-with-grid
 %paramFilename  = test2/param.txt
+
+filename        = test3/snap_020.hdf5
+paramFilename   = test3/param.txt
 
 
 % General
@@ -25,9 +28,9 @@ verbose        = true       % unused
 % Frame
 % -----
 
-imageXPixels   = 2          % frame resolution (X), e.g. 1024, 1920
-imageYPixels   = 2          % frame resolution (Y), e.g. 768,  1080
-swScale        = 0.3        % screenWindow mult factor * [-1,1]
+imageXPixels   = 1000       % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 1000       % frame resolution (Y), e.g. 768,  1080
+swScale        = 15.0       % screenWindow mult factor * [-1,1]
                             % 0.52 ortho face, 0.80 angled above, boxsize/2 in
                             % general if centering camera at
                             % [boxsize/2,boxsize/2,0]
@@ -46,7 +49,7 @@ projColDens    = false             % integrate quantities (density, etc) along
 viStepSize     = 0.0               % volume integration sub-stepping size (0=disabled)
                                    % in (Arepo) code units
 
-rgbEmit        = 1.0 0.0 0.0       % (RGB) gas emission spectrum - debugging
+rgbEmit        = 0.1 0.0 0.0       % (RGB) gas emission spectrum - debugging
 rgbLine        = 0.1 0.1 0.1       % (RGB) bounding box
 rgbTetra       = 0.01 0.01 0.01    % (RGB) tetra edges
 rgbVoronoi     = 0.0 0.05 0.0      % (RGB) voronoi edges
