@@ -12,35 +12,44 @@
 
 void rtTestIsoDiskRender()
 {
+		const Spectrum sig_a = Spectrum::FromRGB(Config.rgbAbsorb); // / 1000 ?
+
 		// constant setup		
 		VolumeIntegrator *vi  = CreateVoronoiVolumeIntegrator();	
-		TransferFunction *tf  = CreateTransferFunction();
+		TransferFunction *tf  = new TransferFunction(sig_a);
 		ArepoMesh *arepoMesh  = new ArepoMesh(tf);
 		Scene *scene          = new Scene(NULL, arepoMesh);
 				
 		// per frame:
 		
 		// set camera
-		//Point cameraPos    = Point(50.0,50.0,0.0); //face on
-		//Point cameraLook   = Point(50.0,50.0,1.0);
+		//Point cameraPos    = Point(boxSize/2.0,boxSize/2.0,0.0); //face on
+		Point cameraPos    = Point(boxSize,boxSize/2.0,boxSize/2.0); //edge on
 		
-		Point cameraPos    = Point(100.0,50.0,50.0); //edge on
-		Point cameraLook   = Point(50.0,50.0,50.0);
+		Point cameraLook   = Point(boxSize/2.0,boxSize/2.0,boxSize/2.0); //center of box
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
 		
 		Transform world2camera = LookAt(cameraPos, cameraLook, cameraVecUp);
 		
 		// debugging - TF
-		Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit) * 1000;
-		Spectrum s2 = Spectrum::FromNamed("green") * 1000;
-		Spectrum s3 = Spectrum::FromNamed("blue") * 1000;
+		Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit);
+		Spectrum s2 = Spectrum::FromNamed("green");
+		Spectrum s3 = Spectrum::FromNamed("blue");
 		
-		tf->AddConstant(TF_VAL_DENS,s1);
-		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,spec);
-		//tf->AddGaussian(TF_VAL_DENS,0.005,0.0005,s1);
-		//tf->AddGaussian(TF_VAL_DENS,0.0010,0.00005,s2);
-		//tf->AddGaussian(TF_VAL_DENS,0.0005,0.00005,s3);
+		// examples:
+		//tf->AddConstant(TF_VAL_DENS,s1);
+		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,s1);
+		//tf->AddGaussian(TF_VAL_DENS,0.1,0.01,s1);
 		
+		// "3gaussian"
+		//tf->AddGaussian(TF_VAL_DENS,0.001,0.0002,s1);
+		//tf->AddGaussian(TF_VAL_DENS,0.00001,0.000002,s2);
+		//tf->AddGaussian(TF_VAL_DENS,0.0000001,0.00000002,s3);
+		
+		// "rho_velz"
+		tf->AddGaussian(TF_VAL_DENS,0.00001,0.000002,s2);
+		tf->AddGaussian(TF_VAL_VEL_Z,-10.0,1.0,s1);
+
 		// camera(film) and camera dependent
 		Filter *filter       = CreateBoxFilter();
 		Film *film           = CreateFilm(filter);
@@ -59,14 +68,14 @@ void rtTestIsoDiskRender()
 void rtTestRenderScene(string filename)
 {
 		// config - camera
-		Point cameraPos    = Point(0.5,0.5,0.0); //centered on z=0 plane edge, x/y axis aligned
-		Point cameraLook   = Point(0.5,0.5,1.0);
+		//Point cameraPos    = Point(0.5,0.5,0.0); //centered on z=0 plane edge, x/y axis aligned
+		//Point cameraLook   = Point(0.5,0.5,1.0);
 		
 		//Point cameraPos      = Point(1.0,0.5,0.5); //centered on x=1.0 plane edge
 		//Point cameraLook     = Point(0.0,0.5,0.5); //looking -zhat, y/z axis aligned
 		
-		//Point cameraPos    = Point(2.0,2.0,-2.0); //angled above
-		//Point cameraLook   = Point(0.5,0.5,0.5); //looking at center of box
+		Point cameraPos    = Point(2.0,2.0,-2.0); //angled above
+		Point cameraLook   = Point(0.5,0.5,0.5); //looking at center of box
 		
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
 		
@@ -92,7 +101,8 @@ void rtTestRenderScene(string filename)
 		Renderer *re         = new Renderer(sampler, camera, vi);
 		
 		// transfer function
-		TransferFunction *tf = CreateTransferFunction();
+		const Spectrum sig_a = Spectrum::FromRGB(Config.rgbAbsorb);
+		TransferFunction *tf = new TransferFunction(sig_a);
 		
 		// debugging:
 		Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit);
@@ -117,11 +127,17 @@ void rtTestRenderScene(string filename)
 				SphP[i].Grad.drho[0] = 0.0;
 				SphP[i].Grad.drho[1] = 0.0;
 				SphP[i].Grad.drho[2] = 0.0;
-				if (i == 6) {
+				if (i == 6) { //center
 						SphP[i].Density      = 3.0;
 						SphP[i].Grad.drho[0] = 10.0;
 						SphP[i].Grad.drho[1] = 10.0;
 						SphP[i].Grad.drho[2] = 2.0;
+				}
+				if (i == 2) { // upper right near corner
+						SphP[i].Density      = 20.0;
+				}
+				if (i == 5) { // upper right far corner
+						SphP[i].Density      = 2.8;
 				}
 				cout << "SphP[" << setw(2) << i << "] dens = " << setw(10) << SphP[i].Density 
 						 << " grad.x = " << setw(10) << SphP[i].Grad.drho[0] << " grad.y = " 
@@ -167,33 +183,28 @@ int main (int argc, char* argv[])
 				 << "--------------------------\n";
 		IF_DEBUG(cout << "DEBUGGING ENALBED.\n\n");
 		
-		// command line arguments (config file)
+		// command line arguments
 		if (argc != 2) {
 				cout << "usage: ArepoRT <configfile.txt>\n";
 				return 0;
 		} else {
+				// read config
 				Config.ReadFile( argv[1] );
+				IF_DEBUG(Config.print());
 		} 
 
-		// read config
-		//Config.ReadFile("config.txt");
-		IF_DEBUG(Config.print());
-		
 		// init
 #ifdef ENABLE_AREPO
-    cout << "AREPO ENABLED." << endl;
-
     Arepo arepo = Arepo(Config.filename, Config.paramFilename);
 		
     arepo.Init(&argc,&argv);
-
     arepo.LoadSnapshot();
 #endif
 
 		// debug test render
-		rtTestRenderScene(Config.filename);
+		//rtTestRenderScene(Config.filename);
 		
-		//rtTestIsoDiskRender();
+		rtTestIsoDiskRender();
 		
 		// cleanup
 #ifdef ENABLE_AREPO

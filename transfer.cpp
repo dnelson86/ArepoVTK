@@ -41,18 +41,18 @@ TransferFunc1D::TransferFunc1D(short int ty, short int vn,
 						IF_DEBUG(cout << "TF1D: Error! Gaussian type but spec/params out of bounds." << endl);
 						exit(1113);
 				}
-		
+				
 				range[0]      = params[0] - 4.0f * params[1]; //cut at +/- 4s
 				range[1]      = params[0] + 4.0f * params[1];
 				gaussParam[0] = params[0]; //mean
 				gaussParam[1] = params[1]; //sigma
 				le            = spec[0];
 		}
-		
+
 		// unrecognized type / val
 		if (type < 0 || type > 3)
 				exit(1110);
-		if (valNum < 0 || valNum > 1)
+		if (valNum < 0 || valNum >= TF_NUM_VALS)
 				exit(1112);
 }
 
@@ -104,16 +104,13 @@ Spectrum TransferFunc1D::Lve(const float *vals) const
 
 }
 
-TransferFunction::TransferFunction()
+TransferFunction::TransferFunction(const Spectrum &sig_a)
 {
 		IF_DEBUG(cout << "TransferFunction() constructor." << endl);
 		numFuncs = 0;
 		
 		// scattering
 		sig_s = 0.0f;
-		
-		// absorption
-		sig_a = Spectrum::FromRGB(Config.rgbAbsorb);
 		
 		// tau/trans
 		sig_t = sig_a + sig_s;
@@ -214,9 +211,4 @@ bool TransferFunction::AddGaussian(int valNum, float mean, float sigma, Spectrum
 		numFuncs++;
 		
 		return true;
-}
-
-TransferFunction *CreateTransferFunction()
-{
-    return new TransferFunction();
 }

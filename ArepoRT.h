@@ -7,11 +7,13 @@
 #define AREPO_RT_H
 
 // defines
-#define AREPO_RT_VERSION   0.3
-#define L1_CACHE_LINE_SIZE 64
-#define FILTER_TABLE_SIZE  16
-#define INFINITY           FLT_MAX
-#define INSIDE_EPS         1.0e-6
+#define AREPO_RT_VERSION    0.3
+#define L1_CACHE_LINE_SIZE  64
+#define FILTER_TABLE_SIZE   16
+#define INFINITY            FLT_MAX
+#define INSIDE_EPS          1.0e-6
+
+#define MSUN_PER_PC3_IN_CGS 6.769e-23
 
 //#define USE_LINEALGO_BRESENHAM
 #define USE_LINEALGO_WU

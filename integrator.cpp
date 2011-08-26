@@ -173,6 +173,8 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
         // roulette terminate ray marching if transmittance is small
         if (Tr.y() < 1e-3) {
             const float continueProb = 0.5f;
+						Point p = ray(ray.min_t);
+						cout << " roulette ray.x = " << p.x << " y = " << p.y << " z = " << p.z << " tr.y = " << Tr.y() << endl;
             if (rng.RandomFloat() > continueProb) break;
             Tr /= continueProb;
         }

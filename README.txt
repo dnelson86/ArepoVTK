@@ -57,14 +57,15 @@ Version Roadmap:
    - use treefind for entry cells
    - handle local and foreign ghosts
 	 - exchange_rays() type approach
-	 
-+v0.6
+  - 2D transfer functions, e.g. f(rho,T)	 
+
++v0.5
  - camera path splining in space (AnimatedTransform?)
  - movie pipeline
   - frame metadata (XML/MKV container?)
  - time navigation (multiple snapshots, interpolation?)	 
 	 
-+v0.5
++v0.6
   - interactive component (OpenGL)
 	 - alternative/quick rendering modes
 	 - navigation
@@ -77,13 +78,12 @@ Version Roadmap:
 	- intersection acceleration? (BVH / kdTree)
 	- memory optimizations (wipe out / rearrange some Arepo stuff)
 	- speed optimizations?
-	 - scratch Volume2World transform?
 	
  +v0.8
-  - tetrahedra decomposition: VisIT exporter
-	- light sources (star particles)
-	- single scattering volume integrator (MC)
-	- DOF/motion blur
+  - tetrahedra decomposition: exporter
+	- light sources (star particles)?
+	 - single scattering volume integrator (MC)?
+	- DOF/motion blur?
 
 --------------------------
 Arepo Interactive/Explorer
