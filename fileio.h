@@ -10,6 +10,7 @@
 #include <sstream>
 #include <fstream>
 #include <map>
+#include <vector>
 using namespace std;
 
 #include <string>
@@ -31,7 +32,7 @@ public:
 		template<class T> T readValue(const string &key) const;
 		template<class T> T readValue(const string &key, const T &defaultValue) const;
 		
-		void splitStrArray(const string &str, float *rgb);
+		void splitStrArray(const string &str, float *rgb); // size 3
 
     // data for public access
     int nTasks;
@@ -45,6 +46,8 @@ public:
 		bool projColDens;
     string imageFile, rawRGBFile;
 		string filename, paramFilename;
+		
+		vector<string> tfSet;
 
 private:
 		// for reading config file

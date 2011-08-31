@@ -89,6 +89,15 @@ void ConfigSet::ReadFile(string cfgfile)
 
 		splitStrArray( readValue<string>("rgbAbsorb",   "0.0  0.05 0.0")  , &rgbAbsorb[0]  );
 		
+		//TODO: temp TF handling
+		map_i pi;
+		
+		for (pi = parsedParams.begin(); pi != parsedParams.end(); ++pi) {
+				if (pi->first.substr(0,5) == "addTF")
+						tfSet.push_back(pi->second);
+				
+		}
+		
 		// basic validation
 		if (projColDens && viStepSize) {
 				cout << "Config: ERROR! projColDens and viStepSize are incompatible options!" << endl;
