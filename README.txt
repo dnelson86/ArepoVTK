@@ -51,21 +51,25 @@ Version Roadmap:
 	- transfer function on a single quantity
   - configuration file
 	
-+v0.4
+ +v0.4
   - parallel (MPI)
 	- large snapshot support and optimizations
    - use treefind for entry cells
    - handle local and foreign ghosts
 	 - exchange_rays() type approach
-  - 2D transfer functions, e.g. f(rho,T)	 
 
-+v0.5
+ +v0.41
+  - 2D transfer functions, e.g. f(rho,T)	 
+  - johnston convolved planck BB temp emission TF
+  - voronoi cell edge algorithm
+
+ +v0.5
  - camera path splining in space (AnimatedTransform?)
  - movie pipeline
   - frame metadata (XML/MKV container?)
  - time navigation (multiple snapshots, interpolation?)	 
 	 
-+v0.6
+ +v0.6
   - interactive component (OpenGL)
 	 - alternative/quick rendering modes
 	 - navigation

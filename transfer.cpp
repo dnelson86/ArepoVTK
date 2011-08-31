@@ -109,6 +109,13 @@ TransferFunction::TransferFunction(const Spectrum &sig_a)
 		IF_DEBUG(cout << "TransferFunction() constructor." << endl);
 		numFuncs = 0;
 		
+		// value name -> index number map
+		valNums["Density"] = 0;
+		valNums["Utherm"]  = 1;
+		valNums["Vel_X"]   = 2;
+		valNums["Vel_Y"]   = 3;
+		valNums["Vel_Z"]   = 4;
+		
 		// scattering
 		sig_s = 0.0f;
 		
@@ -211,4 +218,114 @@ bool TransferFunction::AddGaussian(int valNum, float mean, float sigma, Spectrum
 		numFuncs++;
 		
 		return true;
+}
+
+bool TransferFunction::AddParseString(string &addTFstr)
+{
+		int valNum;
+		Spectrum spec;
+		float rgb[3];
+		
+	  // split string
+		vector<string> p;
+		string item;
+		char delim;
+		delim = ' ';
+		
+		IF_DEBUG(cout << "TF str = " << addTFstr << endl);
+		
+		stringstream ss(addTFstr);
+		while(getline(ss, item, delim))
+				p.push_back(item);
+				
+		// check string size
+		if (p.size() < 3) {
+				cout << "ERROR: addTF string too short: " << addTFstr << endl;
+				exit(1122);
+		}
+		
+		// check value name
+		if (!valNums.count(p[1])) {
+				cout << "ERROR: addTF string has invalid value name: " << p[1] << endl;
+				exit(1123);
+		}
+		
+		valNum = valNums[p[1]];
+		
+		// determine type of TF
+		if (p[0] == "constant") {
+				if (p.size() == 3) {
+						spec = Spectrum::FromNamed(p[2]);
+				} else if (p.size() == 5) {
+						rgb[0] = atof(p[2].c_str());
+						rgb[1] = atof(p[3].c_str());
+						rgb[2] = atof(p[4].c_str());
+						spec = Spectrum::FromRGB(rgb);
+				} else {
+						cout << "ERROR: addTF constant string bad: " << addTFstr << endl;
+						exit(1124);
+				}
+				
+				AddConstant(valNum,spec);
+		
+		} else if (p[0] == "gaussian") {
+				if (p.size() == 5) {
+						spec = Spectrum::FromNamed(p[4]);
+				} else if (p.size() == 7) {
+						rgb[0] = atof(p[4].c_str());
+						rgb[1] = atof(p[5].c_str());
+						rgb[2] = atof(p[6].c_str());
+						spec = Spectrum::FromRGB(rgb);
+				} else {
+						cout << "ERROR: addTF gaussian string bad: " << addTFstr << endl;
+						exit(1124);
+				}
+				
+				float mean  = atof(p[2].c_str());
+				float sigma = atof(p[3].c_str());
+				
+				AddGaussian(valNum,mean,sigma,spec);
+		
+		} else if (p[0] == "tophat") {
+				if (p.size() == 5) {
+						spec = Spectrum::FromNamed(p[4]);
+				} else if (p.size() == 7) {
+						rgb[0] = atof(p[4].c_str());
+						rgb[1] = atof(p[5].c_str());
+						rgb[2] = atof(p[6].c_str());
+						spec = Spectrum::FromRGB(rgb);
+				} else {
+						cout << "ERROR: addTF tophat string bad: " << addTFstr << endl;
+						exit(1124);
+				}
+				
+				float min = atof(p[2].c_str());
+				float max = atof(p[3].c_str());
+				
+				AddTophat(valNum,min,max,spec);
+		}
+		
+				
+		//Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit);
+		//Spectrum s2 = Spectrum::FromNamed("green");
+		//Spectrum s3 = Spectrum::FromNamed("blue");
+		
+		// examples:
+		//tf->AddConstant(TF_VAL_DENS,s1);
+		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,s1);
+		//tf->AddGaussian(TF_VAL_DENS,0.1,0.01,s1);
+		
+		// "3gaussian"
+		//tf->AddGaussian(TF_VAL_DENS,1e-3,2e-4,s1);
+		//tf->AddGaussian(TF_VAL_DENS,1e-5,2e-6,s2);
+		//tf->AddGaussian(TF_VAL_DENS,1e-7,2e-8,s3);
+		
+		// "rho_velz"
+		//tf->AddGaussian(TF_VAL_DENS,1e-5,2e-6,s2);
+		//tf->AddGaussian(TF_VAL_VEL_Z,-10.0,0.1,s1);
+		
+		// "2gauss"
+		//tf->AddGaussian(TF_VAL_DENS,2e-3,3e-4,s1);
+		//tf->AddGaussian(TF_VAL_DENS,2e-2,3e-3,s2);
+
 }

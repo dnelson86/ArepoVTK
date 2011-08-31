@@ -54,6 +54,8 @@ public:
 		bool AddConstant(int valNum, Spectrum &spec);
 		bool AddPiecewise(int valNum, vector<float> &params);
 		
+		bool AddParseString(string &addTFstr);
+		
 		// evaluation
     //Spectrum sigma_a(const Point &p, const Vector &, float) const {    }
     //Spectrum sigma_s(const Point &p, const Vector &, float) const {    }
@@ -65,6 +67,8 @@ private:
     // data
     short int numFuncs;
 		vector<TransferFunc1D *> f_1D;
+		
+		map<string,int> valNums;
 		
 		// tau = scatter + abs
 		Spectrum sig_a, sig_s, sig_t;

@@ -12,7 +12,7 @@
 
 void rtTestIsoDiskRender()
 {
-		const Spectrum sig_a = Spectrum::FromRGB(Config.rgbAbsorb); // / 1000 ?
+		const Spectrum sig_a = Spectrum::FromRGB(Config.rgbAbsorb);
 
 		// constant setup		
 		VolumeIntegrator *vi  = CreateVoronoiVolumeIntegrator();	
@@ -23,8 +23,9 @@ void rtTestIsoDiskRender()
 		// per frame:
 		
 		// set camera
-		//Point cameraPos    = Point(boxSize/2.0,boxSize/2.0,0.0); //face on
-		Point cameraPos    = Point(boxSize,boxSize/2.0,boxSize/2.0); //edge on
+		Point cameraPos    = Point(boxSize/2.0,boxSize/2.0,0.0); //face on
+		//Point cameraPos    = Point(boxSize,boxSize/2.0,boxSize/2.0); //edge on
+		//Point cameraPos    = Point(boxSize/2.0,0.0,boxSize*0.25); //high i angled
 		
 		Point cameraLook   = Point(boxSize/2.0,boxSize/2.0,boxSize/2.0); //center of box
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
@@ -32,23 +33,8 @@ void rtTestIsoDiskRender()
 		Transform world2camera = LookAt(cameraPos, cameraLook, cameraVecUp);
 		
 		// debugging - TF
-		Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit);
-		Spectrum s2 = Spectrum::FromNamed("green");
-		Spectrum s3 = Spectrum::FromNamed("blue");
-		
-		// examples:
-		//tf->AddConstant(TF_VAL_DENS,s1);
-		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,s1);
-		//tf->AddGaussian(TF_VAL_DENS,0.1,0.01,s1);
-		
-		// "3gaussian"
-		//tf->AddGaussian(TF_VAL_DENS,0.001,0.0002,s1);
-		//tf->AddGaussian(TF_VAL_DENS,0.00001,0.000002,s2);
-		//tf->AddGaussian(TF_VAL_DENS,0.0000001,0.00000002,s3);
-		
-		// "rho_velz"
-		tf->AddGaussian(TF_VAL_DENS,0.00001,0.000002,s2);
-		tf->AddGaussian(TF_VAL_VEL_Z,-10.0,1.0,s1);
+		for (int i=0; i < Config.tfSet.size(); i++)
+				tf->AddParseString(Config.tfSet[i]);
 
 		// camera(film) and camera dependent
 		Filter *filter       = CreateBoxFilter();
@@ -192,7 +178,7 @@ int main (int argc, char* argv[])
 				Config.ReadFile( argv[1] );
 				IF_DEBUG(Config.print());
 		} 
-
+		
 		// init
 #ifdef ENABLE_AREPO
     Arepo arepo = Arepo(Config.filename, Config.paramFilename);
