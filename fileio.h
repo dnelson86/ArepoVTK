@@ -32,7 +32,7 @@ public:
 		template<class T> T readValue(const string &key) const;
 		template<class T> T readValue(const string &key, const T &defaultValue) const;
 		
-		void splitStrArray(const string &str, float *rgb); // size 3
+		void splitStrArray(const string str, float *rgb); // size 3
 
     // data for public access
     int nTasks;
@@ -43,7 +43,7 @@ public:
 		float swScale; // screenWindow mult factor * [-1,1]
     bool quickRender, verbose, openWindow;
 		bool drawBBox, drawTetra, drawVoronoi;
-		bool projColDens;
+		bool projColDens, useDensGradients;
     string imageFile, rawRGBFile;
 		string filename, paramFilename;
 		
