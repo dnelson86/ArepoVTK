@@ -77,9 +77,10 @@ void ConfigSet::ReadFile(string cfgfile)
 		drawTetra     = readValue<bool>("drawTetra",     true);	
 		drawVoronoi   = readValue<bool>("drawVoronoi",   false);
 
-		projColDens   = readValue<bool>("projColDens",   false);
-		
-		viStepSize    = readValue<float>("viStepSize",   0.0f); // disabled by default
+		projColDens      = readValue<bool>("projColDens",     false);
+		useDensGradients = readValue<bool>("useDensGradients", true);
+
+		viStepSize       = readValue<float>("viStepSize",      0.0f); // disabled by default
 		
 		//TODO: temp rgb triplets input		
 		splitStrArray( readValue<string>("rgbEmit",     "0.1  0.0  0.0")  , &rgbEmit[0]    );
@@ -109,10 +110,9 @@ void ConfigSet::print()
 {
 		map_i pi;
 		
-		// TODO: fix output of rgb triplets / store in some other way
 		cout << endl << "CONFIGURATION PARAMETERS USED:" << endl << endl;
 		for (pi = parsedParams.begin(); pi != parsedParams.end(); ++pi) {
-				cout << " " << pi->first << " " << delim << " " << pi->second << endl;
+				cout << " " << setw(16) << pi->first << " " << delim << " " << pi->second << endl;
 		}
 		cout << endl;
 
@@ -173,13 +173,18 @@ template<> inline string ConfigSet::string_to_T<string>(const string &str)
 	return str;
 }
 
-void ConfigSet::splitStrArray(const string &str, float *rgb) //size=3
+void ConfigSet::splitStrArray(const string str, float *rgb) //size=3
 {
-		char *pch = strtok((char*)str.c_str(), " ,");
+		char *t;
+	  t = new char [str.size()+1];
+		strcpy (t, str.c_str());
+
+		char *pch = strtok((char*)t, " ,");
 		for (int i=0; i < 3; i++) {
 				rgb[i] = atof(pch);
 				pch = strtok(NULL," ,");
 		}
+		delete[] t;
 }
 
 // Image Output
