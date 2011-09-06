@@ -54,6 +54,7 @@ public:
 		// preprocessing
 		void ComputeVoronoiEdges();
 		void ComputeQuantityBounds();
+		void CalculateMidpoints();
 		
 		// methods
 		void DumpMesh();
@@ -106,6 +107,14 @@ private:
 		int *EdgeList;
 		int *Nedges;
 		int *NedgesOffset;
+		
+		// sunrise alternative connectivity construction
+		
+		vector<int>            primary_cells;   // maps dp_idx to the dp_idx of the primary cell
+		vector<pair<int,int> > midpoint_idx;    // stores the starting midpoint and number of faces for the cell,
+		                                       // indexed by dp_idx
+		vector<Vector>         midpoints;       // stores the midpoints between the mesh points, indexed by midpoint_idx
+		vector<int>            opposite_points; // stores the dp index of the cell opposite to the midpoint
 };
 
 #endif //ENABLE_AREPO

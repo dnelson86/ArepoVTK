@@ -28,6 +28,7 @@ void RendererTask::Run() {
     Ray *rays = new Ray[maxSamples];
     Spectrum *Ls = new Spectrum[maxSamples];
     Spectrum *Ts = new Spectrum[maxSamples];
+		float *rayWeights = new float[maxSamples];
 
     // Get samples from _Sampler_ and update image
     int sampleCount;
@@ -37,19 +38,20 @@ void RendererTask::Run() {
 				IF_DEBUG(cout << " RendererTask::Run() maxSamples = " << maxSamples 
 											<< " sampleCount = " << sampleCount << endl);
 				
-        // Generate camera rays and compute radiance along rays
-        for (int i = 0; i < sampleCount; ++i)
+        // generate camera rays and compute radiance along rays
+        for (int i = 0; i < sampleCount; i++)
 				{
-            // Find camera ray for _sample[i]_
-            float rayWeight = camera->GenerateRay(samples[i], &rays[i]);
+            // find camera ray for _sample[i]_
+            rayWeights[i] = camera->GenerateRay(samples[i], &rays[i]);
 
-						// Evaluate radiance along camera ray
-						if (rayWeight > 0.0f)
-								Ls[i] = rayWeight * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i]);
-						else {
-								Ls[i] = 0.0f;
-								Ts[i] = 1.0f;
-						}
+						// find entry cell in mesh
+						// done inside integrator for now (need t0,t1)
+				}
+				
+				// Evaluate radiance along camera rays
+				for (int i=0; i < sampleCount; i++)
+				{
+						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i]);
 
 						// error check on value of Ls[i]
         }
@@ -133,6 +135,7 @@ void RendererTask::Run() {
     delete[] rays;
     delete[] Ls;
     delete[] Ts;
+		delete[] rayWeights;
 }
 
 // Renderer

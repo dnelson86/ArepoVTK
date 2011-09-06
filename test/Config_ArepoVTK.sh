@@ -51,9 +51,9 @@ PERIODIC
 #--------------------------------------- Mesh motion and regularization
 #VORONOI_STATIC_MESH
 #DISABLE_MESH_UPDATE
-#REGULARIZE_MESH_CM_DRIFT
-#REGULARIZE_MESH_CM_DRIFT_USE_SOUNDSPEED
-#REGULARIZE_MESH_FACE_ANGLE
+REGULARIZE_MESH_CM_DRIFT
+REGULARIZE_MESH_CM_DRIFT_USE_SOUNDSPEED
+REGULARIZE_MESH_FACE_ANGLE
 #OUTPUT_MESH_FACE_ANGLE
 #CALCULATE_VERTEX_VELOCITY_DIVERGENCE
 
@@ -73,6 +73,7 @@ PERIODIC
 #VORONOI_FIELD_COMPENSATE_VY=0
 VORONOI_NEW_IMAGE
 #VORONOI_PROJ_TEMP                            #project T instead of u
+
 #--------------------------------------- Refinement and derefinement
 #REFINEMENT_SPLIT_CELLS
 #REFINEMENT_MERGE_CELLS
@@ -81,8 +82,8 @@ VORONOI_NEW_IMAGE
 #NODEREFINE_BACKGROUND_GRID
 
 #--------------------------------------- Mesh-relaxing or mesh-adding (this will not carry out a simulation)
-MESHRELAX                     # this keeps the mass constant and only regularizes the mesh
-MESHRELAX_DENSITY_IN_INPUT
+#MESHRELAX                     # this keeps the mass constant and only regularizes the mesh
+MESHRELAX_DENSITY_IN_INPUT    # TODO: check for snapshot type (only for Arepo2b etc)
 #ADDBACKGROUNDGRID=16
 
 

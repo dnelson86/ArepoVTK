@@ -33,8 +33,9 @@ BufferSize        200          % in MByte
 
 %----- Mesh regularization options
 
-CellShapingFactor 0.2          % sets threshold for CM-displacement
+%CellShapingFactor 0.2          % sets threshold for CM-displacement
 CellShapingSpeed  0.5          % sets speed of CM correction
+CellMaxAngleFactor 2.25            % maximum angle
 
 %ErrTolThetaInZeldovich 0.5    % tree opening parameter for inverse Zeldovich mesh correction
 MeanVolume             1.0e30  % desired maximum volume of cells for Zeldovich mesh corrrection
