@@ -19,24 +19,26 @@ void rtTestIsoDiskRender()
 		TransferFunction *tf  = new TransferFunction(sig_a);
 		ArepoMesh *arepoMesh  = new ArepoMesh(tf);
 		Scene *scene          = new Scene(NULL, arepoMesh);
-				
-		// per frame:
 		
-		// set camera
-		Point cameraPos    = Point(boxSize/2.0,boxSize/2.0,0.0); //face on
+		// setup camera
+		Point cameraPos    = Point(boxSize/2.0,boxSize/2.0,5000.0); //face on
+		//Point cameraPos      = Point(11700.0,11200.0,0.0); //20mpc debug 1
+		//Point cameraPos      = Point(400.0,15000.0,0.0); //20mpc debug 2
+		
 		//Point cameraPos    = Point(boxSize,boxSize/2.0,boxSize/2.0); //edge on
 		//Point cameraPos    = Point(boxSize/2.0,0.0,boxSize*0.25); //high i angled
 		
-		Point cameraLook   = Point(boxSize/2.0,boxSize/2.0,boxSize/2.0); //center of box
+		//Point cameraLook   = Point(boxSize/2.0,boxSize/2.0,boxSize/2.0); //center of box
+		Point cameraLook = cameraPos+Point(0.0,0.0,1.0); //20mpc debug
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
-		
+
 		Transform world2camera = LookAt(cameraPos, cameraLook, cameraVecUp);
 		
-		// debugging - TF
+		// setup transfer function
 		for (int i=0; i < Config.tfSet.size(); i++)
 				tf->AddParseString(Config.tfSet[i]);
 
-		// camera(film) and camera dependent
+		// would recreate per frame
 		Filter *filter       = CreateBoxFilter();
 		Film *film           = CreateFilm(filter);
 		Camera *camera       = CreateOrthographicCamera(Inverse(world2camera), film);
@@ -44,7 +46,7 @@ void rtTestIsoDiskRender()
 		Renderer *re         = new Renderer(sampler, camera, vi);
 		
 		// render
-		if (filter && film && camera && sampler && vi && scene && tf && re)
+		if (re && scene)
 				re->Render(scene);
 				
 		delete re;
@@ -55,14 +57,13 @@ void rtTestRenderScene(string filename)
 {
 		// config - camera
 		//Point cameraPos    = Point(0.5,0.5,0.0); //centered on z=0 plane edge, x/y axis aligned
-		//Point cameraLook   = Point(0.5,0.5,1.0);
-		
 		//Point cameraPos      = Point(1.0,0.5,0.5); //centered on x=1.0 plane edge
-		//Point cameraLook     = Point(0.0,0.5,0.5); //looking -zhat, y/z axis aligned
+		//Point cameraPos    = Point(2.0,2.0,-2.0); //angled above
 		
-		Point cameraPos    = Point(2.0,2.0,-2.0); //angled above
-		Point cameraLook   = Point(0.5,0.5,0.5); //looking at center of box
+		Point cameraPos = Point(0.4,0.4,0.0);
 		
+		//Point cameraLook   = Point(0.5,0.5,0.5); //center of box
+		Point cameraLook = Point(0.4,0.4,1.0);
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
 		
 		// set transform
@@ -71,12 +72,10 @@ void rtTestRenderScene(string filename)
 		IF_DEBUG(world2camera.print("world2camera:"));
 		IF_DEBUG(Inverse(world2camera).print("camera2world:"));
 		
-		// Camera (Filter, Film)
+		// Camera (Filter, Film), Sampler
 		Filter *filter       = CreateBoxFilter();
 		Film *film           = CreateFilm(filter);
 		Camera *camera       = CreateOrthographicCamera(Inverse(world2camera), film);
-		
-		// Sampler
 		Sampler *sampler     = CreateStratifiedSampler(film, camera);
 		
 		// Integrator
@@ -94,67 +93,52 @@ void rtTestRenderScene(string filename)
 		Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit);
 		Spectrum s2 = Spectrum::FromNamed("green");
 		Spectrum s3 = Spectrum::FromNamed("blue");
-		tf->AddConstant(TF_VAL_DENS,s3);
+		//tf->AddConstant(TF_VAL_DENS,s3);
 		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,spec);
 		tf->AddGaussian(TF_VAL_DENS,2.8,0.1,s1);
 		tf->AddGaussian(TF_VAL_DENS,5.0,0.5,s2);
 		
 		// create volume/density/scene geometry (debugging only)
-		//Transform volume2world; volume2world = volume2world * Translate(Vector(10.0,10.0,40.0));
 		//VolumeRegion *vr     = CreateGridVolumeRegion(volume2world, filename);
 		VolumeRegion *vr      = NULL;
 		
 		// voronoi mesh
 		ArepoMesh *arepoMesh  = new ArepoMesh(tf);
 
+		// scene
+		Scene *scene          = new Scene(vr, arepoMesh);
+				
 		// debugging only (Arepo2b overrides)
 		for (int i=0; i < N_gas; i++) {
 				SphP[i].Density      = 0.01;
 				SphP[i].Grad.drho[0] = 0.0;
 				SphP[i].Grad.drho[1] = 0.0;
 				SphP[i].Grad.drho[2] = 0.0;
-				if (i == 6) { //center
-						SphP[i].Density      = 3.0;
-						SphP[i].Grad.drho[0] = 10.0;
-						SphP[i].Grad.drho[1] = 10.0;
-						SphP[i].Grad.drho[2] = 2.0;
-				}
-				if (i == 2) { // upper right near corner
-						SphP[i].Density      = 20.0;
-				}
-				if (i == 5) { // upper right far corner
-						SphP[i].Density      = 2.8;
-				}
+		}
+		
+		// Arepo2b overrides
+		SphP[6].Density      = 3.0;  // center point
+		SphP[6].Grad.drho[0] = 10.0;
+		SphP[6].Grad.drho[1] = 10.0;
+		SphP[6].Grad.drho[2] = 2.0;
+		
+		SphP[2].Density      = 20.0; // upper right near corner
+		
+		SphP[5].Density      = 2.8; // upper right far corner
+		
+		for (int i=0; i < N_gas; i++) {
 				cout << "SphP[" << setw(2) << i << "] dens = " << setw(10) << SphP[i].Density 
 						 << " grad.x = " << setw(10) << SphP[i].Grad.drho[0] << " grad.y = " 
 						 << setw(10) << SphP[i].Grad.drho[1] << " grad.z = " << setw(10) << SphP[i].Grad.drho[2] << endl;
 	  }
 		
-		// scene
-		Scene *scene          = new Scene(vr, arepoMesh);
-		
 #ifdef DEBUG
     if(arepoMesh) arepoMesh->WorldBound().print("ArepoMesh WorldBound ");
 		if(vr)        vr->WorldBound().print("VolumeRegion WorldBound ");
-		
-		//Point testp(0.2, 0.2, 0.2);
-		//cout << "VR Test @ (" << testp.x << " " << testp.y << " " << testp.z << ") result = "
-		//		 << vr->Density(testp) << endl;
-		
-		float vals[2];
-		vals[1] = 0.0; //utherm
-		
-		for (float rho = 0.0; rho < 10.0; rho += 1.0) {
-		  vals[0] = rho;
-			Spectrum Lve = tf->Lve(vals);
-			
-			cout << "TF Test @ (" << vals[1] << "," << vals[0] << ") R = " << setw(7) << Lve.r() 
-					 << " G = " << setw(7) << Lve.g() << " B = " << setw(7) << Lve.b() << endl;
-		}
 #endif
 				 
 		// render
-		if (filter && film && camera && sampler && vi && scene && tf && re)
+		if (scene && re)
 				re->Render(scene);
 				
 		delete re;
@@ -176,7 +160,8 @@ int main (int argc, char* argv[])
 		} else {
 				// read config
 				Config.ReadFile( argv[1] );
-				IF_DEBUG(Config.print());
+				if (Config.verbose)
+						Config.print();
 		} 
 		
 		// init
@@ -188,9 +173,9 @@ int main (int argc, char* argv[])
 #endif
 
 		// debug test render
-		//rtTestRenderScene(Config.filename);
+		rtTestRenderScene(Config.filename);
 		
-		rtTestIsoDiskRender();
+		//rtTestIsoDiskRender();
 		
 		// cleanup
 #ifdef ENABLE_AREPO

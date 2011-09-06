@@ -135,6 +135,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 				cout << "MISMATCH brute = " << oldi << " tree = " << ray.index << endl;
 				exit(1119);
 		}
+		//return 0.0f;
 #endif
 
 		// release: use treefind

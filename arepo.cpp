@@ -37,7 +37,7 @@ bool Arepo::LoadSnapshot()
 {
     IF_DEBUG(cout << "Arepo::LoadSnapshot(" << snapFilename << ")." << endl);
 		
-#ifndef DEBUG		
+#ifndef DEBUG
 		freopen("/dev/null","w",stdout); //hide arepo stdout
 #endif		
 		
@@ -72,9 +72,15 @@ bool Arepo::LoadSnapshot()
 		}
 
 #ifndef DEBUG
-		freopen("/dev/tty","w",stdout); //return stdout to terminal	
+		//freopen("/dev/tty","w",stdout); //return stdout to terminal
+		freopen("LM.out","w",stdout); //return stdout to a file (LSF) //TODO
 #endif
-	
+
+		if (Config.verbose) {
+				cout << endl << "Arepo Init Finished, Memory Report:" << endl;
+				dump_memory_table();
+		}
+		
 		return true;
 }
 
@@ -104,12 +110,14 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		Ndt = T->Ndt;
 		Nvf = T->Nvf;
 		
-		cout << "[" << ThisTask << "] ArepoMesh: Ndp = " << Ndp << " Ndt = " << Ndt << " Nvf = " << Nvf 
-				 << " N_gas = " << N_gas << " NumPart = " << NumPart << endl;
+		if (Config.verbose)
+				cout << "[" << ThisTask << "] ArepoMesh: Ndp = " << Ndp << " Ndt = " << Ndt << " Nvf = " << Nvf 
+						 << " N_gas = " << N_gas << " NumPart = " << NumPart << endl << endl;
 		
 		// preprocessing
 		//ArepoMesh::ComputeVoronoiEdges();
 		ArepoMesh::ComputeQuantityBounds();
+		ArepoMesh::CalculateMidpoints();
 		
 		// boxsize
 		extent = BBox(Point(0.0,0.0,0.0),Point(boxSize,boxSize,boxSize));
@@ -124,7 +132,7 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		IF_DEBUG(cout << "unitConv[utherm] = " << unitConversions[TF_VAL_UTHERM] << endl);
 		
 		// debugging
-		//arepoMesh->DumpMesh();
+		ArepoMesh::DumpMesh();
 }
 
 void ArepoMesh::LocateEntryCellBrute(const Ray &ray, float *t0, float *t1)
@@ -133,7 +141,9 @@ void ArepoMesh::LocateEntryCellBrute(const Ray &ray, float *t0, float *t1)
 		Point hitbox  = ray(*t0);
 		
 		int corig;
+		int corig2;
 		double mindist = MAX_REAL_NUMBER;
+		double mindist2 = MAX_REAL_NUMBER;
 		
 		for (int i=0; i < N_gas; i++) {
 				double dist = sqrt( (hitbox.x-P[i].Pos[0])*(hitbox.x-P[i].Pos[0]) + 
@@ -144,10 +154,33 @@ void ArepoMesh::LocateEntryCellBrute(const Ray &ray, float *t0, float *t1)
 						corig = i;
 				}
 		}
+		
+		for (int i=0; i < Ndp; i++) {
+				double dist = sqrt( (hitbox.x-DP[i].x)*(hitbox.x-DP[i].x) + 
+													  (hitbox.y-DP[i].y)*(hitbox.y-DP[i].y) + 
+														(hitbox.z-DP[i].z)*(hitbox.z-DP[i].z) );
+				if (dist < mindist2) {
+						mindist2 = dist;
+						corig2 = i;
+				}
+		}
 
-		IF_DEBUG(cout << " brute corig = " << corig << " P[corig].index = none" 
+		IF_DEBUG(cout << " brute SphP corig = " << corig << " P[corig].index = none" 
 									<< " dist = " << mindist << " (x = " << P[corig].Pos[0] << " y = "
 									<< P[corig].Pos[1] << " z = " << P[corig].Pos[2] << ")" << endl);
+		
+		if (corig2 >= N_gas) {
+				cout << " BRUTE DP IS LOCAL GHOST corig2 = " << corig2 << " (N_gas = " << N_gas << ")" << endl;
+		}
+		
+		IF_DEBUG(cout << " brute DP corig = " << corig2 << " P[corig].index = none" 
+									<< " dist = " << mindist2 << " (x = " << P[corig2].Pos[0] << " y = "
+									<< P[corig2].Pos[1] << " z = " << P[corig2].Pos[2] << ")" << endl);
+		
+		if (corig != corig2) {
+				cout << " WARNING: BRUTE SPHP != DP" << endl;
+				endrun(1135);
+		}
 		
 		ray.index = corig;
 		ray.task  = 0; //TODO
@@ -244,6 +277,13 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 		
 		ray.index = corig; //corig_min
 		ray.task  = 0; //TODO
+		
+		// check indexing
+		if (DP[ray.index].index != ray.index) {
+				cout << "ERROR! Chosen tetra does not link back to nearest gas particle " 
+						 << ray.index << " " << DP[ray.index].index << endl;
+				endrun(1129);
+		}
 							
 		// check for local ghosts
 		if (ray.task == ThisTask && ray.index >= N_gas) {
@@ -255,6 +295,7 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 						 << " " << P[ray.index-N_gas].Pos[2] << endl;
 				endrun(1107);
 		}
+		
 		// verify task assignment
 		if (ray.task < 0 || ray.task >= NTask) {
 				cout << "ERROR! ray has bad task=" << ray.task << endl;
@@ -386,6 +427,17 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 		Point hitbox  = ray(*t0);
 		Point exitbox = ray(*t1);
 		
+		// check for local ghosts
+		if (ray.index >= N_gas) {
+				cout << "ERROR! ray.index = " << ray.index << " (N_gas=" << N_gas << " Ndp=" << Ndp 
+						 << ") [task=" << ray.task << "] out of bounds." << endl;
+				cout << " hit pos: " << hitbox.x << " " << hitbox.y << " " << hitbox.z << endl;
+				cout << " DP[ray.index] pos: " << DP[ray.index].x << " " << DP[ray.index].y << " " << DP[ray.index].z << endl;
+				cout << " P[ray.index-N_gas] (local) pos: " << P[ray.index-N_gas].Pos[0] << " " << P[ray.index-N_gas].Pos[1]
+						 << " " << P[ray.index-N_gas].Pos[2] << endl;
+				endrun(1107);
+		}
+		
 		// examine faces to find exit point
 		while (q >= 0)
 		{
@@ -409,7 +461,7 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 						double t = ((midp.x - hitbox.x) * norm.x +
 											  (midp.y - hitbox.y) * norm.y +
 											  (midp.z - hitbox.z) * norm.z)	/ dotprod;
-						//IF_DEBUG(cout << " q[" << q << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
+						IF_DEBUG(cout << " q[" << q << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
 						
 						if (t > (ray.min_t-*t0) && t < min_t) {
 								IF_DEBUG(cout << " intersection t = " << t << " setting new min_t, qmin = q = " << q << endl);
@@ -420,11 +472,11 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 		
 				// move to next face
 				if (q == SphP[ray.index].last_connection) {
-						//IF_DEBUG(cout << " q = last_connection = " << q << " (done with faces)" << endl);
+						IF_DEBUG(cout << " q = last_connection = " << q << " (done with faces)" << endl);
 						break;
 				}
 						
-				//IF_DEBUG(cout << " done with q = " << q << " (dp=" << dp << ") next = " << DC[q].next << endl);
+				IF_DEBUG(cout << " done with q = " << q << " (dp=" << dp << ") next = " << DC[q].next << endl);
 				q = DC[q].next;
 		}
 		
@@ -442,12 +494,12 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				IF_DEBUG(exitcell.print(" ecell "));
 
 				// cell gradient
-				Vector sphCen = Vector(SphP[ray.index].Center[0],
-															 SphP[ray.index].Center[1],
-															 SphP[ray.index].Center[2]);
-				Vector sphDensGrad = Vector(SphP[ray.index].Grad.drho[0],
-																		SphP[ray.index].Grad.drho[1],
-																		SphP[ray.index].Grad.drho[2]);
+				Vector sphCen(SphP[ray.index].Center[0],
+											SphP[ray.index].Center[1],
+											SphP[ray.index].Center[2]);
+				Vector sphDensGrad(SphP[ray.index].Grad.drho[0],
+													 SphP[ray.index].Grad.drho[1],
+													 SphP[ray.index].Grad.drho[2]);
 														 
 				norm = exitcell - hitcell;
 
@@ -458,18 +510,31 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				double len = norm.Length();
 				
 				// find interpolated density at midpoint of line segment through voronoi cell
-				Vector midpt = Vector(hitcell[0] + 0.5 * norm[0],
-															hitcell[1] + 0.5 * norm[1],
-															hitcell[2] + 0.5 * norm[2]) - sphCen;
+				Vector midpt(hitcell[0] + 0.5 * norm[0],
+										 hitcell[1] + 0.5 * norm[1],
+										 hitcell[2] + 0.5 * norm[2]);
+        midpt -= sphCen;
 				
 				IF_DEBUG(midpt.print(" onestep midp rel sphcen "));
 				
-				double rho = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
-				double utherm = SphP[ray.index].Utherm; //TODO: gradient (MATERIALS)
+				double rho    = SphP[ray.index].Density;
+				double utherm = SphP[ray.index].Utherm;
 				
-				// optical depth: treat as constant for single cell
+				// optical depth: treat as constant over entire cell
 				Spectrum stepTau(0.0);
-				stepTau += transferFunction->sigma_t() * rho * len;
+				
+				// use gradients if requested
+				if (Config.useDensGradients) {
+						rho += Dot(sphDensGrad,midpt);
+						stepTau += transferFunction->sigma_t() * rho * len;
+				} else {
+						// always use gradient for tau calculation
+						stepTau += transferFunction->sigma_t() * (rho + Dot(sphDensGrad,midpt)) * len;
+				}
+				//if (Config.useUthermGradients) //TODO: gradient (MATERIALS)
+				//		utherm += Dot(sphUthermGrad,midpt);
+				
+				// reduce transmittance for optical depth
 				Tr *= Exp(-stepTau);
 				
 				// TODO: sub-step length should be adaptive based on gradients
@@ -486,14 +551,14 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 													<< " (step = " << len/nSamples << ")" << endl);
 						
 						for (int i = 0; i < nSamples; ++i) {
-								Vector midpt = Vector(hitcell[0] + (i*fracstep+halfstep) * norm[0],
-																			hitcell[1] + (i*fracstep+halfstep) * norm[1],
-																			hitcell[2] + (i*fracstep+halfstep) * norm[2]) - sphCen;
+								Vector midpt(hitcell[0] + (i*fracstep+halfstep) * norm[0],
+														 hitcell[1] + (i*fracstep+halfstep) * norm[1],
+														 hitcell[2] + (i*fracstep+halfstep) * norm[2]);
+                midpt -= sphCen;
 								
 								IF_DEBUG(midpt.print(" substep midpt rel sphcen "));
 								
-								double rho = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
-								double utherm = SphP[ray.index].Utherm; //TODO: gradient (MATERIALS)
+								double rho    = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
 								
 								IF_DEBUG(cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
 															<< (i*fracstep)+fracstep << "] rho = " << SphP[ray.index].Density
@@ -503,11 +568,28 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 								// pack cell quantities for TF
 								float vals[TF_NUM_VALS];
 								
-								vals[TF_VAL_DENS]   = (float)rho;
-								vals[TF_VAL_UTHERM] = (float)utherm;
-								vals[TF_VAL_VEL_X]  = (float) P[ray.index].Vel[0]; //TODO check
-								vals[TF_VAL_VEL_Y]  = (float) P[ray.index].Vel[1];
-								vals[TF_VAL_VEL_Z]  = (float) P[ray.index].Vel[2];
+								vals[TF_VAL_DENS]        = (float) rho;
+								vals[TF_VAL_UTHERM]      = (float) SphP[ray.index].Utherm; //TODO: gradient (MATERIALS)
+								vals[TF_VAL_PRES]        = (float) SphP[ray.index].Pressure; //TODO: gradient
+								vals[TF_VAL_ENERGY]      = (float) SphP[ray.index].Energy;
+								
+								vals[TF_VAL_VEL_X]       = (float) P[ray.index].Vel[0]; //TODO: gradients
+								vals[TF_VAL_VEL_Y]       = (float) P[ray.index].Vel[1];
+								vals[TF_VAL_VEL_Z]       = (float) P[ray.index].Vel[2];
+								vals[TF_VAL_VEL_DIV]     = (float) SphP[ray.index].DivVel;
+								vals[TF_VAL_VEL_CURL]    = (float) SphP[ray.index].CurlVel;
+								
+								vals[TF_VAL_POTENTIAL]   = (float) P[ray.index].Potential;
+								
+#ifdef METALS
+								vals[TF_VAL_METALLICITY] = (float) SphP[ray.index].Metallicity;
+#endif
+#ifdef COOLING
+								vals[TF_VAL_NE]          = (float) SphP[ray.index].Ne;
+#endif
+#ifdef USE_SFR
+								vals[TF_VAL_SFR]         = (float) SphP[ray.index].Sfr;
+#endif
 								
 								// compute emission-only source term using transfer function
 								Lv += Tr * transferFunction->Lve(vals);
@@ -528,11 +610,28 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 						// pack cell quantities for TF
 						float vals[TF_NUM_VALS];
 						
-						vals[TF_VAL_DENS]   = (float)rho;
-						vals[TF_VAL_UTHERM] = (float)utherm;
-						vals[TF_VAL_VEL_X]  = (float) P[ray.index].Vel[0]; //TODO check
-						vals[TF_VAL_VEL_Y]  = (float) P[ray.index].Vel[1];
-						vals[TF_VAL_VEL_Z]  = (float) P[ray.index].Vel[2];
+								vals[TF_VAL_DENS]        = (float) rho;
+								vals[TF_VAL_UTHERM]      = (float) utherm; //TODO: gradient (MATERIALS)
+								vals[TF_VAL_PRES]        = (float) SphP[ray.index].Pressure; //TODO: gradient
+								vals[TF_VAL_ENERGY]      = (float) SphP[ray.index].Energy;
+								
+								vals[TF_VAL_VEL_X]       = (float) P[ray.index].Vel[0]; //TODO: gradients
+								vals[TF_VAL_VEL_Y]       = (float) P[ray.index].Vel[1];
+								vals[TF_VAL_VEL_Z]       = (float) P[ray.index].Vel[2];
+								vals[TF_VAL_VEL_DIV]     = (float) SphP[ray.index].DivVel;
+								vals[TF_VAL_VEL_CURL]    = (float) SphP[ray.index].CurlVel;
+								
+								vals[TF_VAL_POTENTIAL]   = (float) P[ray.index].Potential;
+								
+#ifdef METALS
+								vals[TF_VAL_METALLICITY] = (float) SphP[ray.index].Metallicity;
+#endif
+#ifdef COOLING
+								vals[TF_VAL_NE]          = (float) SphP[ray.index].Ne;
+#endif
+#ifdef USE_SFR
+								vals[TF_VAL_SFR]         = (float) SphP[ray.index].Sfr;
+#endif
 						
 						// compute emission-only source term using transfer function
 						Lv += Tr * transferFunction->Lve(vals);
@@ -559,11 +658,155 @@ bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum
 				}
 		} else {
 				// failed to intersect a face (shouldn't really happen?)
-				IF_DEBUG(cout << " failed to intersect a face, hope this ray is done?" << endl);
+#ifdef DEBUG
+				cout << " failed to intersect a face, hope this ray is done?" << endl;
+				if (ray.min_t < ray.max_t - INSIDE_EPS) {
+						cout << "ERROR! Ray did not finish. min_t = " << ray.min_t << " max_t = " << ray.max_t << endl;
+						cout << " ray pos: " << hitbox.x << " " << hitbox.y << " " << hitbox.z << endl;
+						cout << " DP[ray.index] pos: " << DP[ray.index].x << " " << DP[ray.index].y 
+								 << " " << DP[ray.index].z << endl << endl;
+						//endrun(1130);
+				}
+#endif
 				return false;
 		}
 
 		return true;
+}
+
+// construct the sunrise alternative connectivity
+
+/*  Sets up the midpoints array which stores the midpoints of the face
+    planes in a compact way so we don't have to chase a bunch of
+    pointers all over the place to do the intersection tests with the
+    face planes when finding the voronoi neighbors. The connections
+    stored in our data structure differs from that in the Arepo DC
+    array in that we map connections between distinct mesh points, not
+    just primary cells. */
+void ArepoMesh::CalculateMidpoints()
+{
+		IF_DEBUG(cout << "ArepoMesh::CalculateMidpoints()" << endl);
+
+		// set up temporary multimap of SphP id -> DP id, to identify all local ghosts
+		// associated with a particular SphP entry
+		multimap<int,int> mm;
+		typedef multimap<int,int>::iterator mmi;
+		
+		for (int i=0; i < Ndp; i++)
+		{
+				int SphP_ID = -1;
+				
+				if (DP[i].index >= 0 && DP[i].index < N_gas)
+						SphP_ID = DP[i].index;
+				else if (i >= N_gas)
+						SphP_ID = DP[i].index - N_gas;
+				
+				if (SphP_ID < 0)
+						endrun(1133);
+				
+				mm.insert(make_pair(SphP_ID, i));
+		}
+		
+		// set up mapping of DP id -> DP primary id
+		for (int i=0; i < Ndp; i++)
+		{
+				int SphP_ID = -1;
+				
+				if (DP[i].index >= 0 && DP[i].index < N_gas)
+						SphP_ID = DP[i].index;
+				else if (i >= N_gas)
+						SphP_ID = DP[i].index - N_gas;
+		
+				if (SphP_ID < 0)
+						endrun(1134);
+		
+				// cell has no hydro quantities -> map to -1
+				if (SphP_ID < 0) {
+						IF_DEBUG(cout << "WARNING: CM i=" << i << " SphP_ID (neg) = " << SphP_ID << endl);
+						primary_cells.push_back(-1);
+				}
+				
+				// loop over all DP indices that share this SphP cell
+				pair<mmi,mmi> dp_indices(mm.equal_range(SphP_ID));
+				
+				if (dp_indices.second == dp_indices.first)
+						endrun(1131);
+						
+				// search for primary cell and record to map
+				while (dp_indices.first != dp_indices.second)
+				{
+						if (dp_indices.first->second >= 0 && dp_indices.first->second < N_gas) {
+								primary_cells.push_back(dp_indices.first->second);
+								break;
+						}
+						dp_indices.first++;
+				}
+		}
+		
+		// verify size
+		if (primary_cells.size() != Ndp)
+				endrun(1132);
+				
+		// use VF array to generate connnections (reorganize it to index by point)
+		multimap<int,int> conn;
+		
+		for (int i=0; i < Nvf; i++) {
+				conn.insert(make_pair(VF[i].p1,VF[i].p2));
+				conn.insert(make_pair(VF[i].p2,VF[i].p1));
+		}
+		
+		// associate connections with cells
+		for (int i=0; i < Ndp; i++)
+		{
+				int SphP_ID = -1;
+				
+				if (DP[i].index >= 0 && DP[i].index < N_gas)
+						SphP_ID = DP[i].index;
+				else if (i >= N_gas)
+						SphP_ID = DP[i].index - N_gas;
+						
+				if (SphP_ID < 0)
+						continue;
+						
+				const Vector cellp(DP[i].x,DP[i].y,DP[i].z);
+				
+				// find connections for this cell
+				pair<mmi,mmi> dp_neighbors(conn.equal_range(i));
+				
+				if (dp_neighbors.first == dp_neighbors.second)
+						endrun(1133);
+						
+				for (; dp_neighbors.first != dp_neighbors.second; dp_neighbors.first++)
+				{
+						const int dp_neighbor = dp_neighbors.first->second;
+				
+						int SphP_ID_n = -1;
+						
+						if (DP[i].index >= 0 && DP[i].index < N_gas)
+								SphP_ID_n = DP[i].index;
+						else if (i >= N_gas)
+								SphP_ID_n = DP[i].index - N_gas;
+								
+						// skip invalid neighbors
+						if (SphP_ID_n < 0)
+								continue;
+								
+						const Vector midp( 0.5 * (cellp + Vector(DP[SphP_ID_n].x,
+																										 DP[SphP_ID_n].y,
+																										 DP[SphP_ID_n].z)) );
+																										 
+						// add connection to the connectivity map
+						midpoints.push_back(midp);
+						opposite_points.push_back(SphP_ID_n);
+				}
+				
+				// all connections for this DP cell done, update the number and position in the midpoint index vector
+				const int start_pos = 
+					midpoint_idx.empty() ? 0 :
+					(midpoint_idx.back().first + midpoint_idx.back().second);
+				midpoint_idx.push_back(make_pair(start_pos, midpoints.size()-start_pos));
+		}
+
 }
 
 void ArepoMesh::ComputeQuantityBounds()
