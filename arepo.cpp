@@ -132,7 +132,7 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		IF_DEBUG(cout << "unitConv[utherm] = " << unitConversions[TF_VAL_UTHERM] << endl);
 		
 		// debugging
-		//ArepoMesh::DumpMesh();
+		ArepoMesh::DumpMesh();
 }
 
 void ArepoMesh::LocateEntryCellBrute(const Ray &ray, float *t0, float *t1)
@@ -267,6 +267,50 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, float *t0, float *t1)
 		
 }
 
+void ArepoMesh::VerifyPointInCell(int dp, Point &pos)
+{
+		Vector celldist(pos.x - DP[dp].x, pos.y - DP[dp].y, pos.z - DP[dp].z);
+		
+		double dist2point = celldist.Length();
+		
+		// exactly on DP point, avoid divide by zero
+		if (dist2point == 0.0)
+				return;
+				
+		double dist2point_min = dist2point;
+		
+		// check neighbors for a closer tetra midpoint
+		const int start_edge = midpoint_idx[dp].first;
+		const int n_edges    = midpoint_idx[dp].second;
+		
+		int c = -1;
+		
+		for (int i=0; i < n_edges; i++)
+		{
+				const int dp_neighbor = opposite_points[start_edge + i];
+				
+				celldist = Vector(pos.x - DP[dp].x, pos.y - DP[dp].y, pos.z - DP[dp].z);
+				
+				dist2point = celldist.Length();
+				
+				if (dist2point < dist2point_min) {
+						dist2point_min = dist2point;
+						c = dp_neighbor;
+				}
+		}
+	
+		// check
+		if (dist2point/dist2point_min > 1+INSIDE_EPS) {
+				cout << "VerifyPointInCell FAILED! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y
+				     << " pos.z = " << pos.z << endl;
+				endrun(1129);
+		}
+		
+		cout << "VerifyPointInCell Passed! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y
+				     << " pos.z = " << pos.z << endl;
+
+}
+
 int ArepoMesh::FindNearestGasParticle(Point &pt, double *mindist)
 {
 		// based on ngb.c:treefind_nearest_local() but without periodic modifiers
@@ -370,16 +414,26 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, double *mindist)
 		return nearest;
 }
 
-bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr)
+bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, 
+																		 int previous_cell, Spectrum &Lv, Spectrum &Tr)
 {
 		double min_t = MAX_REAL_NUMBER;
 		int qmin = -1; // next
+		
+		cout << " previous_cell=" << previous_cell << endl;
 		
 		// verify task
 		if (ray.task != ThisTask) {
 				cout << "[" << ThisTask << "] ERROR! ray.task = " << ray.task << " differs from ThisTask!" << endl;
 				endrun(1138);
 		}
+		
+#ifdef DEBUG
+		// verify ray is where we expect it
+		int dp = ray.index;
+		Point pos = ray(ray.min_t);
+		ArepoMesh::VerifyPointInCell(dp,pos);
+#endif
 		
 		// hydro ID - handle local ghosts
 		int SphP_ID = -1;
@@ -399,26 +453,40 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, Spect
 		Point hitbox  = ray(*t0);
 		Point exitbox = ray(*t1);
 		
+		IF_DEBUG(hitbox.print(" hitbox "));
+		IF_DEBUG(exitbox.print(" exitbox "));
+		IF_DEBUG(cellp.print(" cellp (DP.xyz) "));
+		
 		// alternative connectivity
 		const pair<int,int> edge = midpoint_idx[ray.index];
 		
 		for (int i=edge.second-1; i >= 0; i--)
 		{
 				// skip face we arrived through, if any
-				//if (opposite_points[edge.first + i] == previous && previous != -1)
-				//		continue;
+				if (opposite_points[edge.first + i] == previous_cell && previous_cell != -1)
+						continue;
+				
+				IF_DEBUG(cout << " checking face[" << i << "] midpoints.x = " << midpoints[edge.first + i].x
+				              << " midpoints.y = " << midpoints[edge.first + i].y << " midpoints.z = " 
+											<< midpoints[edge.first + i].z << " opposite_point = " 
+											<< opposite_points[edge.first + i] << endl);
 		
-				// midpoint (c) //TODO: verify Vector cast
-				const Vector midp = midpoints[edge.first + i] - (Vector)hitbox; //TODO: verify hitbox not hitcell
+				// midpoint (c)
+				const Vector midp(midpoints[edge.first + i].x - hitbox.x,
+													midpoints[edge.first + i].y - hitbox.y,
+													midpoints[edge.first + i].z - hitbox.z); //TODO: verify hitbox not hitcell
 				
 				// vector pointing to the outside, normal to a voronoi face of the cell (q)
 				const Vector norm = midpoints[edge.first + i] - cellp;
+		
+				IF_DEBUG(midp.print(" midp (midpoints-hitbox) "));
+				IF_DEBUG(norm.print(" norm (midpoints-cellp) "));
 		
 				// find intersection of ray with this face
 				double dotprod1 = Dot( ray.d, norm ); //ddotq
 				double dotprod2 = Dot( midp,  norm ); //cdotq
 				
-				// check if ray is on face (e.g. backgroundgrid)
+				// check if ray is aligned on face (e.g. backgroundgrid)
 				if (dotprod1 == 0 && dotprod2 == 0) {
 						cout << "Warning" << endl;
 						endrun(1136);
@@ -430,18 +498,18 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, Spect
 						IF_DEBUG(cout << " i[" << i << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
 						
 						if (t > (ray.min_t-*t0) && t < min_t) {
-								IF_DEBUG(cout << " intersection t = " << t << " setting new min_t, qmin (next DP) = " << qmin << endl);
 								min_t = t;
 								qmin = opposite_points[edge.first + i];
+								IF_DEBUG(cout << " intersection t = " << t << " setting new min_t, qmin (next DP) = " << qmin << endl);
 						}
-				}
-				
-				// check if numerical error has put it on the wrong side of the face
-				if (dotprod2 < 0) {
-						cout << "ERROR: Catch." << endl;
-						endrun(1137);
-						
-						//TODO: check and allow if we are really close to a face
+				} else {
+						//cout << "Warning: Point on wrong side of face." << endl;
+						// check if numerical error has put it on the wrong side of the face
+						if (dotprod2 > 0) {
+								//endrun(1137);
+								
+								//TODO: check and allow if we are really close to a face
+						}
 				}
 		}
 		
@@ -630,6 +698,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, Spect
 				}
 		}
 		
+		return true;		
 }
 
 bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr)
@@ -1010,9 +1079,9 @@ void ArepoMesh::CalculateMidpoints()
 						if (SphP_ID_n < 0)
 								continue;
 								
-						const Vector midp( 0.5 * (cellp + Vector(DP[SphP_ID_n].x,
-																										 DP[SphP_ID_n].y,
-																										 DP[SphP_ID_n].z)) );
+						const Vector midp( 0.5 * (cellp.x + DP[dp_neighbor].x),
+															 0.5 * (cellp.y + DP[dp_neighbor].y),
+															 0.5 * (cellp.z + DP[dp_neighbor].z) );
 																										 
 						// add connection to the connectivity map
 						midpoints.push_back(midp);

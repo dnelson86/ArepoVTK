@@ -126,7 +126,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		Spectrum Tr(1.0f);
 		
 		// find the cell the ray will enter first on the edge of the box
-#ifdef DEBUG
+#if defined(DEBUG) && 0
 		// debug: verify treefind vs brute
 		scene->arepoMesh->LocateEntryCellBrute(ray, &t0, &t1);
 		int oldi = ray.index;
@@ -147,6 +147,9 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		ray.min_t = t0;
 		ray.max_t = t1;
 		
+		int temp_previous = -1;
+		int previous_cell;
+		
 		// advance ray through voronoi cells
 #ifdef DEBUG
 		int count = 0;
@@ -156,7 +159,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 				 << " Tr.y = " << Tr.y() << " ray.x = " << setw(5) << p.x 
 				 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl;
 #endif			 
-		while( scene->arepoMesh->AdvanceRayOneCell(ray, &t0, &t1, Lv, Tr) ) {
+		while( true ) {
 #ifdef DEBUG
 				count++;
 
@@ -170,7 +173,12 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 						break;
 				}
 #endif
-						
+				previous_cell = temp_previous;
+				temp_previous = ray.index;
+				
+				if (!scene->arepoMesh->AdvanceRayOneCellNew(ray, &t0, &t1, previous_cell, Lv, Tr) )
+						break;
+				
         // roulette terminate ray marching if transmittance is small
         if (Tr.y() < 1e-3) {
             const float continueProb = 0.5f;
