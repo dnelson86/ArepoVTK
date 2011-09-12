@@ -41,6 +41,7 @@ public:
 		float rgbEmit[3], rgbLine[3], rgbTetra[3], rgbVoronoi[3];
 		float rgbAbsorb[3];
 		float swScale; // screenWindow mult factor * [-1,1]
+		float rayMaxT;
     bool quickRender, verbose, openWindow;
 		bool drawBBox, drawTetra, drawVoronoi;
 		bool projColDens, useDensGradients;
