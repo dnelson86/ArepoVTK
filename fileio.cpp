@@ -72,6 +72,7 @@ void ConfigSet::ReadFile(string cfgfile)
 		imageXPixels  = readValue<int>  ("imageXPixels", 500);
 		imageYPixels  = readValue<int>  ("imageYPixels", 500);
 		swScale       = readValue<float>("swScale",      1.0f);
+		rayMaxT       = readValue<float>("rayMaxT",      0.0f);
 		
 		drawBBox      = readValue<bool>("drawBBox",      true);
 		drawTetra     = readValue<bool>("drawTetra",     true);	
@@ -103,6 +104,10 @@ void ConfigSet::ReadFile(string cfgfile)
 		if (projColDens && viStepSize) {
 				cout << "Config: ERROR! projColDens and viStepSize are incompatible options!" << endl;
 				exit(1120);
+		}
+		if (!useDensGradients && viStepSize) {
+				cout << "Config: ERROR! Nonzero stepsize set but no density gradients requested?" << endl;
+				exit(1125);
 		}
 }
 
