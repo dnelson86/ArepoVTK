@@ -73,10 +73,11 @@ public:
 		// mesh traversal
 		void LocateEntryCell(const Ray &ray, float *t0, float *t1);
 		void LocateEntryCellBrute(const Ray &ray, float *t0, float *t1);
+		void VerifyPointInCell(int dp, Point &pos);
 		int FindNearestGasParticle(Point &p, double *mindist);
 		
 		bool AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr);
-		bool AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr);
+		bool AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, int previous_cell, Spectrum &Lv, Spectrum &Tr);
 		
 		// fluid data introspection
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
