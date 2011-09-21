@@ -117,30 +117,23 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
         *T = Spectrum(1.0f);
         return 0.0f;
     }
-		
-		IF_DEBUG(cout << " t0 = " << t0 << " t1 = " << t1
-									<< " ray.min_t = " << ray.min_t << " ray.max_t = " << ray.max_t << endl);
-		
+			
 		// do emission only volume integration in AM
 		Spectrum Lv(0.0);
 		Spectrum Tr(1.0f);
 		
+//#define DEBUG_VERIFY_ENTRY
 #if defined(DEBUG_VERIFY_ENTRY)
 		// debug: verify treefind vs brute
-		scene->arepoMesh->LocateEntryCellBrute(ray, &t0, &t1);
+		scene->arepoMesh->LocateEntryCellBrute(ray);
 		int oldi = ray.index;
-		scene->arepoMesh->LocateEntryCell(ray, &t0, &t1);
+		scene->arepoMesh->LocateEntryCell(ray);
 		if (ray.index != oldi) {
 				cout << "MISMATCH brute = " << oldi << " tree = " << ray.index << endl;
 				exit(1119);
 		}
-		//return 0.0f;
+		return 0.0f;
 #endif
-
-		// find the cell the ray will enter first on the edge of the box
-		scene->arepoMesh->LocateEntryCell(ray, &t0, &t1);
-		
-		// TODO: exchange?
 		
 		// propagate ray to arepo box, set exit point
 		ray.min_t = t0;
@@ -149,7 +142,16 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		// maximum ray integration length from config
 		if (Config.rayMaxT)
 				ray.max_t = Config.rayMaxT;
+				
+		IF_DEBUG(cout << " t0 = " << t0 << " t1 = " << t1
+									<< " ray.min_t = " << ray.min_t << " ray.max_t = " << ray.max_t << endl);
+				
+		// find the voronoi cell the ray will enter (or be in) first
+		scene->arepoMesh->LocateEntryCell(ray);
 		
+		// TODO: exchange?
+		
+		// init tracker of previous cell the ray marched through
 		int temp_previous = -1;
 		int previous_cell;
 		
@@ -183,13 +185,17 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 						break;
 				
         // roulette terminate ray marching if transmittance is small
-        //if (Tr.y() < 1e-3) {
-        //    const float continueProb = 0.5f;
-				//		Point p = ray(ray.min_t);
-				//		cout << " roulette ray.x = " << p.x << " y = " << p.y << " z = " << p.z << " tr.y = " << Tr.y() << endl;
-        //    if (rng.RandomFloat() > continueProb) break;
-        //    Tr /= continueProb;
-        //}
+        if (Tr.y() < 1e-3) {
+            const float continueProb = 0.5f;
+						Point p = ray(ray.min_t);
+						
+						IF_DEBUG(cout << " roulette ray.x = " << p.x << " y = " << p.y << " z = " 
+													<< p.z << " tr.y = " << Tr.y() << endl);
+													
+            if (rng.RandomFloat() > continueProb)
+								break;
+            Tr /= continueProb;
+        }
 		}
 #ifdef DEBUG
 		p = ray(ray.min_t);
