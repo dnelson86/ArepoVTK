@@ -122,8 +122,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		Spectrum Lv(0.0);
 		Spectrum Tr(1.0f);
 		
-//#define DEBUG_VERIFY_ENTRY
-#if defined(DEBUG_VERIFY_ENTRY)
+#if defined(DEBUG_VERIFY_ENTRY_CELLS)
 		// debug: verify treefind vs brute
 		scene->arepoMesh->LocateEntryCellBrute(ray);
 		int oldi = ray.index;

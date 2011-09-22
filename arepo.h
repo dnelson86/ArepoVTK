@@ -75,9 +75,8 @@ public:
 		void LocateEntryCell(const Ray &ray);
 		void LocateEntryCellBrute(const Ray &ray);
 		void VerifyPointInCell(int dp, Point &pos);
-		int FindNearestGasParticle(Point &pt, double *mindist, int guess, int use_periodic);
 		
-		bool AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr);
+		int FindNearestGasParticle(Point &pt, double *mindist, int guess, int use_periodic);
 		bool AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, int previous_cell, Spectrum &Lv, Spectrum &Tr);
 		
 		// fluid data introspection

@@ -13,7 +13,7 @@ Installation/Compilation:
  (3) Copy Arepo Config:     cp ~/ArepoVTK/test/Config_ArepoVTK.sh ~/Arepo/
  (4) Build Arepo:           cd ~/Arepo && make CONFIG=Config_ArepoVTK.sh EXEC=Arepo
  (5) Build ArepoVTK:        cd ~/ArepoVTK && make clean && make
- (6) Run ArepoRT Test:      ./ArepoRT
+ (6) Run ArepoRT Test:      ./ArepoRT test/config.txt
 
 Design:
 
@@ -26,7 +26,17 @@ Goal:     Produce high quality, presentation-ready visualizations of hydrodynami
 			    investigate fluid quantities, and explore novel visualization techniques for combining such 
 			    a volume rendering approach with coincident point particle sets (both luminous and dark).
 
-Approach: Todo.
+Approach: A high level renderering framework is implemented in c++ following the design methodology 
+          in the book "Physically Based Rendering" (2ed) by M. Pharr and G. Humphreys. Integration 
+          with Arepo follows the strategy of SUNRISE (written by P. Jonsson) - dynamically linking 
+          with Arepo (written by V. Springel) and using its
+          existing functionality to load a snapshot, initialize fluid and particle data, and construct
+          the mesh and its connectivity structures. We borrow heavily from voronoi_makeimage_new.c to
+          raytrace through the Voronoi mesh. Transfer function design is the burden of the user and
+          assumes an expert knowledge of the data present in the snapshots. These are specified, 
+          along with all other rendering options, in a configuration file read at run time. 
+
+Usage:    See the included user manual for details.
 
 Version Roadmap:
  + v0.1
@@ -41,37 +51,49 @@ Version Roadmap:
 	- volumegrid input: "debug" scene descriptor format
 	
  +v0.2
-  - interface with Arepo or cut needed portions to acquire tesselation
-	- wireframe T. rendering
+  - interface with Arepo
+   - init and snapshot loading
+   - acquire mesh construction and connectivity
+	- wireframe tetra/bounding box rendering
+   - wu's line algorithm
 	
  +v0.3
   - voronoi ray casting
 	 - cell averaged constant
 	 - gradients
+  - attenuation via optical depth along LOS
 	- transfer function on a single quantity
   - configuration file
+
+ +v0.35
+  - large snapshot support and optimization
+   - use treefind for entry cells
+   - handle local ghosts
+   - 128^3 cosmo rendering
+  - parallel (threads) on shared memory node
 	
  +v0.4
-  - parallel (MPI)
-	- large snapshot support and optimizations
-   - use treefind for entry cells
-   - handle local and foreign ghosts
-	 - exchange_rays() type approach
-
- +v0.41
   - 2D transfer functions, e.g. f(rho,T)	 
+  - derived fields for TFs (e.g. temp, coolingrate)
   - johnston convolved planck BB temp emission TF
   - voronoi cell edge algorithm
 
+ +v0.45
+  - parallel (MPI) on distributed memory cluster
+   - handle foreign ghosts
+   - exchange_rays() type approach
+  - custom memory downsizing (minimize P,SphP)
+
  +v0.5
  - camera path splining in space (AnimatedTransform?)
+ - keyframe transfer function settings
  - movie pipeline
   - frame metadata (XML/MKV container?)
  - time navigation (multiple snapshots, interpolation?)	 
 	 
  +v0.6
   - interactive component (OpenGL)
-	 - alternative/quick rendering modes
+	 - alternative/quick rendering modes (splatting)
 	 - navigation
 	 - movie setup
 	 - (single node only)
