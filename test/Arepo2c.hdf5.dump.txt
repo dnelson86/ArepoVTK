@@ -229,7 +229,96 @@ Voronoi Faces [72]:
  SphP[  7] DC.first =  0  next =  1  next =  2  next = 28  next = 32  next = 34  next = 41  next = 44  next = 75 DC.last = 75
  SphP[  8] DC.first =  3  next =  4  next =  6  next = 49  next = 66  next = 68  next = 74  next = 76  next = 77 DC.last = 77
  
+Primary_Cells and Midpoint_Idx (size=12):
+[ 0] primary id = 0 edges start 0 num edges = 8
+[ 1] primary id = 1 edges start 8 num edges = 6
+[ 2] primary id = 2 edges start 14 num edges = 8
+[ 3] primary id = 3 edges start 22 num edges = 7
+[ 4] primary id = 4 edges start 29 num edges = 5
+[ 5] primary id = 5 edges start 34 num edges = 7
+[ 6] primary id = 6 edges start 41 num edges = 8
+[ 7] primary id = 7 edges start 49 num edges = 6
+[ 8] primary id = 8 edges start 55 num edges = 7
+[ 9] primary id = 0 edges start 62 num edges = 4
+[10] primary id = 8 edges start 66 num edges = 4
+[11] primary id = 4 edges start 70 num edges = 4
 
+Midpoints and Opposite_Points (size=74):
+[ 0] x = 0.25 y = 0.25 z = 0.6 opposite id = 8
+[ 1] x = 0.5 y = 0.25 z = 0.5 opposite id = 5
+[ 2] x = 0.5 y = 0.5 z = 0.25 opposite id = 3
+[ 3] x = 0.5 y = 0.25 z = 0.25 opposite id = 4
+[ 4] x = 0.25 y = 0.25 z = 0.1 opposite id = 10
+[ 5] x = 0.25 y = 0.5 z = 0.25 opposite id = 1
+[ 6] x = 0.375 y = 0.375 z = 0.375 opposite id = 2
+[ 7] x = 0.25 y = 0.5 z = 0.5 opposite id = 7
+[ 8] x = 0.25 y = 0.5 z = 0.1 opposite id = 10
+[ 9] x = 0.25 y = 0.5 z = 0.25 opposite id = 0
+[10] x = 0.375 y = 0.625 z = 0.375 opposite id = 2
+[11] x = 0.25 y = 0.75 z = 0.5 opposite id = 7
+[12] x = 0.5 y = 0.75 z = 0.5 opposite id = 6
+[13] x = 0.5 y = 0.75 z = 0.25 opposite id = 3
+[14] x = 0.375 y = 0.625 z = 0.375 opposite id = 1
+[15] x = 0.375 y = 0.375 z = 0.375 opposite id = 0
+[16] x = 0.375 y = 0.625 z = 0.625 opposite id = 7
+[17] x = 0.625 y = 0.375 z = 0.625 opposite id = 5
+[18] x = 0.375 y = 0.375 z = 0.725 opposite id = 8
+[19] x = 0.625 y = 0.625 z = 0.375 opposite id = 3
+[20] x = 0.625 y = 0.625 z = 0.625 opposite id = 6
+[21] x = 0.625 y = 0.375 z = 0.375 opposite id = 4
+[22] x = 0.5 y = 0.5 z = 0.25 opposite id = 0
+[23] x = 0.75 y = 0.5 z = 0.25 opposite id = 4
+[24] x = 0.5 y = 0.5 z = 0.1 opposite id = 10
+[25] x = 0.625 y = 0.625 z = 0.375 opposite id = 2
+[26] x = 0.5 y = 0.75 z = 0.25 opposite id = 1
+[27] x = 0.75 y = 0.5 z = 0.5 opposite id = 5
+[28] x = 0.75 y = 0.75 z = 0.5 opposite id = 6
+[29] x = 0.5 y = 0.25 z = 0.25 opposite id = 0
+[30] x = 0.75 y = 0.5 z = 0.25 opposite id = 3
+[31] x = 0.5 y = 0.25 z = 0.1 opposite id = 10
+[32] x = 0.625 y = 0.375 z = 0.375 opposite id = 2
+[33] x = 0.75 y = 0.25 z = 0.5 opposite id = 5
+[34] x = 0.5 y = 0.25 z = 0.85 opposite id = 8
+[35] x = 0.5 y = 0.25 z = 0.5 opposite id = 0
+[36] x = 0.625 y = 0.375 z = 0.625 opposite id = 2
+[37] x = 0.75 y = 0.5 z = 0.5 opposite id = 3
+[38] x = 0.75 y = 0.5 z = 0.75 opposite id = 6
+[39] x = 0.75 y = 0.25 z = 1 opposite id = 11
+[40] x = 0.75 y = 0.25 z = 0.5 opposite id = 4
+[41] x = 0.5 y = 0.75 z = 0.5 opposite id = 1
+[42] x = 0.5 y = 0.75 z = 0.75 opposite id = 7
+[43] x = 0.5 y = 0.5 z = 1 opposite id = 9
+[44] x = 0.75 y = 0.5 z = 0.75 opposite id = 5
+[45] x = 0.75 y = 0.75 z = 0.5 opposite id = 3
+[46] x = 0.625 y = 0.625 z = 0.625 opposite id = 2
+[47] x = 0.5 y = 0.5 z = 0.85 opposite id = 8
+[48] x = 0.75 y = 0.5 z = 1 opposite id = 11
+[49] x = 0.25 y = 0.75 z = 0.5 opposite id = 1
+[50] x = 0.25 y = 0.5 z = 0.5 opposite id = 0
+[51] x = 0.375 y = 0.625 z = 0.625 opposite id = 2
+[52] x = 0.5 y = 0.75 z = 0.75 opposite id = 6
+[53] x = 0.25 y = 0.5 z = 1 opposite id = 9
+[54] x = 0.25 y = 0.5 z = 0.85 opposite id = 8
+[55] x = 0.25 y = 0.25 z = 0.6 opposite id = 0
+[56] x = 0.5 y = 0.25 z = 0.85 opposite id = 5
+[57] x = 0.375 y = 0.375 z = 0.725 opposite id = 2
+[58] x = 0.5 y = 0.25 z = 1.1 opposite id = 11
+[59] x = 0.5 y = 0.5 z = 0.85 opposite id = 6
+[60] x = 0.25 y = 0.5 z = 0.85 opposite id = 7
+[61] x = 0.25 y = 0.25 z = 1.1 opposite id = 9
+[62] x = 0.25 y = 0.5 z = 1 opposite id = 7
+[63] x = 0.5 y = 0.5 z = 1 opposite id = 6
+[64] x = 0.25 y = 0.25 z = 1.1 opposite id = 8
+[65] x = 0.5 y = 0.25 z = 1.25 opposite id = 11
+[66] x = 0.25 y = 0.25 z = 0.1 opposite id = 0
+[67] x = 0.5 y = 0.5 z = 0.1 opposite id = 3
+[68] x = 0.5 y = 0.25 z = 0.1 opposite id = 4
+[69] x = 0.25 y = 0.5 z = 0.1 opposite id = 1
+[70] x = 0.75 y = 0.25 z = 1 opposite id = 5
+[71] x = 0.5 y = 0.25 z = 1.1 opposite id = 8
+[72] x = 0.75 y = 0.5 z = 1 opposite id = 6
+[73] x = 0.5 y = 0.25 z = 1.25 opposite id = 9
+ 
 SphP[ 0] dens =       0.01 grad.x =          0 grad.y =          0 grad.z =          0
 SphP[ 1] dens =       0.01 grad.x =          0 grad.y =          0 grad.z =          0
 SphP[ 2] dens =         20 grad.x =          0 grad.y =          0 grad.z =          0

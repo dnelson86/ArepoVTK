@@ -52,15 +52,20 @@ bool Arepo::LoadSnapshot()
 		begrun1();
 		
 		// check snapshot exists
-		if (!ifstream(snapFilename.c_str())) {
+		if (ifstream(snapFilename.c_str())) {
 				freopen("/dev/tty","w",stdout);
-				cout << "Arepo::LoadSnapshot() ERROR! Snapshot [" << snapFilename << "] not found." << endl;
+				cout << "Arepo::LoadSnapshot() ERROR! Exact snapshot [" << snapFilename << "] found (don't include extension)." << endl;
 				endrun(1121);
 		}
 		
-		if (snapFilename.substr(snapFilename.size()-5,5) == ".hdf5") // cut off extension
-		  snapFilename = snapFilename.substr(0,snapFilename.size()-5);
-
+		string f1 = snapFilename + ".hdf5";
+		string f2 = snapFilename + ".0.hdf5";
+		if (!ifstream(f1.c_str()) && !ifstream(f2.c_str())) {
+				freopen("/dev/tty","w",stdout);
+				cout << "Arepo::LoadSnapshot() ERROR! Neither [" << f1 << "] nor [" << f2 << "] found!" << endl;
+				endrun(1140);
+		}
+		
 		// load snapshot (GAS ONLY)
 		read_ic(snapFilename.c_str(), 0x01);
 		
@@ -72,8 +77,10 @@ bool Arepo::LoadSnapshot()
 		}
 
 #ifndef DEBUG
-		//freopen("/dev/tty","w",stdout); //return stdout to terminal
-		freopen("LM.out","w",stdout); //return stdout to a file (LSF) //TODO: switch between these automatically
+		//TODO: switch between these automatically
+		string fn = Config.imageFile + string(".out.txt");
+		//freopen("/dev/tty","w",stdout); //return stdout to terminal (test only)
+		freopen(fn.c_str(),"a",stdout); //return stdout to a file (LSF)
 #endif
 
 		if (Config.verbose) {
@@ -83,6 +90,7 @@ bool Arepo::LoadSnapshot()
 		
 		return true;
 }
+
 
 ArepoMesh::ArepoMesh(const TransferFunction *tf)
 {
@@ -194,10 +202,9 @@ void ArepoMesh::LocateEntryCell(const Ray &ray)
 		// use tree to find nearest gas particle (local only)
 		double mindist, mindist2;
 		
-#define USE_AREPO_TREEFIND_FUNC
-		
 #ifndef USE_AREPO_TREEFIND_FUNC
-		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, &mindist, -1, 0);
+		int use_periodic = 0;
+		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, &mindist, -1, use_periodic);
 #endif
 		
 #ifdef USE_AREPO_TREEFIND_FUNC
@@ -268,6 +275,27 @@ void ArepoMesh::LocateEntryCell(const Ray &ray)
 				IF_DEBUG(cout << " not yet in closest, moving to dp_new=" << dp_new << endl);
 				dp_old = dp_new;
 				count++;
+				
+				if ( count > 1000 ) {
+						cout << "Error: Refine treesearch hit iter=1000." << endl;
+						cout << " tree found dp_min=" << dp_min << " x = " << DP[dp_min].x << " y = " << 
+						        DP[dp_min].y << " z = " << DP[dp_min].z << endl;
+					  cout << " refine ended on dp_new=" << dp_new << " x = " << DP[dp_new].x << " y = " << 
+						        DP[dp_new].y << " z = " << DP[dp_new].z << endl;
+						cout << " ray (hunting for, hitbox) at x = " << hitbox.x << " y = " << hitbox.y <<
+						        " z = " << hitbox.z << endl;
+						endrun(1139);
+				}
+		}
+		
+		if (count > 10) {
+				cout << "WARNING: LocateEntryCell iterated [" << count << "] times." << endl;
+				cout << " tree found dp_min=" << dp_min << " x = " << DP[dp_min].x << " y = " << 
+								DP[dp_min].y << " z = " << DP[dp_min].z << endl;
+				cout << " refine ended on dp_new=" << dp_new << " x = " << DP[dp_new].x << " y = " << 
+								DP[dp_new].y << " z = " << DP[dp_new].z << endl;
+				cout << " ray (hunting for, hitbox) at x = " << hitbox.x << " y = " << hitbox.y <<
+								" z = " << hitbox.z << endl;
 		}
 		
 		// if we did not finish in a primary cell, check that we iterated over at least one neighbor
@@ -479,13 +507,12 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 				endrun(1138);
 		}
 	
-  //TODO: temp	
-//#ifdef DEBUG
+#ifdef DEBUG_VERIFY_INCELL_EACH_STEP
 		// verify ray is where we expect it
 		int dp = ray.index;
 		Point pos = ray(ray.min_t);
 		ArepoMesh::VerifyPointInCell(dp,pos);
-//#endif
+#endif
 		
 		// hydro ID - handle local ghosts
 		int SphP_ID = -1;
@@ -766,262 +793,6 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		}
 		
 		return true;		
-}
-
-bool ArepoMesh::AdvanceRayOneCell(const Ray &ray, float *t0, float *t1, Spectrum &Lv, Spectrum &Tr)
-{
-		int qmin = -1;
-		
-		if (ray.task != ThisTask) {
-				cout << "[" << ThisTask << "] ERROR! ray.task = " << ray.task << " differs from ThisTask!" << endl;
-				endrun(1117);
-		}
-		
-		int q        = SphP[ray.index].first_connection;
-		double min_t = MAX_REAL_NUMBER;
-
-		int dp;
-		Vector midp, norm;		
-		
-		IF_DEBUG(cout << " starting face q = " << q << endl);
-		
-		Point hitbox  = ray(*t0);
-		Point exitbox = ray(*t1);
-		
-		// examine faces to find exit point
-		while (q >= 0)
-		{
-				dp = DC[q].dp_index;
-				
-				// midpoint
-				midp = Vector( 0.5 * (DP[dp].x + P[ray.index].Pos[0]),
-				               0.5 * (DP[dp].y + P[ray.index].Pos[1]),
-									     0.5 * (DP[dp].z + P[ray.index].Pos[2]) );
-				
-				// vector pointing to the outside, normal to a voronoi face of the cell
-				norm = Vector( (DP[dp].x - P[ray.index].Pos[0]),
-											 (DP[dp].y - P[ray.index].Pos[1]),
-											 (DP[dp].z - P[ray.index].Pos[2]) );
-				
-				// find intersection of ray with this face
-				double dotprod = Dot( ray.d, norm );
-				
-				if (dotprod > 0) {
-						//dist of intersection from ray.o (any point on the ray)
-						double t = ((midp.x - hitbox.x) * norm.x +
-											  (midp.y - hitbox.y) * norm.y +
-											  (midp.z - hitbox.z) * norm.z)	/ dotprod;
-						IF_DEBUG(cout << " q[" << q << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
-						
-						if (t > (ray.min_t-*t0) && t < min_t) {
-								IF_DEBUG(cout << " intersection t = " << t << " setting new min_t, qmin = q = " << q << endl);
-								min_t = t;
-								qmin = q;
-						}
-				}
-		
-				// move to next face
-				if (q == SphP[ray.index].last_connection) {
-						IF_DEBUG(cout << " q = last_connection = " << q << " (done with faces)" << endl);
-						break;
-				}
-						
-				IF_DEBUG(cout << " done with q = " << q << " (dp=" << dp << ") next = " << DC[q].next << endl);
-				q = DC[q].next;
-		}
-		
-		// check for proper exit point
-		if (qmin != -1) {
-		
-				// clamp min_t to avoid integrating outside the box
-				IF_DEBUG(cout << " min_t = " << min_t << " (t1=" << *t1 << " t0=" << *t0 << ")" << endl);
-				min_t = Clamp(min_t,0.0,(*t1-*t0));
-				
-				Point hitcell  = ray(ray.min_t);
-				Point exitcell = ray(*t0 + min_t);
-				
-				IF_DEBUG(hitcell.print(" hcell "));
-				IF_DEBUG(exitcell.print(" ecell "));
-
-				// cell gradient
-				Vector sphCen(SphP[ray.index].Center[0],
-											SphP[ray.index].Center[1],
-											SphP[ray.index].Center[2]);
-				Vector sphDensGrad(SphP[ray.index].Grad.drho[0],
-													 SphP[ray.index].Grad.drho[1],
-													 SphP[ray.index].Grad.drho[2]);
-														 
-				norm = exitcell - hitcell;
-
-				IF_DEBUG(norm.print(" norm "));
-				IF_DEBUG(sphCen.print(" sphCen "));
-				
-				// compute total path length through cell
-				double len = norm.Length();
-				
-				// find interpolated density at midpoint of line segment through voronoi cell
-				Vector midpt(hitcell[0] + 0.5 * norm[0],
-										 hitcell[1] + 0.5 * norm[1],
-										 hitcell[2] + 0.5 * norm[2]);
-        midpt -= sphCen;
-				
-				IF_DEBUG(midpt.print(" onestep midp rel sphcen "));
-				
-				double rho    = SphP[ray.index].Density;
-				double utherm = SphP[ray.index].Utherm;
-				
-				// optical depth: treat as constant over entire cell
-				Spectrum stepTau(0.0);
-				
-				// use gradients if requested
-				if (Config.useDensGradients) {
-						rho += Dot(sphDensGrad,midpt);
-						stepTau += transferFunction->sigma_t() * rho * len;
-				} else {
-						// always use gradient for tau calculation
-						stepTau += transferFunction->sigma_t() * (rho + Dot(sphDensGrad,midpt)) * len;
-				}
-				//if (Config.useUthermGradients) //TODO: gradient (MATERIALS)
-				//		utherm += Dot(sphUthermGrad,midpt);
-				
-				// reduce transmittance for optical depth
-				Tr *= Exp(-stepTau);
-				
-				// TODO: sub-step length should be adaptive based on gradients
-				// TODO: should only substep if the TF will evaluate nonzero somewhere inside
-				
-				// decide on sub-stepping
-				if (viStepSize && len > viStepSize) {
-						// sub-stepping (cell too large), get a number of values along the segment
-						int nSamples = (int)ceilf(len / viStepSize);
-						double fracstep = 1.0 / nSamples;
-						double halfstep = 0.5 / nSamples;
-						
-						IF_DEBUG(cout << " sub-stepping len = " << len << " nSamples = " << nSamples 
-													<< " (step = " << len/nSamples << ")" << endl);
-						
-						for (int i = 0; i < nSamples; ++i) {
-								Vector midpt(hitcell[0] + (i*fracstep+halfstep) * norm[0],
-														 hitcell[1] + (i*fracstep+halfstep) * norm[1],
-														 hitcell[2] + (i*fracstep+halfstep) * norm[2]);
-                midpt -= sphCen;
-								
-								IF_DEBUG(midpt.print(" substep midpt rel sphcen "));
-								
-								double rho    = SphP[ray.index].Density + Dot(sphDensGrad,midpt);
-								
-								IF_DEBUG(cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
-															<< (i*fracstep)+fracstep << "] rho = " << SphP[ray.index].Density
-															<< " rho w/ grad = " << rho << " (grad.x = " << sphDensGrad.x
-															<< " grad.y = " << sphDensGrad.y << " grad.z = " << sphDensGrad.z << ")" << endl);
-								
-								// pack cell quantities for TF
-								float vals[TF_NUM_VALS];
-								
-								vals[TF_VAL_DENS]        = (float) rho;
-								vals[TF_VAL_UTHERM]      = (float) SphP[ray.index].Utherm; //TODO: gradient (MATERIALS)
-								vals[TF_VAL_PRES]        = (float) SphP[ray.index].Pressure; //TODO: gradient
-								vals[TF_VAL_ENERGY]      = (float) SphP[ray.index].Energy;
-								
-								vals[TF_VAL_VEL_X]       = (float) P[ray.index].Vel[0]; //TODO: gradients
-								vals[TF_VAL_VEL_Y]       = (float) P[ray.index].Vel[1];
-								vals[TF_VAL_VEL_Z]       = (float) P[ray.index].Vel[2];
-								vals[TF_VAL_VEL_DIV]     = (float) SphP[ray.index].DivVel;
-								vals[TF_VAL_VEL_CURL]    = (float) SphP[ray.index].CurlVel;
-								
-								vals[TF_VAL_POTENTIAL]   = (float) P[ray.index].Potential;
-								
-#ifdef METALS
-								vals[TF_VAL_METALLICITY] = (float) SphP[ray.index].Metallicity;
-#endif
-#ifdef COOLING
-								vals[TF_VAL_NE]          = (float) SphP[ray.index].Ne;
-#endif
-#ifdef USE_SFR
-								vals[TF_VAL_SFR]         = (float) SphP[ray.index].Sfr;
-#endif
-								
-								// compute emission-only source term using transfer function
-								Lv += Tr * transferFunction->Lve(vals);
-						}
-						
-				} else {
-						// no sub-stepping (cell sufficiently small), get interpolated values at segment center
-
-						// apply TF to integrated (total) quantities (only appropriate for constant?)
-						if (Config.projColDens) {
-								rho    *= len;
-								utherm *= len;
-						}
-						
-						IF_DEBUG(cout << " segment len = " << len << " rho = " << SphP[ray.index].Density 
-													<< " grad.x = " << sphDensGrad.x << " rho w/ grad = " << rho << endl);
-
-						// pack cell quantities for TF
-						float vals[TF_NUM_VALS];
-						
-								vals[TF_VAL_DENS]        = (float) rho;
-								vals[TF_VAL_UTHERM]      = (float) utherm; //TODO: gradient (MATERIALS)
-								vals[TF_VAL_PRES]        = (float) SphP[ray.index].Pressure; //TODO: gradient
-								vals[TF_VAL_ENERGY]      = (float) SphP[ray.index].Energy;
-								
-								vals[TF_VAL_VEL_X]       = (float) P[ray.index].Vel[0]; //TODO: gradients
-								vals[TF_VAL_VEL_Y]       = (float) P[ray.index].Vel[1];
-								vals[TF_VAL_VEL_Z]       = (float) P[ray.index].Vel[2];
-								vals[TF_VAL_VEL_DIV]     = (float) SphP[ray.index].DivVel;
-								vals[TF_VAL_VEL_CURL]    = (float) SphP[ray.index].CurlVel;
-								
-								vals[TF_VAL_POTENTIAL]   = (float) P[ray.index].Potential;
-								
-#ifdef METALS
-								vals[TF_VAL_METALLICITY] = (float) SphP[ray.index].Metallicity;
-#endif
-#ifdef COOLING
-								vals[TF_VAL_NE]          = (float) SphP[ray.index].Ne;
-#endif
-#ifdef USE_SFR
-								vals[TF_VAL_SFR]         = (float) SphP[ray.index].Sfr;
-#endif
-						
-						// compute emission-only source term using transfer function
-						Lv += Tr * transferFunction->Lve(vals);
-				}
-				
-				// update ray: transfer to next voronoi cell (possibly on different task)
-				ray.task  = DC[qmin].task;
-				ray.index = DC[qmin].index;
-				ray.min_t = Clamp(min_t + *t0,ray.min_t,ray.max_t);
-				
-				IF_DEBUG(cout << " updated ray new task = " << ray.task << " index = " << ray.index 
-											<< " (" << DC[qmin].index << ") min_t = " << ray.min_t << endl);
-				
-				if (fabs(ray.min_t - ray.max_t) <= INSIDE_EPS) {
-						// apparently this ray is done?
-						IF_DEBUG(cout << " min_t == t1 = " << *t1 << ", ray done." << endl);
-						return false;
-				}
-				if (ray.index == -1) {
-						// no connection on other side of face?
-						cout << " ERROR. next cell index = -1" << " (ray.min_t=" << ray.min_t 
-								 << " max_t=" << ray.max_t << " diff = " << fabs(ray.min_t - ray.max_t) << ")" << endl;
-						endrun(1109);
-				}
-		} else {
-				// failed to intersect a face (shouldn't really happen?)
-#ifdef DEBUG
-				cout << " failed to intersect a face, hope this ray is done?" << endl;
-				if (ray.min_t < ray.max_t - INSIDE_EPS) {
-						cout << "ERROR! Ray did not finish. min_t = " << ray.min_t << " max_t = " << ray.max_t << endl;
-						cout << " ray pos: " << hitbox.x << " " << hitbox.y << " " << hitbox.z << endl;
-						cout << " DP[ray.index] pos: " << DP[ray.index].x << " " << DP[ray.index].y 
-								 << " " << DP[ray.index].z << endl << endl;
-						//endrun(1130);
-				}
-#endif
-				return false;
-		}
-
-		return true;
 }
 
 // for now just zero hydro quantities of primary cells that extend beyond the box

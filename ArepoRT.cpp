@@ -12,6 +12,9 @@
 
 void rtTestIsoDiskRender()
 {
+		Timer timer;
+		timer.Start();
+		
 		const Spectrum sig_a = Spectrum::FromRGB(Config.rgbAbsorb);
 
 		// constant setup		
@@ -21,15 +24,14 @@ void rtTestIsoDiskRender()
 		Scene *scene          = new Scene(NULL, arepoMesh);
 		
 		// setup camera
-		Point cameraPos    = Point(boxSize/2.0,boxSize/2.0,5000.0); //face on
-		//Point cameraPos      = Point(11700.0,11200.0,0.0); //20mpc debug 1
-		//Point cameraPos      = Point(400.0,15000.0,0.0); //20mpc debug 2
-		
-		//Point cameraPos    = Point(boxSize,boxSize/2.0,boxSize/2.0); //edge on
+		//Point cameraPos    = Point(boxSize/2.0,boxSize/2.0,0.0); //face on		
+		Point cameraPos    = Point(boxSize,boxSize/2.0,boxSize/2.0); //edge on (#1)
+		//Point cameraPos    = Point(5000.0,boxSize/2.0,boxSize/2.0); //edge on (#1, inside)
+		//Point cameraPos    = Point(0.0,boxSize/2.0,boxSize/2.0); //edge on (#2)
 		//Point cameraPos    = Point(boxSize/2.0,0.0,boxSize*0.25); //high i angled
 		
-		//Point cameraLook   = Point(boxSize/2.0,boxSize/2.0,boxSize/2.0); //center of box
-		Point cameraLook = cameraPos+Point(0.0,0.0,1.0); //20mpc debug
+		Point cameraLook   = Point(boxSize/2.0,boxSize/2.0,boxSize/2.0); //center of box
+		//Point cameraLook = cameraPos+Point(0.0,0.0,1.0); //20mpc debug
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
 
 		Transform world2camera = LookAt(cameraPos, cameraLook, cameraVecUp);
@@ -45,6 +47,8 @@ void rtTestIsoDiskRender()
 		Sampler *sampler     = CreateStratifiedSampler(film, camera);
 		Renderer *re         = new Renderer(sampler, camera, vi);
 		
+		cout << endl << "Raytracer Init and Arepo Preprocessing: [" << (float)timer.Time() << "] seconds." << endl;
+		
 		// render
 		if (re && scene)
 				re->Render(scene);
@@ -56,14 +60,11 @@ void rtTestIsoDiskRender()
 void rtTestRenderScene(string filename)
 {
 		// config - camera
-		//Point cameraPos    = Point(0.5,0.5,0.0); //centered on z=0 plane edge, x/y axis aligned
+		Point cameraPos    = Point(0.5,0.5,0.0); //centered on z=0 plane edge, x/y axis aligned
 		//Point cameraPos      = Point(1.0,0.5,0.5); //centered on x=1.0 plane edge
 		//Point cameraPos    = Point(2.0,2.0,-2.0); //angled above
 		
-		Point cameraPos = Point(0.4,0.4,0.0);
-		
-		//Point cameraLook   = Point(0.5,0.5,0.5); //center of box
-		Point cameraLook = Point(0.4,0.4,1.0);
+		Point cameraLook   = Point(0.4,0.4,1.0); //center of box
 		Vector cameraVecUp = Vector(0.0,1.0,0.0);
 		
 		// set transform
@@ -93,7 +94,7 @@ void rtTestRenderScene(string filename)
 		Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit);
 		Spectrum s2 = Spectrum::FromNamed("green");
 		Spectrum s3 = Spectrum::FromNamed("blue");
-		//tf->AddConstant(TF_VAL_DENS,s3);
+		tf->AddConstant(TF_VAL_DENS,s3);
 		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,spec);
 		tf->AddGaussian(TF_VAL_DENS,2.8,0.1,s1);
 		tf->AddGaussian(TF_VAL_DENS,5.0,0.5,s2);
@@ -122,17 +123,16 @@ void rtTestRenderScene(string filename)
 		SphP[6].Grad.drho[1] = 10.0;
 		SphP[6].Grad.drho[2] = 2.0;
 		
-		SphP[2].Density      = 20.0; // upper right near corner
+		//SphP[2].Density      = 20.0; // upper right near corner
+		//SphP[5].Density      = 2.8; // upper right far corner
 		
-		SphP[5].Density      = 2.8; // upper right far corner
-		
+#ifdef DEBUG
 		for (int i=0; i < N_gas; i++) {
 				cout << "SphP[" << setw(2) << i << "] dens = " << setw(10) << SphP[i].Density 
 						 << " grad.x = " << setw(10) << SphP[i].Grad.drho[0] << " grad.y = " 
 						 << setw(10) << SphP[i].Grad.drho[1] << " grad.z = " << setw(10) << SphP[i].Grad.drho[2] << endl;
 	  }
 		
-#ifdef DEBUG
     if(arepoMesh) arepoMesh->WorldBound().print("ArepoMesh WorldBound ");
 		if(vr)        vr->WorldBound().print("VolumeRegion WorldBound ");
 #endif
@@ -173,9 +173,8 @@ int main (int argc, char* argv[])
 #endif
 
 		// debug test render
-		rtTestRenderScene(Config.filename);
-		
-		//rtTestIsoDiskRender();
+		//rtTestRenderScene(Config.filename);
+		rtTestIsoDiskRender();
 		
 		// cleanup
 #ifdef ENABLE_AREPO

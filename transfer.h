@@ -10,20 +10,28 @@
 #include "spectrum.h"
 #include "util.h"
 
-// TODO: dynamic
-#define TF_MAX_FUNCS 10
-
 // TODO: bit field approach, such that TransferFunction keeps a record of all the 
 //       SphP fields it will need to evaluate Lve(), and returns this upon request
 //       to AdvanceRayOneCell() which will use it to form vals[] of the needed elements
 
-#define TF_VAL_DENS   0
-#define TF_VAL_UTHERM 1
-#define TF_VAL_VEL_X  2
-#define TF_VAL_VEL_Y  3
-#define TF_VAL_VEL_Z  4
+#define TF_VAL_DENS        0
+#define TF_VAL_UTHERM      1
+#define TF_VAL_PRES        2
+#define TF_VAL_ENERGY      3
 
-#define TF_NUM_VALS   5
+#define TF_VAL_VEL_X       4
+#define TF_VAL_VEL_Y       5
+#define TF_VAL_VEL_Z       6
+#define TF_VAL_VEL_DIV     7
+#define TF_VAL_VEL_CURL    8
+
+#define TF_VAL_POTENTIAL   9
+
+#define TF_VAL_METALLICITY 10
+#define TF_VAL_NE          11
+#define TF_VAL_SFR         12
+
+#define TF_NUM_VALS        13
 
 class TransferFunc1D {
 public:

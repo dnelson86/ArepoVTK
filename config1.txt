@@ -1,0 +1,64 @@
+
+% Sample ArepoVTK Configuration File
+
+% Input/Output
+% ------------
+
+imageFile      = frame.tga             % output: TGA image filename
+rawRGBFile     = frame.raw.txt         % output: raw dump of floats (debug only)
+filename       = test3/snap_020        % input: simulation snapshot (no extension)
+paramFilename  = test3/param.txt       % input: Arepo parameter file
+
+%filename = test/Arepo2c
+%paramFilename = test/param.txt
+
+% General
+% -------
+
+nTasks         = 1                     % DO NOT CHANGE
+quickRender    = false                 % unused
+openWindow     = false                 % unused
+verbose        = true                  % report more information
+
+
+% Frame
+% -----
+
+imageXPixels   = 600                  % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 600                  % frame resolution (Y), e.g. 768,  1080
+swScale        = 0.52                  % screenWindow mult factor * [-3,1]
+                                       % 0.52 ortho face, 0.80 angled above, boxsize/2 in
+                                       % general if centering camera at [boxsize/2,boxsize/2,0]
+% Transfer Function
+% -----------------
+
+%addTF_01 = constant Density 1e6 0.0 0.0
+addTF_02 = gaussian Density 2e-2 3e-3 red
+%addTF_03 = gaussian Density 2e-2 3e-3 0.0 0.1 0.0
+
+% Render
+% ------
+
+drawBBox         = true              % draw simulation bounding box
+drawTetra        = false             % draw delaunay tetrahedra
+drawVoronoi      = false             % DO NOT CHANGE
+
+projColDens      = false             % integrate quantities (density, etc) along each path 
+                                     % length, to make e.g. a "projected column density" image
+
+useDensGradients = true              % use density gradient within cells
+
+viStepSize       = 0.0               % volume integration sub-stepping size (0=disabled)
+                                     % in (Arepo) code units
+
+rayMaxT          = 0.0               % maximum ray integration parametric length
+
+rgbEmit          = 0.1 0.0 0.0       % (RGB) gas emission spectrum - debugging
+rgbLine          = 0.1 0.1 0.1       % (RGB) bounding box
+rgbTetra         = 0.01 0.01 0.01    % (RGB) tetra edges
+rgbVoronoi       = 0.0 0.05 0.0      % (RGB) voronoi edges
+
+rgbAbsorb        = 0.0 0.0 0.0       % (RGB) absorption
+
+% End.
+

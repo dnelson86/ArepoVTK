@@ -222,6 +222,9 @@ bool TransferFunction::AddGaussian(int valNum, float mean, float sigma, Spectrum
 
 bool TransferFunction::AddParseString(string &addTFstr)
 {
+		if (Config.verbose)
+				cout << "Add to TF: " << addTFstr << endl;
+				
 		int valNum;
 		Spectrum spec;
 		float rgb[3];
@@ -231,8 +234,6 @@ bool TransferFunction::AddParseString(string &addTFstr)
 		string item;
 		char delim;
 		delim = ' ';
-		
-		IF_DEBUG(cout << "TF str = " << addTFstr << endl);
 		
 		stringstream ss(addTFstr);
 		while(getline(ss, item, delim))
@@ -250,6 +251,14 @@ bool TransferFunction::AddParseString(string &addTFstr)
 				exit(1123);
 		}
 		
+		// check that code was compiled with necessary flags to support this value name
+		if (p[1] == "Metallicity") {
+#ifndef METALS
+				cout << "ERROR: TF on value 'Metallicity' requires METALS compile option in Arepo." << endl;
+				exit(1124);
+#endif
+		}
+		
 		valNum = valNums[p[1]];
 		
 		// determine type of TF
@@ -263,7 +272,7 @@ bool TransferFunction::AddParseString(string &addTFstr)
 						spec = Spectrum::FromRGB(rgb);
 				} else {
 						cout << "ERROR: addTF constant string bad: " << addTFstr << endl;
-						exit(1124);
+						exit(1126);
 				}
 				
 				AddConstant(valNum,spec);
@@ -278,7 +287,7 @@ bool TransferFunction::AddParseString(string &addTFstr)
 						spec = Spectrum::FromRGB(rgb);
 				} else {
 						cout << "ERROR: addTF gaussian string bad: " << addTFstr << endl;
-						exit(1124);
+						exit(1127);
 				}
 				
 				float mean  = atof(p[2].c_str());
@@ -296,7 +305,7 @@ bool TransferFunction::AddParseString(string &addTFstr)
 						spec = Spectrum::FromRGB(rgb);
 				} else {
 						cout << "ERROR: addTF tophat string bad: " << addTFstr << endl;
-						exit(1124);
+						exit(1128);
 				}
 				
 				float min = atof(p[2].c_str());
