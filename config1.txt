@@ -6,16 +6,17 @@
 
 imageFile      = frame.tga             % output: TGA image filename
 rawRGBFile     = frame.raw.txt         % output: raw dump of floats (debug only)
-filename       = test3/snap_020        % input: simulation snapshot (no extension)
-paramFilename  = test3/param.txt       % input: Arepo parameter file
+%filename       = test3/snap_020        % input: simulation snapshot (no extension)
+%paramFilename  = test3/param.txt       % input: Arepo parameter file
 
-%filename = test/Arepo2c
-%paramFilename = test/param.txt
+filename = test/Arepo2b
+paramFilename = test/param.txt
 
 % General
 % -------
 
-nTasks         = 1                     % DO NOT CHANGE
+nCores         = 2                     % number of cores to use (0=all)
+nTasks         = 4                     % number of tasks/threads to run (0=auto)
 quickRender    = false                 % unused
 openWindow     = false                 % unused
 verbose        = true                  % report more information

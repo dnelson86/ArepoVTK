@@ -35,7 +35,7 @@ public:
 		void splitStrArray(const string str, float *rgb); // size 3
 
     // data for public access
-    int nTasks;
+    int nTasks, nCores;
 		int imageXPixels, imageYPixels;
 		double viStepSize;
 		float rgbEmit[3], rgbLine[3], rgbTetra[3], rgbVoronoi[3];

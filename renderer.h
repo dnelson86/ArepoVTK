@@ -6,13 +6,15 @@
 #ifndef AREPO_RT_RENDERER_H
 #define AREPO_RT_RENDERER_H
 
-#include "arepo.h"
 #include "ArepoRT.h"
+
+#include "util.h"
+#include "arepo.h"
+
 #include "camera.h"
 #include "sampler.h"
 #include "volume.h"
 #include "integrator.h"
-#include "util.h"
 
 // Renderer
 class Renderer {
@@ -25,7 +27,7 @@ public:
     void Render(const Scene *scene);
     Spectrum Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T = NULL) const;
     Spectrum Transmittance(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng) const;
-				
+		
 private:
     // data
     Sampler *sampler;
@@ -34,7 +36,7 @@ private:
 };
 
 // RendererTask
-class RendererTask {
+class RendererTask : public Task {
 public:
     // construction
     RendererTask(const Scene *sc, Renderer *ren, Camera *c, Sampler *ms, Sample *sam, int tn, int tc)

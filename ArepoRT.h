@@ -7,9 +7,11 @@
 #define AREPO_RT_H
 
 // defines
-#define AREPO_RT_VERSION    0.3
+#define AREPO_RT_VERSION    0.35
 #define L1_CACHE_LINE_SIZE  64
 #define FILTER_TABLE_SIZE   16
+#define TASK_MULT_FACT      8 //32
+#define TASK_MAX_PIXEL_SIZE 100 //16
 #define INFINITY            FLT_MAX
 #define INSIDE_EPS          1.0e-6
 
@@ -113,6 +115,12 @@ inline int Clamp(int val, int low, int high) {
     if (val < low) return low;
     else if (val > high) return high;
     else return val;
+}
+inline unsigned int RoundUpPowerOfTwo(int val) {
+		val--;
+		val |= val >> 1; val |= val >> 2; val |= val >> 4; val |= val >> 8; val |= val >> 16;
+		val++;
+		return val;
 }
 
 #endif
