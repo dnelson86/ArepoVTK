@@ -222,13 +222,14 @@ void ArepoMesh::LocateEntryCell(const Ray &ray)
 									<< P[dp_min].Pos[1] << " z = " << P[dp_min].Pos[2] << ")" << endl); 
 	 
 		// refine nearest point search to account for local ghosts
-		int count   = 0;
-		int dp_old  = dp_min; //c
-		int dp_oldi = dp_min; //c inside func
-		int dp_new; //cc //TODO verify dp_min
+		int count   = 0;      // iterations marching through mesh
+		int dp_old  = dp_min; // where we are
+		int dp_oldi = dp_min; // candidates for closer points
+		int dp_2ago = dp_min; // where we are coming from
+		int dp_new;           // best candidate, where we are headed
 		
 		while (true)
-		{ // dp_new =arepo::find_closest_neighbor_in_cell(hitbox, dp_old);
+		{
 				// if any neighbors are closer, use them instead
 				Vector celldist(hitbox.x - DP[dp_oldi].x,
 											  hitbox.y - DP[dp_oldi].y,
@@ -263,7 +264,21 @@ void ArepoMesh::LocateEntryCell(const Ray &ray)
 						}
 				}
 				
-				dp_new = dp_oldi; //return
+				dp_new  = dp_oldi; // set best candidate, where we are going
+		
+				// prevent infinite loop, where we are headed where we just were
+				if (count > 0 && dp_new == dp_2ago) {
+						cout << "WARNING: LocateEntryCell refine bounce " << dp_2ago << " " << dp_new << endl;
+						cout << " tree found dp_min=" << dp_min << " x = " << DP[dp_min].x << " y = " << 
+										DP[dp_min].y << " z = " << DP[dp_min].z << endl;
+						cout << " refine ended on dp_new=" << dp_new << " x = " << DP[dp_new].x << " y = " << 
+										DP[dp_new].y << " z = " << DP[dp_new].z << endl;
+						cout << " ray (hunting for, hitbox) at x = " << hitbox.x << " y = " << hitbox.y <<
+										" z = " << hitbox.z << endl;
+						continue;
+				}
+		
+				dp_2ago = dp_old; // set where we are leaving
 		
 				// in closest if we didn't find any closer
 				if (dp_new == dp_old) {
@@ -276,8 +291,8 @@ void ArepoMesh::LocateEntryCell(const Ray &ray)
 				dp_old = dp_new;
 				count++;
 				
-				if ( count > 1000 ) {
-						cout << "Error: Refine treesearch hit iter=1000." << endl;
+				if ( count > 100 ) {
+						cout << "Error: Refine treesearch hit iter=100." << endl;
 						cout << " tree found dp_min=" << dp_min << " x = " << DP[dp_min].x << " y = " << 
 						        DP[dp_min].y << " z = " << DP[dp_min].z << endl;
 					  cout << " refine ended on dp_new=" << dp_new << " x = " << DP[dp_new].x << " y = " << 
