@@ -35,7 +35,7 @@ void RendererTask::Run() {
 		
     while ((sampleCount = sampler->GetMoreSamples(samples, rng)) > 0)
 		{
-				IF_DEBUG(cout << " RendererTask::Run() maxSamples = " << maxSamples 
+				IF_DEBUG(cout << " [Task=" << taskNum << "] RendererTask::Run() maxSamples = " << maxSamples 
 											<< " sampleCount = " << sampleCount << endl);
 				
         // generate camera rays and compute radiance along rays
@@ -67,11 +67,12 @@ void RendererTask::Run() {
     }
 
 		float time = (float)timer2.Time();
-		cout << " Raytracing phase: [" << time << "] seconds." << endl;
+		cout << " [Task=" << taskNum << "] Raytracing phase: [" << time << "] seconds." << endl;
 		timer2.Reset();
 		timer2.Start();
 		
     /* Second Pass - Rasterize Mesh Faces */
+		//TODO: think more about rasterization with parallelization
     vector<Line> edges;
 		
 		// testing: rasterize edges of AM tetra
@@ -123,8 +124,10 @@ void RendererTask::Run() {
 				}
 		} 
 
-		time = (float)timer2.Time();
-		cout << " Rasterization phase: [" << time << "] seconds." << endl;		
+		if (Config.drawTetra || Config.drawVoronoi || Config.drawBBox) {
+				time = (float)timer2.Time();
+				cout << " [Task=" << taskNum << "] Rasterization phase: [" << time << "] seconds." << endl;
+		}
 		
     // Clean up after _SamplerRendererTask_ is done with its image region
     camera->film->UpdateDisplay(sampler->xPixelStart, sampler->yPixelStart, 
@@ -165,31 +168,46 @@ void Renderer::Render(const Scene *scene)
 		// Make timer
 		Timer *timer = new Timer();
 
-    // Create and launch _SamplerRendererTask_s for rendering image
-    // Compute number of _SamplerRendererTask_s to create for rendering
+    // image size and number of render tasks (threads) to run
     int nPixels = camera->film->xResolution * camera->film->yResolution;
-    //int nTasks = max(32 * NumSystemCores(), nPixels / (16*16));
-    //nTasks = RoundUpPow2(nTasks);
 		int nTasks = Config.nTasks;
-		int i=0;
+		int nCores = numberOfCores();
 		
-		cout << endl << "Render Setup: Using [" << nTasks << "] tasks for " << camera->film->xResolution << "x"
+		if (!nTasks) {
+				// calculate number of tasks automatically
+				int nTasks = max(TASK_MULT_FACT * nCores, nPixels / (TASK_MAX_PIXEL_SIZE*TASK_MAX_PIXEL_SIZE));
+				nTasks = RoundUpPowerOfTwo(nTasks);
+		}
+		
+		cout << endl << "Render Setup: Using [" << nTasks << "] tasks with [" << nCores 
+				 << "] system cores (of " << sysconf(_SC_NPROCESSORS_ONLN) << " available) for " << camera->film->xResolution << "x"
 		     << camera->film->yResolution << " image (" << nPixels << " pixels)." << endl << endl;
 				 
 		cout << "Rendering..." << endl << endl;
-		
 		timer->Start();
 		
-    RendererTask *renderTask = new RendererTask(scene, this, camera, sampler, sample, nTasks-1-i, nTasks);
+		// add render tasks to queue
+		vector<Task *> renderTasks;
+		
+		for (int i=0; i < nTasks; i++)
+				renderTasks.push_back(new RendererTask(scene, this, camera, sampler, sample, 
+																							 nTasks-1-i, nTasks));
 
-    renderTask->Run();
+		// init tasks and run
+		startTasks(renderTasks);
+		
+		// wait with this thread until workers are done
+		waitUntilAllTasksDone();
+
+		// free tasks when all done
+		for (int i=0; i < renderTasks.size(); i++)
+				delete renderTasks[i];
 		
     float seconds = (float)timer->Time();
-		
 		cout << endl << "Render complete (" << seconds << " seconds)." << endl << endl;
 		
 		// cleanup and store image
-    delete renderTask;
+		TasksCleanup();
     delete sample;
 		
     camera->film->WriteImage();

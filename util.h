@@ -7,6 +7,8 @@
 #define AREPO_RT_UTIL_H
 
 #include "ArepoRT.h"
+#include <pthread.h>
+#include <semaphore.h>
 
 // timing
 
@@ -129,5 +131,85 @@ template <typename T> void Shuffle(T *samp, uint32_t count, uint32_t dims, RNG &
     }
 }
 
+// multiple cores and threading
+struct MutexLock;
+
+class Mutex
+{
+public:
+    static Mutex *Create();
+    static void Destroy(Mutex *m);
+		
+		// pthread object
+    pthread_mutex_t mutex;
+private:
+    Mutex();
+    ~Mutex();
+    friend struct MutexLock;
+    Mutex(Mutex &);
+    Mutex &operator=(const Mutex &);
+};
+
+struct MutexLock
+{
+    MutexLock(Mutex &m);
+    ~MutexLock();
+private:
+    Mutex &mutex;
+    MutexLock(const MutexLock &);
+    MutexLock &operator=(const MutexLock &);
+};
+
+class Semaphore
+{
+public:
+    // construction
+    Semaphore();
+    ~Semaphore();
+		
+		// methods
+    void Post(int count = 1);
+    void Wait();
+    bool TryWait();
+private:
+    // semaphore and counter
+    sem_t *sem;
+    static int count;
+};
+
+
+class ConditionVariable
+{
+public:
+		// construction
+    ConditionVariable();
+    ~ConditionVariable();
+		
+		// methods
+    void Lock();
+    void Unlock();
+    void Wait();
+    void Signal();
+private:
+    // pthread objects
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+};
+
+// can't get RendererTask in here directly
+class Task
+{
+public:
+    virtual ~Task();
+    virtual void Run() = 0;
+};
+
+void TasksInit();
+void TasksCleanup();
+
+void startTasks(const vector<Task *> &tasks);
+void waitUntilAllTasksDone();
+
+int numberOfCores();
 
 #endif

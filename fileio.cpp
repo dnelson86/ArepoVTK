@@ -65,6 +65,7 @@ void ConfigSet::ReadFile(string cfgfile)
 		paramFilename = readValue<string>("paramFilename");
 		
 		nTasks        = readValue<int> ("nTasks",        1);
+		nCores        = readValue<int> ("nCores",        0);
 		quickRender   = readValue<bool>("quickRender",   false);
 		openWindow    = readValue<bool>("openWindow",    false);
 		verbose       = readValue<bool>("verbose",       false);
