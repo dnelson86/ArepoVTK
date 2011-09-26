@@ -89,7 +89,7 @@ VolumeGridDensity *CreateGridVolumeRegion(const Transform &volume2world, const s
     // Initialize common volume region parameters
     Spectrum sigma_a = 0.0;
     Spectrum sigma_s = 0.0;
-    Spectrum Le = Spectrum::FromRGB(Config.rgbEmit);
+    Spectrum Le = Spectrum::FromNamed("red");
     Point p0 = Point(0,0,0);
     Point p1 = Point(1,1,1);
 		

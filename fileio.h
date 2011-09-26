@@ -35,20 +35,27 @@ public:
 		void splitStrArray(const string str, float *rgb); // size 3
 
     // data for public access
-    int nTasks, nCores;
-		int imageXPixels, imageYPixels;
-		double viStepSize;
-		float rgbEmit[3], rgbLine[3], rgbTetra[3], rgbVoronoi[3];
-		float rgbAbsorb[3];
-		float swScale; // screenWindow mult factor * [-1,1]
-		float rayMaxT;
-    bool quickRender, verbose, openWindow;
-		bool drawBBox, drawTetra, drawVoronoi;
-		bool projColDens, useDensGradients;
     string imageFile, rawRGBFile;
 		string filename, paramFilename;
 		
-		vector<string> tfSet;
+    int nTasks, nCores;
+    bool quickRender, verbose, openWindow;
+		
+		int imageXPixels, imageYPixels;
+		float swScale; // screenWindow mult factor * [-1,1]
+		
+		float cameraFOV;
+		float cameraPosition[3], cameraLookAt[3];
+		
+		vector<string> tfSet;		
+		
+		bool drawBBox, drawTetra, drawVoronoi;
+		bool projColDens, useDensGradients;		
+		
+		double viStepSize;
+		float rayMaxT;
+		float rgbLine[3], rgbTetra[3], rgbVoronoi[3];
+		float rgbAbsorb[3];
 
 private:
 		// for reading config file

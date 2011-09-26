@@ -25,16 +25,13 @@ void rtTestIsoDiskRender()
 		
 		// setup camera
 		//Point cameraPos    = Point(boxSize/2.0,boxSize/2.0,0.0); //face on		
-		Point cameraPos    = Point(boxSize,boxSize/2.0,boxSize/2.0); //edge on (#1)
-		//Point cameraPos    = Point(5000.0,boxSize/2.0,boxSize/2.0); //edge on (#1, inside)
+		//Point cameraPos    = Point(boxSize,boxSize/2.0,boxSize/2.0); //edge on (#1)
 		//Point cameraPos    = Point(0.0,boxSize/2.0,boxSize/2.0); //edge on (#2)
-		//Point cameraPos    = Point(boxSize/2.0,0.0,boxSize*0.25); //high i angled
+		//Point cameraLook   = Point(boxSize/2.0,boxSize/2.0,boxSize/2.0); //center of box
+		//Point cameraLook   = cameraPos+Point(-1.0,0.0,0.0); //20mpc debug
 		
-		Point cameraLook   = Point(boxSize/2.0,boxSize/2.0,boxSize/2.0); //center of box
-		//Point cameraLook = cameraPos+Point(0.0,0.0,1.0); //20mpc debug
-		Vector cameraVecUp = Vector(0.0,1.0,0.0);
-
-		Transform world2camera = LookAt(cameraPos, cameraLook, cameraVecUp);
+		Vector cameraVecUp     = Vector(0.0,1.0,0.0);
+		Transform world2camera = LookAt(Point(Config.cameraPosition), Point(Config.cameraLookAt), cameraVecUp);
 		
 		// setup transfer function
 		for (int i=0; i < Config.tfSet.size(); i++)
@@ -43,7 +40,11 @@ void rtTestIsoDiskRender()
 		// would recreate per frame
 		Filter *filter       = CreateBoxFilter();
 		Film *film           = CreateFilm(filter);
-		Camera *camera       = CreateOrthographicCamera(Inverse(world2camera), film);
+		Camera *camera       = NULL;
+		
+		if (Config.cameraFOV)	camera = CreatePerspectiveCamera(Inverse(world2camera), film);
+		else								  camera = CreateOrthographicCamera(Inverse(world2camera), film);
+			
 		Sampler *sampler     = CreateStratifiedSampler(film, camera);
 		Renderer *re         = new Renderer(sampler, camera, vi);
 		
@@ -60,15 +61,8 @@ void rtTestIsoDiskRender()
 void rtTestRenderScene(string filename)
 {
 		// config - camera
-		Point cameraPos    = Point(0.5,0.5,0.0); //centered on z=0 plane edge, x/y axis aligned
-		//Point cameraPos      = Point(1.0,0.5,0.5); //centered on x=1.0 plane edge
-		//Point cameraPos    = Point(2.0,2.0,-2.0); //angled above
-		
-		Point cameraLook   = Point(0.4,0.4,1.0); //center of box
-		Vector cameraVecUp = Vector(0.0,1.0,0.0);
-		
-		// set transform
-		Transform world2camera = LookAt(cameraPos, cameraLook, cameraVecUp);
+		Vector cameraVecUp     = Vector(0.0,1.0,0.0);
+		Transform world2camera = LookAt(Point(Config.cameraPosition), Point(Config.cameraLookAt), cameraVecUp);
 		
 		IF_DEBUG(world2camera.print("world2camera:"));
 		IF_DEBUG(Inverse(world2camera).print("camera2world:"));
@@ -76,7 +70,11 @@ void rtTestRenderScene(string filename)
 		// Camera (Filter, Film), Sampler
 		Filter *filter       = CreateBoxFilter();
 		Film *film           = CreateFilm(filter);
-		Camera *camera       = CreateOrthographicCamera(Inverse(world2camera), film);
+		Camera *camera       = NULL;
+		
+		if (Config.cameraFOV)	camera = CreatePerspectiveCamera(Inverse(world2camera), film);
+		else								  camera = CreateOrthographicCamera(Inverse(world2camera), film);
+			
 		Sampler *sampler     = CreateStratifiedSampler(film, camera);
 		
 		// Integrator
@@ -91,9 +89,9 @@ void rtTestRenderScene(string filename)
 		TransferFunction *tf = new TransferFunction(sig_a);
 		
 		// debugging:
-		Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit);
+		Spectrum s1 = Spectrum::FromNamed("red");
 		Spectrum s2 = Spectrum::FromNamed("green");
-		Spectrum s3 = Spectrum::FromNamed("blue");
+		Spectrum s3 = Spectrum::FromNamed("blue") * 10;
 		tf->AddConstant(TF_VAL_DENS,s3);
 		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,spec);
 		tf->AddGaussian(TF_VAL_DENS,2.8,0.1,s1);
@@ -173,8 +171,8 @@ int main (int argc, char* argv[])
 #endif
 
 		// debug test render
-		//rtTestRenderScene(Config.filename);
-		rtTestIsoDiskRender();
+		rtTestRenderScene(Config.filename);
+		//rtTestIsoDiskRender();
 		
 		// cleanup
 #ifdef ENABLE_AREPO

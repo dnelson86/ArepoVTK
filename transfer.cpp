@@ -315,7 +315,7 @@ bool TransferFunction::AddParseString(string &addTFstr)
 		}
 		
 				
-		//Spectrum s1 = Spectrum::FromRGB(Config.rgbEmit);
+		//Spectrum s1 = Spectrum::FromNamed("red");
 		//Spectrum s2 = Spectrum::FromNamed("green");
 		//Spectrum s3 = Spectrum::FromNamed("blue");
 		

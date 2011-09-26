@@ -73,7 +73,10 @@ void ConfigSet::ReadFile(string cfgfile)
 		imageXPixels  = readValue<int>  ("imageXPixels", 500);
 		imageYPixels  = readValue<int>  ("imageYPixels", 500);
 		swScale       = readValue<float>("swScale",      1.0f);
-		rayMaxT       = readValue<float>("rayMaxT",      0.0f);
+
+		cameraFOV     = readValue<float>("cameraFOV",    0.0f); // 0 = ortho
+		splitStrArray( readValue<string>("cameraPosition") , &cameraPosition[0]   );
+		splitStrArray( readValue<string>("cameraLookAt")   , &cameraLookAt[0] );
 		
 		drawBBox      = readValue<bool>("drawBBox",      true);
 		drawTetra     = readValue<bool>("drawTetra",     true);	
@@ -83,9 +86,9 @@ void ConfigSet::ReadFile(string cfgfile)
 		useDensGradients = readValue<bool>("useDensGradients", true);
 
 		viStepSize       = readValue<float>("viStepSize",      0.0f); // disabled by default
+		rayMaxT          = readValue<float>("rayMaxT",         0.0f);
 		
 		//TODO: temp rgb triplets input		
-		splitStrArray( readValue<string>("rgbEmit",     "0.1  0.0  0.0")  , &rgbEmit[0]    );
 		splitStrArray( readValue<string>("rgbLine",     "0.1  0.1  0.1")  , &rgbLine[0]    );
 		splitStrArray( readValue<string>("rgbTetra",    "0.01 0.01 0.01") , &rgbTetra[0]   );
 		splitStrArray( readValue<string>("rgbVoronoi",  "0.0  0.05 0.0")  , &rgbVoronoi[0] );
@@ -98,7 +101,6 @@ void ConfigSet::ReadFile(string cfgfile)
 		for (pi = parsedParams.begin(); pi != parsedParams.end(); ++pi) {
 				if (pi->first.substr(0,5) == "addTF")
 						tfSet.push_back(pi->second);
-				
 		}
 		
 		// basic validation
