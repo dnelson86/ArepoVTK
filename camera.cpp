@@ -574,6 +574,30 @@ Camera::Camera(const Transform &cam2world, const Transform &proj, const float sc
     RasterToCamera = Inverse(CameraToScreen) * RasterToScreen;
 }
 
+ProjCamera::ProjCamera(const Transform &cam2world, const Transform &proj, const float screenWindow[4],
+										   float sopen, float sclose, float lensr, float focald, Film *f)
+		: Camera(cam2world, sopen, sclose, f)
+{
+		IF_DEBUG(cout << "ProjCamera(c2w,proj,sW," << sopen << "," << sclose << "," << lensr << "," << focald 
+		              << "f) constructor." << endl);
+		
+    // Initialize depth of field parameters
+    lensRadius = lensr;
+    focalDistance = focald;
+
+    // Compute projective camera transformations
+    CameraToScreen = proj;
+
+    // Compute projective camera screen transformations
+    ScreenToRaster = Scale(float(film->xResolution),
+                           float(film->yResolution), 1.0f) *
+        Scale(1.0f / (screenWindow[1] - screenWindow[0]),
+              1.0f / (screenWindow[2] - screenWindow[3]), 1.0f) *
+        Translate(Vector(-screenWindow[0], -screenWindow[3], 0.0f));
+    RasterToScreen = Inverse(ScreenToRaster);
+    RasterToCamera = Inverse(CameraToScreen) * RasterToScreen;
+}
+
 // OrthoCamera
 OrthoCamera::OrthoCamera(const Transform &cam2world, const float screenWindow[4], 
 												 float sopen, float sclose, float lensr, float focald, Film *f)
@@ -618,6 +642,51 @@ float OrthoCamera::GenerateRay(const CameraSample &sample, Ray *ray) const
     return 1.0f;
 }
 
+// PerspectiveCamera
+PerspectiveCamera::PerspectiveCamera(const Transform &cam2world, const float screenWindow[4], 
+										float sopen, float sclose, float lensr, float focald, float fov, Film *film)
+    : ProjCamera(cam2world, Perspective(fov, 1e-2f, 1000.0f), screenWindow,
+								 sopen, sclose, lensr, focald, film)
+{
+		IF_DEBUG(cout << "PerspectiveCamera(c2w,sW=[" << screenWindow[0] << "," << screenWindow[1] << ","
+	                << screenWindow[2] << "," << screenWindow[3] << "],...) constructor." << endl);
+
+    // Compute differential changes in origin for ortho camera rays
+    dxCamera = RasterToCamera(Point(1,0,0)) - RasterToCamera(Point(0,0,0));
+    dyCamera = RasterToCamera(Point(0,1,0)) - RasterToCamera(Point(0,0,0));
+}
+
+float PerspectiveCamera::GenerateRay(const CameraSample &sample, Ray *ray) const
+{
+		IF_DEBUG(cout << "PerspectiveCamera::GenerateRay()" << endl);
+		
+    // Generate raster and camera samples
+    Point Pras(sample.imageX, sample.imageY, 0);
+    Point Pcamera;
+    RasterToCamera(Pras, &Pcamera);
+		IF_DEBUG(Pras.print(" sample (raster): "));
+		IF_DEBUG(Pcamera.print(" sample (camera): "));
+		
+    *ray = Ray(Point(0,0,0), Normalize(Vector(Pcamera)), 0.0f, INFINITY);
+
+    if (lensRadius > 0.0) {
+				// Modify ray for depth of field		
+				// NOT IMPLEMENTED
+				cout << "ERROR: PerspectiveCamera GenerateRay lensRadius not zero." << endl;
+    }
+		
+    ray->time = Lerp(sample.time, shutterOpen, shutterClose);
+		
+		IF_DEBUG(ray->printRay(" genray C "));
+		
+    CameraToWorld(*ray, ray);
+				
+		IF_DEBUG(ray->printRay(" genray W "));
+
+    return 1.0f;
+}
+
+// Camera object creation
 OrthoCamera *CreateOrthographicCamera(const Transform &cam2world, Film *film)
 {
 		// Config
@@ -647,4 +716,37 @@ OrthoCamera *CreateOrthographicCamera(const Transform &cam2world, Film *film)
 				
     return new OrthoCamera(cam2world, screen, shutteropen, shutterclose,
         lensradius, focaldistance, film);
+}
+
+PerspectiveCamera *CreatePerspectiveCamera(const Transform &cam2world, Film *film)
+{
+    // Config
+    float shutteropen = 0.0f;
+    float shutterclose = 1.0f;
+
+    float lensradius = 0.0f;
+    float focaldistance = 1e30f;
+    float frame = float(film->xResolution)/float(film->yResolution);
+    float screen[4];
+		
+    if (frame > 1.0f) {
+        screen[0] = -frame;
+        screen[1] =  frame;
+        screen[2] = -1.0f;
+        screen[3] =  1.0f;
+    }
+    else {
+        screen[0] = -1.0f;
+        screen[1] =  1.0f;
+        screen[2] = -1.0f / frame;
+        screen[3] =  1.0f / frame;
+    }
+		
+    for (int i=0; i < 4; i++)
+		  screen[i] *= Config.swScale;
+			
+    float fov = Config.cameraFOV;
+		
+    return new PerspectiveCamera(cam2world, screen, shutteropen, shutterclose, lensradius, 
+																 focaldistance, fov, film);
 }

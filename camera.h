@@ -113,6 +113,17 @@ protected:
     float lensRadius, focalDistance;
 };
 
+class ProjCamera : public Camera {
+public:
+		ProjCamera(const Transform &cam2world, const Transform &proj, const float screenWindow[4],
+							 float sopen, float sclose, float lensr, float focald, Film *film);
+protected:
+		// private data
+    Transform CameraToScreen, RasterToCamera;
+    Transform ScreenToRaster, RasterToScreen;
+    float lensRadius, focalDistance;
+};
+
 class OrthoCamera : public Camera {
 public:
     // methods
@@ -125,6 +136,20 @@ private:
     Vector dxCamera, dyCamera;
 };
 
+class PerspectiveCamera : public ProjCamera {
+public:
+		// methods
+    PerspectiveCamera(const Transform &cam2world, const float screenWindow[4],
+											float sopen, float sclose, float lensr, float focald, float fov, Film *film);
+    float GenerateRay(const CameraSample &sample, Ray *) const;
+		
+private:
+		// data
+		Vector dxCamera, dyCamera;
+
+};
+
 OrthoCamera *CreateOrthographicCamera(const Transform &cam2world, Film *film);
+PerspectiveCamera *CreatePerspectiveCamera(const Transform &cam2world, Film *film);
 
 #endif

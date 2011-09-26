@@ -7,28 +7,32 @@
 
 // Matrix4x4
 
-Matrix4x4::Matrix4x4(float mat[4][4]) {
+Matrix4x4::Matrix4x4(float mat[4][4])
+{
     memcpy(m, mat, 16*sizeof(float));
 }
 
 Matrix4x4::Matrix4x4(float t00, float t01, float t02, float t03,
                      float t10, float t11, float t12, float t13,
                      float t20, float t21, float t22, float t23,
-                     float t30, float t31, float t32, float t33) {
+                     float t30, float t31, float t32, float t33)
+										 {
     m[0][0] = t00; m[0][1] = t01; m[0][2] = t02; m[0][3] = t03;
     m[1][0] = t10; m[1][1] = t11; m[1][2] = t12; m[1][3] = t13;
     m[2][0] = t20; m[2][1] = t21; m[2][2] = t22; m[2][3] = t23;
     m[3][0] = t30; m[3][1] = t31; m[3][2] = t32; m[3][3] = t33;
 }
 
-Matrix4x4 Transpose(const Matrix4x4 &m) {
+Matrix4x4 Transpose(const Matrix4x4 &m)
+{
    return Matrix4x4(m.m[0][0], m.m[1][0], m.m[2][0], m.m[3][0],
                     m.m[0][1], m.m[1][1], m.m[2][1], m.m[3][1],
                     m.m[0][2], m.m[1][2], m.m[2][2], m.m[3][2],
                     m.m[0][3], m.m[1][3], m.m[2][3], m.m[3][3]);
 }
 
-Matrix4x4 Inverse(const Matrix4x4 &m) {
+Matrix4x4 Inverse(const Matrix4x4 &m)
+{
     int indxc[4], indxr[4];
     int ipiv[4] = { 0, 0, 0, 0 };
     float minv[4][4];
@@ -95,7 +99,8 @@ Matrix4x4 Inverse(const Matrix4x4 &m) {
 
 // Transform
 
-Transform Translate(const Vector &delta) {
+Transform Translate(const Vector &delta)
+{
     Matrix4x4 m(1, 0, 0, delta.x,
                 0, 1, 0, delta.y,
                 0, 0, 1, delta.z,
@@ -107,19 +112,21 @@ Transform Translate(const Vector &delta) {
     return Transform(m, minv);
 }
 
-Transform Scale(float x, float y, float z) {
+Transform Scale(float x, float y, float z)
+{
     Matrix4x4 m(x, 0, 0, 0,
                 0, y, 0, 0,
                 0, 0, z, 0,
                 0, 0, 0, 1);
-    Matrix4x4 minv(1.f/x,     0,     0,     0,
-                   0,     1.f/y,     0,     0,
-                   0,         0,     1.f/z, 0,
-                   0,         0,     0,     1);
+    Matrix4x4 minv(1.0f/x,     0,     0,      0,
+                   0,     1.0f/y,     0,      0,
+                   0,          0,     1.0f/z, 0,
+                   0,          0,     0,      1);
     return Transform(m, minv);
 }
 
-Transform RotateX(float angle) {
+Transform RotateX(float angle)
+{
     float sin_t = sinf(Radians(angle));
     float cos_t = cosf(Radians(angle));
     Matrix4x4 m(1,     0,      0, 0,
@@ -129,7 +136,8 @@ Transform RotateX(float angle) {
     return Transform(m, Transpose(m));
 }
 
-Transform RotateY(float angle) {
+Transform RotateY(float angle)
+{
     float sin_t = sinf(Radians(angle));
     float cos_t = cosf(Radians(angle));
     Matrix4x4 m( cos_t,   0,  sin_t, 0,
@@ -139,7 +147,8 @@ Transform RotateY(float angle) {
     return Transform(m, Transpose(m));
 }
 
-Transform RotateZ(float angle) {
+Transform RotateZ(float angle)
+{
     float sin_t = sinf(Radians(angle));
     float cos_t = cosf(Radians(angle));
     Matrix4x4 m(cos_t, -sin_t, 0, 0,
@@ -149,7 +158,8 @@ Transform RotateZ(float angle) {
     return Transform(m, Transpose(m));
 }
 
-Transform Rotate(float angle, const Vector &axis) {
+Transform Rotate(float angle, const Vector &axis)
+{
     Vector a = Normalize(axis);
     float s = sinf(Radians(angle));
     float c = cosf(Radians(angle));
@@ -180,7 +190,8 @@ Transform Rotate(float angle, const Vector &axis) {
 }
 
 
-Transform LookAt(const Point &pos, const Point &look, const Vector &up) {
+Transform LookAt(const Point &pos, const Point &look, const Vector &up)
+{
     float m[4][4];
     // Initialize fourth column of viewing matrix
     m[0][3] = pos.x;
@@ -208,7 +219,8 @@ Transform LookAt(const Point &pos, const Point &look, const Vector &up) {
     return Transform(Inverse(camToWorld), camToWorld);
 }
 
-BBox Transform::operator()(const BBox &b) const {
+BBox Transform::operator()(const BBox &b) const
+{
     const Transform &M = *this;
     BBox ret(        M(Point(b.pMin.x, b.pMin.y, b.pMin.z)));
     ret = Union(ret, M(Point(b.pMax.x, b.pMin.y, b.pMin.z)));
@@ -221,13 +233,28 @@ BBox Transform::operator()(const BBox &b) const {
     return ret;
 }
 
-Transform Transform::operator*(const Transform &t2) const {
+Transform Transform::operator*(const Transform &t2) const
+{
     Matrix4x4 m1 = Matrix4x4::Mul(m, t2.m);
     Matrix4x4 m2 = Matrix4x4::Mul(t2.mInv, mInv);
     return Transform(m1, m2);
 }
 
-Transform Orthographic(float znear, float zfar) {
+Transform Orthographic(float znear, float zfar)
+{
     return Scale(1.0f, 1.0f, 1.0f / (zfar-znear)) *
            Translate(Vector(0.0f, 0.0f, -znear));
+}
+
+Transform Perspective(float fov, float n, float f)
+{
+    // perform projective divide
+    Matrix4x4 persp = Matrix4x4(1, 0,           0,              0,
+                                0, 1,           0,              0,
+                                0, 0, f / (f - n), -f*n / (f - n),
+                                0, 0,           1,              0);
+
+    // scale to canonical viewing volume
+    float invTanAng = 1.0f / tanf(Radians(fov) / 2.0f);
+    return Scale(invTanAng, invTanAng, 1) * Transform(persp);
 }
