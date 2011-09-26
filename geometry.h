@@ -79,6 +79,9 @@ public:
     Point(float xx, float yy, float zz)
         : x(xx), y(yy), z(zz) {
     }
+		Point(float v[3])
+				: x(v[0]), y(v[1]), z(v[2]) {
+		}
 		
 		// operators
     Point operator+(const Vector &v) const {
@@ -254,7 +257,10 @@ public:
 
 // geometry inline functions
 inline Vector::Vector(const Point &p)
-		: x(p.x), y(p.y), z(p.y) {
+{
+		x = p.x;
+		y = p.y;
+		z = p.z;
 }
 inline Vector operator*(float f, const Vector &v) {
 		return v*f;
