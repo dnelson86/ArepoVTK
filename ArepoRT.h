@@ -17,8 +17,14 @@
 
 #define MSUN_PER_PC3_IN_CGS 6.769e-23
 
+// behavior options
+
 //#define USE_LINEALGO_BRESENHAM
 #define USE_LINEALGO_WU
+#define NATURAL_NEIGHBOR_INTERP
+//#define DEBUG_VERIFY_INCELL_EACH_STEP
+//#define DEBUG_VERIFY_ENTRY_CELLS
+//#define USE_AREPO_TREEFIND_FUNC
 
 #ifdef DEBUG
 #define IF_DEBUG(expr) (expr)

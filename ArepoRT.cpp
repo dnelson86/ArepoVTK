@@ -91,7 +91,7 @@ void rtTestRenderScene(string filename)
 		// debugging:
 		Spectrum s1 = Spectrum::FromNamed("red");
 		Spectrum s2 = Spectrum::FromNamed("green");
-		Spectrum s3 = Spectrum::FromNamed("blue") * 10;
+		Spectrum s3 = Spectrum::FromNamed("blue");
 		tf->AddConstant(TF_VAL_DENS,s3);
 		//tf->AddTophat(TF_VAL_DENS,5.0,10.0,spec);
 		tf->AddGaussian(TF_VAL_DENS,2.8,0.1,s1);
@@ -116,7 +116,7 @@ void rtTestRenderScene(string filename)
 		}
 		
 		// Arepo2b overrides
-		SphP[6].Density      = 3.0;  // center point
+		SphP[6].Density      = 20.0;  // center point //3.0
 		SphP[6].Grad.drho[0] = 10.0;
 		SphP[6].Grad.drho[1] = 10.0;
 		SphP[6].Grad.drho[2] = 2.0;
@@ -171,8 +171,8 @@ int main (int argc, char* argv[])
 #endif
 
 		// debug test render
-		rtTestRenderScene(Config.filename);
-		//rtTestIsoDiskRender();
+		//rtTestRenderScene(Config.filename);
+		rtTestIsoDiskRender();
 		
 		// cleanup
 #ifdef ENABLE_AREPO

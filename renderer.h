@@ -25,6 +25,8 @@ public:
 		
 		// methods
     void Render(const Scene *scene);
+		void RasterizeStage(const Scene *scene);
+		
     Spectrum Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T = NULL) const;
     Spectrum Transmittance(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng) const;
 		

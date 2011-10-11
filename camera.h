@@ -119,9 +119,9 @@ public:
 							 float sopen, float sclose, float lensr, float focald, Film *film);
 protected:
 		// private data
-    Transform CameraToScreen, RasterToCamera;
-    Transform ScreenToRaster, RasterToScreen;
-    float lensRadius, focalDistance;
+    //Transform CameraToScreen, RasterToCamera;
+    //Transform ScreenToRaster, RasterToScreen;
+    //float lensRadius, focalDistance;
 };
 
 class OrthoCamera : public Camera {

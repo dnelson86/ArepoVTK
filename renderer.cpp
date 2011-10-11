@@ -68,66 +68,6 @@ void RendererTask::Run() {
 
 		float time = (float)timer2.Time();
 		cout << " [Task=" << taskNum << "] Raytracing phase: [" << time << "] seconds." << endl;
-		timer2.Reset();
-		timer2.Start();
-		
-    /* Second Pass - Rasterize Mesh Faces */
-		//TODO: think more about rasterization with parallelization
-    vector<Line> edges;
-		
-		// testing: rasterize edges of AM tetra
-		if (Config.drawTetra) {
-				Spectrum Ltetra	= Spectrum::FromRGB(Config.rgbTetra);
-				for (int i = 0; i < scene->arepoMesh->Ndt; i++) {
-						edges.clear();
-						
-						if(scene->arepoMesh->TetraEdges(i,&edges)) {
-								for (int j = 0; j < edges.size(); j++) {
-										IF_DEBUG(cout << " RL p1.x = " << edges[j].p1.x << " p1.y = " << edges[j].p1.y
-																	<< " p1.z = " << edges[j].p1.z << " p2.x = " << edges[j].p2.x
-																	<< " p2.y = " << edges[j].p2.y << " p2.z = " << edges[j].p2.z << endl);
-										camera->RasterizeLine(edges[j].p1,edges[j].p2,Ltetra);
-								}
-						}
-				} 
-		} 
-
-    // testing: rasterize Voronoi faces of AM
-		if (Config.drawVoronoi) {
-				edges.clear();
-				Spectrum Lvor   = Spectrum::FromRGB(Config.rgbVoronoi);
-				
-				//for (int i = 0; i < scene->arepoMesh->Nvf; i++) {
-				int i = 26;
-						if (scene->arepoMesh->VoronoiEdges(i,&edges)) {
-								for (int j = 0; j < edges.size(); j++) {
-										cout << " VE p1.x = " << edges[j].p1.x << " p1.y = " << edges[j].p1.y
-																	<< " p1.z = " << edges[j].p1.z << " p2.x = " << edges[j].p2.x
-																	<< " p2.y = " << edges[j].p2.y << " p2.z = " << edges[j].p2.z << endl;
-										camera->RasterizeLine(edges[j].p1,edges[j].p2,Lvor);
-								}
-
-						}
-				//}
-		} 
-
-		// testing: acquire and rasterize edges of VR/AM BBox
-		if (Config.drawBBox) {
-				edges.clear();
-				Spectrum Ledge  = Spectrum::FromRGB(Config.rgbLine);
-				
-				if (scene->arepoMesh->WorldBound().Edges(&edges)) {
-						for (int i = 0; i < edges.size(); ++i) {
-								// rasterize individual line segment
-								camera->RasterizeLine(edges[i].p1,edges[i].p2,Ledge);
-						}
-				}
-		} 
-
-		if (Config.drawTetra || Config.drawVoronoi || Config.drawBBox) {
-				time = (float)timer2.Time();
-				cout << " [Task=" << taskNum << "] Rasterization phase: [" << time << "] seconds." << endl;
-		}
 		
     // Clean up after _SamplerRendererTask_ is done with its image region
     camera->film->UpdateDisplay(sampler->xPixelStart, sampler->yPixelStart, 
@@ -203,6 +143,10 @@ void Renderer::Render(const Scene *scene)
 		for (int i=0; i < renderTasks.size(); i++)
 				delete renderTasks[i];
 		
+		// do rasterization stage in serial (TODO)
+		if (Config.drawTetra || Config.drawVoronoi || Config.drawBBox)
+				Renderer::RasterizeStage(scene);		
+		
     float seconds = (float)timer->Time();
 		cout << endl << "Render complete (" << seconds << " seconds)." << endl << endl;
 		
@@ -212,6 +156,67 @@ void Renderer::Render(const Scene *scene)
 		
     camera->film->WriteImage();
 		IF_DEBUG(camera->film->WriteRawRGB());
+}
+
+void Renderer::RasterizeStage(const Scene *scene)
+{
+		Timer timer2;
+		timer2.Start();
+		
+    /* Second Pass - Rasterize Mesh Faces */
+    vector<Line> edges;
+		
+		// testing: rasterize edges of AM tetra
+		if (Config.drawTetra) {
+				Spectrum Ltetra	= Spectrum::FromRGB(Config.rgbTetra);
+				for (int i = 0; i < scene->arepoMesh->Ndt; i++) {
+						edges.clear();
+						
+						if(scene->arepoMesh->TetraEdges(i,&edges)) {
+								for (int j = 0; j < edges.size(); j++) {
+										IF_DEBUG(cout << " RL p1.x = " << edges[j].p1.x << " p1.y = " << edges[j].p1.y
+																	<< " p1.z = " << edges[j].p1.z << " p2.x = " << edges[j].p2.x
+																	<< " p2.y = " << edges[j].p2.y << " p2.z = " << edges[j].p2.z << endl);
+										camera->RasterizeLine(edges[j].p1,edges[j].p2,Ltetra);
+								}
+						}
+				} 
+		} 
+
+    // testing: rasterize Voronoi faces of AM
+		if (Config.drawVoronoi) {
+				edges.clear();
+				Spectrum Lvor   = Spectrum::FromRGB(Config.rgbVoronoi);
+				
+				//for (int i = 0; i < scene->arepoMesh->Nvf; i++) {
+				int i = 26;
+						if (scene->arepoMesh->VoronoiEdges(i,&edges)) {
+								for (int j = 0; j < edges.size(); j++) {
+										cout << " VE p1.x = " << edges[j].p1.x << " p1.y = " << edges[j].p1.y
+																	<< " p1.z = " << edges[j].p1.z << " p2.x = " << edges[j].p2.x
+																	<< " p2.y = " << edges[j].p2.y << " p2.z = " << edges[j].p2.z << endl;
+										camera->RasterizeLine(edges[j].p1,edges[j].p2,Lvor);
+								}
+
+						}
+				//}
+		} 
+
+		// testing: acquire and rasterize edges of VR/AM BBox
+		if (Config.drawBBox) {
+				edges.clear();
+				Spectrum Ledge  = Spectrum::FromRGB(Config.rgbLine);
+				
+				if (scene->arepoMesh->WorldBound().Edges(&edges)) {
+						for (int i = 0; i < edges.size(); ++i) {
+								// rasterize individual line segment
+								camera->RasterizeLine(edges[i].p1,edges[i].p2,Ledge);
+						}
+				}
+		} 
+
+		float time = (float)timer2.Time();
+		cout << " [Task=Root] Rasterization phase: [" << time << "] seconds." << endl;
 }
 
 Spectrum Renderer::Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T) const
