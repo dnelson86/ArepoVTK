@@ -77,9 +77,14 @@ public:
 		void VerifyPointInCell(int dp, Point &pos);
 		
 		int FindNearestGasParticle(Point &pt, double *mindist, int guess, int use_periodic);
-		bool AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, int previous_cell, Spectrum &Lv, Spectrum &Tr);
+		bool AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, int previous_cell, 
+															Spectrum &Lv, Spectrum &Tr);
+		
+		inline int getSphPID(int dp_id);
 		
 		// fluid data introspection
+		inline double nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt);
+		inline void computeAuxVolumes(double *vol);
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
 		// data
@@ -106,6 +111,7 @@ private:
 		
 		// mesh
     tessellation *T;
+		tessellation AuxMesh;
 		
 		int *EdgeList;
 		int *Nedges;

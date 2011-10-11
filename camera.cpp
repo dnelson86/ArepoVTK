@@ -530,8 +530,8 @@ Camera::Camera(const Transform &cam2world, float sopen, float sclose, Film *f)
 
 bool Camera::RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L)
 {
-		IF_DEBUG(p1.print("Camera::RasterizeLine p1 W "));
-		IF_DEBUG(p2.print("Camera::RasterizeLine p2 W "));
+		p1.print("Camera::RasterizeLine p1 W ");
+		p2.print("Camera::RasterizeLine p2 W ");
 		
 		// transform start and end points to raster space
     float x1,y1,x2,y2;
@@ -541,8 +541,12 @@ bool Camera::RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L)
 		start = w2r(p1);
 		end   = w2r(p2);
 		
-		IF_DEBUG(start.print("Camera::RasterizeLine p1 R "));
-		IF_DEBUG(end.print("Camera::RasterizeLine p2 R "));
+		w2r.print(" w2r ");
+		Inverse(CameraToWorld).print(" inv c2w ");
+		Inverse(RasterToCamera).print(" inc r2c ");
+		
+		start.print("Camera::RasterizeLine p1 R ");
+		end.print("Camera::RasterizeLine p2 R ");
 
 		// ask film to draw
 		return film->DrawLine(start.x,start.y,end.x,end.y,L);
@@ -570,6 +574,7 @@ Camera::Camera(const Transform &cam2world, const Transform &proj, const float sc
         Scale(1.0f / (screenWindow[1] - screenWindow[0]),
               1.0f / (screenWindow[2] - screenWindow[3]), 1.0f) *
         Translate(Vector(-screenWindow[0], -screenWindow[3], 0.0f));
+		ScreenToRaster.print(" ScreenToRaster ");
     RasterToScreen = Inverse(ScreenToRaster);
     RasterToCamera = Inverse(CameraToScreen) * RasterToScreen;
 }
@@ -594,6 +599,7 @@ ProjCamera::ProjCamera(const Transform &cam2world, const Transform &proj, const 
         Scale(1.0f / (screenWindow[1] - screenWindow[0]),
               1.0f / (screenWindow[2] - screenWindow[3]), 1.0f) *
         Translate(Vector(-screenWindow[0], -screenWindow[3], 0.0f));
+		ScreenToRaster.print(" ScreenToRaster ");
     RasterToScreen = Inverse(ScreenToRaster);
     RasterToCamera = Inverse(CameraToScreen) * RasterToScreen;
 }

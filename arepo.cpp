@@ -133,6 +133,9 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		ArepoMesh::CalculateMidpoints();
 		//ArepoMesh::LimitCellDensities();
 		
+		// copy individual allocation factors for auxiliary mesh
+		AuxMesh.Indi = DeRefMesh.Indi;
+		
 		// TODO: temp units
 		unitConversions[TF_VAL_DENS]   = All.UnitDensity_in_cgs / MSUN_PER_PC3_IN_CGS;
 		unitConversions[TF_VAL_UTHERM] = All.UnitEnergy_in_cgs;
@@ -510,6 +513,20 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, double *mindist, int guess, int
 		return nearest;
 }
 
+// get primary hydro ID - handle local ghosts
+inline int ArepoMesh::getSphPID(int dp_id)
+{
+		int SphP_ID = -1;
+		
+		if (dp_id >= 0 && dp_id < N_gas)
+				SphP_ID = dp_id;
+		else if (dp_id >= N_gas)
+				SphP_ID = dp_id - N_gas;
+		
+		if (SphP_ID < 0)
+				endrun(1135);
+}
+
 bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, 
 																		 int previous_cell, Spectrum &Lv, Spectrum &Tr)
 {
@@ -529,16 +546,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		ArepoMesh::VerifyPointInCell(dp,pos);
 #endif
 		
-		// hydro ID - handle local ghosts
-		int SphP_ID = -1;
-		
-		if (ray.index >= 0 && ray.index < N_gas)
-				SphP_ID = ray.index;
-		else if (ray.index >= N_gas)
-				SphP_ID = ray.index - N_gas;
-		
-		if (SphP_ID < 0)
-				endrun(1135);
+		int SphP_ID = getSphPID(ray.index);
 
 		// tetra position
 		const Vector cellp(DP[ray.index].x,DP[ray.index].y,DP[ray.index].z);
@@ -631,80 +639,97 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 				IF_DEBUG(cout << " min_t = " << min_t << " (t1=" << *t1 << " t0=" << *t0 << ")" << endl);
 				min_t = Clamp(min_t,0.0,(*t1-*t0));
 				
-				if (addFlag) { //TODO
+				if (addFlag)
+				{ //TODO
 				
-				// entry and exit points for this cell
-				Point hitcell  = ray(ray.min_t);
-				Point exitcell = ray(*t0 + min_t);
-				
-				IF_DEBUG(hitcell.print(" hcell "));
-				IF_DEBUG(exitcell.print(" ecell "));
-				
-				// cell gradient information
-				Vector sphCen(     SphP[SphP_ID].Center[0],   SphP[SphP_ID].Center[1],   SphP[SphP_ID].Center[2]);
-				Vector sphDensGrad(SphP[SphP_ID].Grad.drho[0],SphP[SphP_ID].Grad.drho[1],SphP[SphP_ID].Grad.drho[2]);
-														 
-				const Vector norm = exitcell - hitcell;
+						// entry and exit points for this cell
+						Point hitcell  = ray(ray.min_t);
+						Point exitcell = ray(*t0 + min_t);
+						
+						IF_DEBUG(hitcell.print(" hcell "));
+						IF_DEBUG(exitcell.print(" ecell "));
+						
+						// cell gradient information
+						Vector sphCen(     SphP[SphP_ID].Center[0],   SphP[SphP_ID].Center[1],   SphP[SphP_ID].Center[2]);
+						Vector sphDensGrad(SphP[SphP_ID].Grad.drho[0],SphP[SphP_ID].Grad.drho[1],SphP[SphP_ID].Grad.drho[2]);
+																 
+						const Vector norm = exitcell - hitcell;
 
-				IF_DEBUG(norm.print(" norm "));
-				IF_DEBUG(sphCen.print(" sphCen "));
-				
-				// compute total path length through cell
-				double len = norm.Length();
-				
-				// find interpolated density at midpoint of line segment through voronoi cell
-				Vector midpt(hitcell[0] + 0.5 * norm[0],hitcell[1] + 0.5 * norm[1],hitcell[2] + 0.5 * norm[2]);
-        midpt -= sphCen;
-				
-				IF_DEBUG(midpt.print(" onestep midp rel sphcen "));
-				
-				double rho    = SphP[SphP_ID].Density;
-				double utherm = SphP[SphP_ID].Utherm;
-				
-				// optical depth: treat as constant over entire cell
-				Spectrum stepTau(0.0);
-				
-				// use gradients if requested
-				if (Config.useDensGradients) {
-						rho += Dot(sphDensGrad,midpt);
-						stepTau += transferFunction->sigma_t() * rho * len;
-				} else {
-						// always use gradient for tau calculation
-						stepTau += transferFunction->sigma_t() * (rho + Dot(sphDensGrad,midpt)) * len;
-				}
-				//if (Config.useUthermGradients) //TODO: gradient (MATERIALS)
-				//		utherm += Dot(sphUthermGrad,midpt);
-				
-				// reduce transmittance for optical depth
-				//Tr *= Exp(-stepTau); //TODO
-				
-				// TODO: sub-step length should be adaptive based on gradients
-				// TODO: should only substep if the TF will evaluate nonzero somewhere inside
-				
-				// decide on sub-stepping
-				if (viStepSize && len > viStepSize) {
-						// sub-stepping (cell too large), get a number of values along the segment
-						int nSamples = (int)ceilf(len / viStepSize);
+						IF_DEBUG(norm.print(" norm "));
+						IF_DEBUG(sphCen.print(" sphCen "));
+						
+						// compute total path length through cell
+						double len = norm.Length();
+						
+						// find interpolated density at midpoint of line segment through voronoi cell
+						Vector midpt(hitcell[0] + 0.5 * norm[0],hitcell[1] + 0.5 * norm[1],hitcell[2] + 0.5 * norm[2]);
+						midpt -= sphCen;
+						
+						IF_DEBUG(midpt.print(" onestep midp rel sphcen "));
+						
+						double rho    = SphP[SphP_ID].Density;
+						double utherm = SphP[SphP_ID].Utherm;
+						
+						// optical depth: treat as constant over entire cell
+						Spectrum stepTau(0.0);
+						
+						// use gradients if requested
+						if (Config.useDensGradients) {
+								rho += Dot(sphDensGrad,midpt);
+								stepTau += transferFunction->sigma_t() * rho * len;
+						} else {
+								// always use gradient for tau calculation
+								stepTau += transferFunction->sigma_t() * (rho + Dot(sphDensGrad,midpt)) * len;
+						}
+						//if (Config.useUthermGradients) //TODO: gradient (MATERIALS)
+						//		utherm += Dot(sphUthermGrad,midpt);
+						
+						// reduce transmittance for optical depth
+						//Tr *= Exp(-stepTau); //TODO
+						
+						// TODO: sub-step length should be adaptive based on gradients
+						// TODO: should only substep if the TF will evaluate nonzero somewhere inside
+
+						// TODO: fix non-sub-stepping!!
+						
+						// if not sub-stepping then set default
+						if (!viStepSize)
+							viStepSize = len;
+							
+						// sub-stepping: variable 
+						//int nSamples = (int)ceilf(len_sample / viStepSize);
+						//double fracstep = 1.0 / nSamples;
+						//double halfstep = 0.5 / nSamples;
+						
+						// sub-stepping: strict in world space
+						Vector prev_sample_pt(ray(ray.depth * viStepSize));
+						Vector norm_sample(exitcell - prev_sample_pt);
+
+						int nSamples = (int)floorf(norm_sample.Length() / viStepSize);
 						double fracstep = 1.0 / nSamples;
-						double halfstep = 0.5 / nSamples;
+						norm_sample = Normalize(norm_sample);
+						
+						IF_DEBUG(prev_sample_pt.print(" prev_sample_pt "));
 						
 						IF_DEBUG(cout << " sub-stepping len = " << len << " nSamples = " << nSamples 
 													<< " (step = " << len/nSamples << ")" << endl);
 						
 						for (int i = 0; i < nSamples; ++i) {
-								Vector midpt(hitcell[0] + (i*fracstep+halfstep) * norm[0],
-														 hitcell[1] + (i*fracstep+halfstep) * norm[1],
-														 hitcell[2] + (i*fracstep+halfstep) * norm[2]);
-                midpt -= sphCen;
+								//Vector midpt(hitcell[0] + (i*fracstep+halfstep) * norm[0],
+								//						 hitcell[1] + (i*fracstep+halfstep) * norm[1],
+								//						 hitcell[2] + (i*fracstep+halfstep) * norm[2]);
+														 
+								Vector midpt(prev_sample_pt[0] + ((i+1)*viStepSize) * norm_sample[0],
+														 prev_sample_pt[1] + ((i+1)*viStepSize) * norm_sample[1],
+														 prev_sample_pt[2] + ((i+1)*viStepSize) * norm_sample[2]);				 
 								
-								IF_DEBUG(midpt.print(" substep midpt rel sphcen "));
+								IF_DEBUG(midpt.print(" substep midpt "));
 								
-								double rho    = SphP[SphP_ID].Density + Dot(sphDensGrad,midpt);
+								double rho = nnInterpScalar(SphP_ID, ray.index, midpt);
 								
 								IF_DEBUG(cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
 															<< (i*fracstep)+fracstep << "] rho = " << SphP[SphP_ID].Density
-															<< " rho w/ grad = " << rho << " (grad.x = " << sphDensGrad.x
-															<< " grad.y = " << sphDensGrad.y << " grad.z = " << sphDensGrad.z << ")" << endl);
+															<< " rho nni = " << rho << endl);
 								
 								// pack cell quantities for TF
 								float vals[TF_NUM_VALS];
@@ -731,53 +756,20 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 #ifdef USE_SFR
 								vals[TF_VAL_SFR]         = (float) SphP[SphP_ID].Sfr;
 #endif
-								
+
+								// apply TF to integrated (total) quantities (only appropriate for constant?)
+								if (Config.projColDens) {
+										rho    *= len;
+										utherm *= len;
+								}
+						
 								// compute emission-only source term using transfer function
-								Lv += Tr * transferFunction->Lve(vals);
+								Lv += Tr * transferFunction->Lve(vals) /* * fracstep*/;
+								
+							// update previous sample point marker
+							ray.depth++;
 						}
-						
-				} else {
-						// no sub-stepping (cell sufficiently small), get interpolated values at segment center
-
-						// apply TF to integrated (total) quantities (only appropriate for constant?)
-						if (Config.projColDens) {
-								rho    *= len;
-								utherm *= len;
-						}
-						
-						IF_DEBUG(cout << " segment len = " << len << " rho = " << SphP[SphP_ID].Density 
-													<< " grad.x = " << sphDensGrad.x << " rho w/ grad = " << rho << endl);
-
-						// pack cell quantities for TF
-						float vals[TF_NUM_VALS];
-						
-								vals[TF_VAL_DENS]        = (float) rho;
-								vals[TF_VAL_UTHERM]      = (float) utherm; //TODO: gradient (MATERIALS)
-								vals[TF_VAL_PRES]        = (float) SphP[SphP_ID].Pressure; //TODO: gradient
-								vals[TF_VAL_ENERGY]      = (float) SphP[SphP_ID].Energy;
-								
-								vals[TF_VAL_VEL_X]       = (float) P[SphP_ID].Vel[0]; //TODO: gradients
-								vals[TF_VAL_VEL_Y]       = (float) P[SphP_ID].Vel[1];
-								vals[TF_VAL_VEL_Z]       = (float) P[SphP_ID].Vel[2];
-								vals[TF_VAL_VEL_DIV]     = (float) SphP[SphP_ID].DivVel;
-								vals[TF_VAL_VEL_CURL]    = (float) SphP[SphP_ID].CurlVel;
-								
-								vals[TF_VAL_POTENTIAL]   = (float) P[SphP_ID].Potential;
-								
-#ifdef METALS
-								vals[TF_VAL_METALLICITY] = (float) SphP[SphP_ID].Metallicity;
-#endif
-#ifdef COOLING
-								vals[TF_VAL_NE]          = (float) SphP[SphP_ID].Ne;
-#endif
-#ifdef USE_SFR
-								vals[TF_VAL_SFR]         = (float) SphP[SphP_ID].Sfr;
-#endif
-						
-						// compute emission-only source term using transfer function
-						Lv += Tr * transferFunction->Lve(vals);
-				}
-				
+		
 				} //addFlag //TODO
 				
 				// update ray: transfer to next voronoi cell (possibly on different task)
@@ -808,6 +800,204 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		}
 		
 		return true;		
+}
+
+// natural neighbor interpolation on scalar field at position pt inside Voronoi cell SphP_ID
+inline double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt)
+{
+#ifdef NATURAL_NEIGHBOR_INTERP
+		// check degenerate point in R3, immediate return
+		if (fabs(pt.x - DP[DP_ID].x) <= INSIDE_EPS &&
+				fabs(pt.y - DP[DP_ID].y) <= INSIDE_EPS &&
+				fabs(pt.z - DP[DP_ID].z) <= INSIDE_EPS)
+				return SphP[SphP_ID].Density;
+				
+		// list of neighbors
+		const int start_edge = midpoint_idx[DP_ID].first;
+		const int n_edges    = midpoint_idx[DP_ID].second;
+		
+		int *dp_neighbors   = new int[n_edges+1];
+		int *sphp_neighbors = new int[n_edges+1];
+		
+		for (int i=0; i < n_edges; i++) {
+				dp_neighbors[i]   = opposite_points[start_edge + i];
+				sphp_neighbors[i] = getSphPID(opposite_points[start_edge + i]);
+		}
+		// add parent to list
+		dp_neighbors[n_edges]   = DP_ID;
+		sphp_neighbors[n_edges] = SphP_ID;
+		
+#ifdef DEBUG
+		cout << " dp_neighbors: ";
+		for (int i=0; i < n_edges; i++)
+				cout << " " << opposite_points[start_edge + i] << "(sphp=" << 
+								getSphPID(opposite_points[start_edge + i]) << ")";
+		cout << " " << DP_ID << " (sphp=" << SphP_ID << ")";
+		cout << " [" << n_edges+1 << " neighbors]" << endl;
+#endif
+		
+		//P[i] = cell to be split ("active") or in our case the parent of the interpolate pt
+		//j = N_gas + count; ("new P/SphP id")
+		//P[j] and SphP[j] are new, i is old
+		//jj = ref_SphP_dp_index[i]; //dp index of SphP point i
+		int jj = DP_ID;
+		
+		// recreate the voronoi cell of the parent's neighbors (auxiliary mesh approach)
+		initialize_and_create_first_tetra(&DeRefMesh);
+		
+		DeRefMesh.DTC = static_cast<tetra_center*>(
+										mymalloc_movable(&DeRefMesh.DTC, "AuxDTC", DeRefMesh.MaxNdt * sizeof(tetra_center)));
+		DeRefMesh.DTF = static_cast<char*>(
+										mymalloc_movable(&DeRefMesh.DTF, "AuxDTF", DeRefMesh.MaxNdt * sizeof(char)));
+		//DeRefMesh.DTC = new tetra_center[DeRefMesh.MaxNdt];
+		//DeRefMesh.DTF = new char[DeRefMesh.MaxNdt];
+		for(int k = 0; k < DeRefMesh.Ndt; k++)
+		  DeRefMesh.DTF[k] = 0;
+			
+		int tlast = 0;
+		
+		for(int k = 0; k < n_edges+1; k++)
+		{
+				int q = dp_neighbors[k];
+		
+				if(DeRefMesh.Ndp + 2 >= DeRefMesh.MaxNdp)
+				{
+						DeRefMesh.Indi.AllocFacNdp *= ALLOC_INCREASE_FACTOR;
+						DeRefMesh.MaxNdp = (int)DeRefMesh.Indi.AllocFacNdp;
+						DeRefMesh.DP -= 5;
+						DeRefMesh.DP = static_cast<point*>
+													 (myrealloc_movable(DeRefMesh.DP, (DeRefMesh.MaxNdp + 5) * sizeof(point)));
+						DeRefMesh.DP += 5;
+				}
+				
+				DeRefMesh.DP[DeRefMesh.Ndp] = Mesh.DP[q];
+		    set_integers_for_point(&DeRefMesh, DeRefMesh.Ndp);
+		    tlast = insert_point(&DeRefMesh, DeRefMesh.Ndp, tlast);
+		    DeRefMesh.Ndp++;
+				
+				//IF_DEBUG(cout << " inserted neighbor k=" << k << " new tlast=" << tlast << " totnum=" << 
+				//				 DeRefMesh.Ndp << endl);
+		}
+		
+		// compute old circumcircles and volumes
+		compute_circumcircles(&DeRefMesh);
+		
+		double *dp_old_vol = new double[DeRefMesh.Ndp+1];
+		double *dp_new_vol = new double[DeRefMesh.Ndp+1];
+		
+		//computeAuxVolumes(dp_old_vol);
+		derefine_refine_compute_volumes(dp_old_vol);
+		
+#ifdef DEBUG
+		cout << " old volumes:";
+		for (int k = 0; k < DeRefMesh.Ndp; k++) {
+				cout << " [k=" << k << "] " << dp_old_vol[k];
+		}
+		cout << endl;
+#endif		
+		
+		// add interpolate point
+		DeRefMesh.DP[DeRefMesh.Ndp].x = pt.x;
+		DeRefMesh.DP[DeRefMesh.Ndp].y = pt.y;
+		DeRefMesh.DP[DeRefMesh.Ndp].z = pt.z;
+		DeRefMesh.DP[DeRefMesh.Ndp].ID = -1; //unused
+		set_integers_for_point(&DeRefMesh, DeRefMesh.Ndp);
+		tlast = insert_point(&DeRefMesh, DeRefMesh.Ndp, tlast);
+		DeRefMesh.Ndp++;
+		
+		//IF_DEBUG(cout << " inserted interpolate new tlast=" << tlast << " totnum=" << DeRefMesh.Ndp << endl);
+		
+		// compute new circumcircles and volumes
+		compute_circumcircles(&DeRefMesh);
+		//computeAuxVolumes(dp_new_vol);
+		derefine_refine_compute_volumes(dp_new_vol);
+		
+#ifdef DEBUG
+		cout << " new volumes:";
+		for (int k = 0; k < DeRefMesh.Ndp; k++) {
+				cout << " [k=" << k << "] " << dp_new_vol[k];
+		}
+		cout << endl;
+#endif
+
+		// calculate scalar value based on neighbor values and area fraction weights
+		double *weights = new double[DeRefMesh.Ndp-1];
+		double invInterpVol = 1.0 / dp_new_vol[DeRefMesh.Ndp-1];
+		
+		for (int k=0; k < DeRefMesh.Ndp-1; k++)
+			weights[k] = (dp_old_vol[k]-dp_new_vol[k]) * invInterpVol;
+			
+#ifdef DEBUG
+		cout << " weights (vals):";
+		for (int k=0; k < DeRefMesh.Ndp-1; k++)
+				cout << " [k=" << k << "]" << weights[k] << " (" << sphp_neighbors[k] << ")";
+		cout << endl;
+#endif
+
+		double val = 0.0;
+		for (int k=0; k < DeRefMesh.Ndp-1; k++) {
+				val += SphP[sphp_neighbors[k]].Density * weights[k];
+		}
+		
+		// free
+		delete dp_new_vol;
+		delete dp_old_vol;
+		myfree(DeRefMesh.DTF);
+		myfree(DeRefMesh.DTC);
+		DeRefMesh.DTC = NULL;
+		myfree(DeRefMesh.DT);
+		myfree(DeRefMesh.DP - 5);
+		myfree(DeRefMesh.VF);
+		delete sphp_neighbors;
+		delete dp_neighbors;
+#endif //NNI
+
+#ifndef NATURAL_NEIGHBOR_INTERP
+		// old:
+		Vector sphCen(     SphP[SphP_ID].Center[0],   SphP[SphP_ID].Center[1],   SphP[SphP_ID].Center[2]);
+		Vector sphDensGrad(SphP[SphP_ID].Grad.drho[0],SphP[SphP_ID].Grad.drho[1],SphP[SphP_ID].Grad.drho[2]);
+    pt -= sphCen;	// make relative to cell center	
+		double val   = SphP[SphP_ID].Density + Dot(sphDensGrad,pt);
+		
+		//IF_DEBUG(cout << "NNI: " << val << " LinearGrad: " << val_old << " frac diff = " << 
+		//				fabs(val-val_old)/val << endl);
+#endif
+
+		return val;
+}
+
+inline void ArepoMesh::computeAuxVolumes(double *vol)
+{
+		int i, bit, nr;
+
+		for(i = 0; i < AuxMesh.Ndp; i++)
+				vol[i] = 0;
+
+		Edge_visited = static_cast<unsigned char*>(
+									mymalloc_movable(&Edge_visited, "Edge_visited", AuxMesh.Ndt * sizeof(unsigned char)));
+
+		for(i = 0; i < AuxMesh.Ndt; i++)
+				Edge_visited[i] = 0;
+
+		for(i = 0; i < AuxMesh.Ndt; i++)
+		{
+				if(AuxMesh.DT[i].t[0] < 0)	/* deleted ? */
+						continue;
+
+				bit = 1;
+				nr  = 0;
+
+				while(Edge_visited[i] != EDGE_ALL)
+				{
+						if((Edge_visited[i] & bit) == 0)
+						derefine_refine_process_edge(&AuxMesh, vol, i, nr);
+
+						bit <<= 1;
+						nr++;
+				}
+		}
+
+		myfree(Edge_visited);
 }
 
 // for now just zero hydro quantities of primary cells that extend beyond the box
