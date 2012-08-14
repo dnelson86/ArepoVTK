@@ -6,9 +6,8 @@
 #ifndef AREPO_RT_TRANSFER_H
 #define AREPO_RT_TRANSFER_H
 
-#include "ArepoRT.h"
+//#include "ArepoRT.h"
 #include "spectrum.h"
-#include "util.h"
 
 // TODO: bit field approach, such that TransferFunction keeps a record of all the 
 //       SphP fields it will need to evaluate Lve(), and returns this upon request

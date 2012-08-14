@@ -2,7 +2,8 @@
  * geometry.cpp
  * dnelson
  */
- 
+
+#include "ArepoRT.h" 
 #include "geometry.h"
 
 //BBox

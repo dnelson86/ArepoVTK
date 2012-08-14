@@ -27,19 +27,24 @@ ResubmitCommand           my-scriptfile
 
 %----- Memory alloction
 
-MaxMemSize        3500         % sets maximum memory use in MByte
-PartAllocFactor   10.0
+MaxMemSize        500         % sets maximum memory use in MByte
+PartAllocFactor   3.0
 BufferSize        200          % in MByte
+
+%----- New
+
+MultipleDomains 1
+TopNodeFactor   5
+MaxTimeBinsWithoutDomainDecomposition 5
 
 %----- Mesh regularization options
 
-%CellShapingFactor 0.2          % sets threshold for CM-displacement
+CellShapingFactor 0.2          % sets threshold for CM-displacement
 CellShapingSpeed  0.5          % sets speed of CM correction
-CellMaxAngleFactor 2.25            % maximum angle
 
 %ErrTolThetaInZeldovich 0.5    % tree opening parameter for inverse Zeldovich mesh correction
-MeanVolume             1.0e30  % desired maximum volume of cells for Zeldovich mesh corrrection
-MeanMass               3.0e-5  % desired maximum mass of cells for Zeldovich mesh corrrection
+%MeanVolume             1.0e30  % desired maximum volume of cells for Zeldovich mesh corrrection
+%MeanMass               3.0e-5  % desired maximum mass of cells for Zeldovich mesh corrrection
 
 %---- Caracteristics of run
 
@@ -78,7 +83,6 @@ CourantFac               0.4
 MaxRMSDisplacementFac    0.2
 MaxSizeTimestep          1e-2
 MinSizeTimestep          1e-10
-EntropyTolFactor         0.05    % only used for cold-flow treatment without mach-numbers
 
 %---- Treatment of empty space and temperature limits
 
@@ -95,7 +99,6 @@ MinEgySpec             0
 TypeOfOpeningCriterion       1
 ErrTolTheta                  0.7
 ErrTolForceAcc               0.0025
-TreeDomainUpdateFrequency    0.1
 
 %---- Initial density estimate
 

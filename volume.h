@@ -7,7 +7,6 @@
 #define AREPO_RT_VOLUME_H
 
 #include "ArepoRT.h"
-#include "spectrum.h"
 #include "transform.h"
 
 class VolumeRegion {

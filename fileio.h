@@ -6,15 +6,10 @@
 #ifndef AREPO_RT_FILEIO_H
 #define AREPO_RT_FILEIO_H
 
-#include <iostream>
+#include "ArepoRT.h"
+
 #include <sstream>
 #include <fstream>
-#include <map>
-#include <vector>
-using namespace std;
-
-#include <string>
-using std::string;
 
 // configuration options
 class ConfigSet {
@@ -69,10 +64,10 @@ private:
 		template<class T> static T string_to_T(const string& str);
 };
 
-#include "ArepoRT.h"
+//#include "ArepoRT.h"
 
-#include <ctype.h>
-#include <stdlib.h>
+//#include <ctype.h>
+//#include <stdlib.h>
 
 bool ReadFloatFile(const char *filename, vector<float> *values);
 bool WriteFloatFile(const char *filename, float *values, int nx, int ny);

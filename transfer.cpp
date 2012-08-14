@@ -4,6 +4,8 @@
  */
  
 #include "transfer.h"
+#include "spectrum.h"
+#include "util.h"
 
 TransferFunc1D::TransferFunc1D(short int ty, short int vn, 
 															 vector<float> &params, vector<Spectrum> &spec)

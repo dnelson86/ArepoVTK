@@ -4,7 +4,9 @@
  */
  
 #include "util.h"
+
 #include <fcntl.h>
+#include <unistd.h>
 
 // Timer
 Timer::Timer()

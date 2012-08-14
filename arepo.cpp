@@ -3,18 +3,23 @@
  * dnelson
  */
  
+#include "transform.h"
+#include "spectrum.h"
+#include "volume.h"
+#include "transfer.h"
+
 #include "arepo.h"
 
 #ifdef ENABLE_AREPO
 
 // check for required Arepo compilation options
 
-#ifndef VORONOI_NEW_IMAGE
-#error ERROR. Missing required Arepo compilation option VORONOI_NEW_IMAGE.
+#ifndef VORONOI
+#error ERROR. Missing required Arepo compilation option VORONOI.
 #endif
-#ifndef PEANOHILBERT
-#error ERROR. Missing required Arepo compilation option PEANOHILBERT.
-#endif
+//#ifndef VORONOI_NEW_IMAGE
+//#error ERROR. Missing required Arepo compilation option VORONOI_NEW_IMAGE.
+//#endif
 #ifndef VORONOI_DYNAMIC_UPDATE
 #error ERROR. Missing required Arepo compilation option VORONOI_DYNAMIC_UPDATE.
 #endif
@@ -38,7 +43,7 @@ bool Arepo::LoadSnapshot()
     IF_DEBUG(cout << "Arepo::LoadSnapshot(" << snapFilename << ")." << endl);
 		
 #ifndef DEBUG
-		freopen("/dev/null","w",stdout); //hide arepo stdout
+		//freopen("/dev/null","w",stdout); //hide arepo stdout
 #endif		
 		
 		// set startup options
@@ -50,7 +55,7 @@ bool Arepo::LoadSnapshot()
 
 		// call arepo: run setup
 		begrun1();
-		
+    
 		// check snapshot exists
 		if (ifstream(snapFilename.c_str())) {
 				freopen("/dev/tty","w",stdout);
@@ -78,9 +83,9 @@ bool Arepo::LoadSnapshot()
 
 #ifndef DEBUG
 		//TODO: switch between these automatically
-		string fn = Config.imageFile + string(".out.txt");
+		//string fn = Config.imageFile + string(".out.txt");
 		//freopen("/dev/tty","w",stdout); //return stdout to terminal (test only)
-		freopen(fn.c_str(),"a",stdout); //return stdout to a file (LSF)
+		//freopen(fn.c_str(),"a",stdout); //return stdout to a file (LSF)
 #endif
 
 		if (Config.verbose) {
@@ -123,7 +128,7 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 						 << " N_gas = " << N_gas << " NumPart = " << NumPart << endl << endl;
 		
 		// boxsize
-		extent = BBox(Point(0.0,0.0,0.0),Point(boxSize,boxSize,boxSize));
+		extent = BBox(Point(0.0,0.0,0.0),Point(All.BoxSize,All.BoxSize,All.BoxSize));
 		
 		IF_DEBUG(extent.print(" ArepoMesh extent "));
 		
@@ -134,7 +139,9 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		//ArepoMesh::LimitCellDensities();
 		
 		// copy individual allocation factors for auxiliary mesh
-		AuxMesh.Indi = DeRefMesh.Indi;
+		AuxMesh.Indi.AllocFacNdp = AUXMESH_ALLOC_SIZE / 2;
+		AuxMesh.Indi.AllocFacNdt = AUXMESH_ALLOC_SIZE;
+		AuxMesh.Indi.AllocFacNvf = AUXMESH_ALLOC_SIZE;
 		
 		// TODO: temp units
 		unitConversions[TF_VAL_DENS]   = All.UnitDensity_in_cgs / MSUN_PER_PC3_IN_CGS;
@@ -207,17 +214,20 @@ void ArepoMesh::LocateEntryCell(const Ray &ray)
 		
 #ifndef USE_AREPO_TREEFIND_FUNC
 		int use_periodic = 0;
-		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, &mindist, -1, use_periodic);
+		float hsml = 10.0; //TODO this is really the "guess" which should be good (small) so that not too many nodes are opened, but unknown if this is effectively the "max" so that if this is too small no point will be found?
+		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, hsml, &mindist, -1, use_periodic);
 #endif
 		
 #ifdef USE_AREPO_TREEFIND_FUNC
+		endrun(6233);
 		mindist = -1;
 		double pos[3];
 		int found_global;
 		pos[0] = hitbox.x;
 		pos[1] = hitbox.y;
 		pos[2] = hitbox.z;
-		const int dp_min = ngb_treefind_nearest_local(pos,-1,&mindist,0,&found_global);
+		const int dp_min = 0; // TODO 
+		//= ngb_treefind_nearest_local(pos,-1,&mindist,0,&found_global);
 #endif
 	 
 		IF_DEBUG(cout << " dp_min = " << dp_min
@@ -377,140 +387,169 @@ void ArepoMesh::VerifyPointInCell(int dp, Point &pos)
 
 }
 
-int ArepoMesh::FindNearestGasParticle(Point &pt, double *mindist, int guess, int use_periodic)
+int ArepoMesh::FindNearestGasParticle(Point &pt, float hsml, double *mindist, int guess, int use_periodic)
 {
-		// based on ngb.c:treefind_nearest_local() (OLD)
-		// needs serious update based on modifications to ngb.c
-		
-		int node, nearest, p;
-		struct NODE *current;
-		double dx, dy, dz, cur_mindist, xtmp;
+	// based on ngbtree_walk.c:ngb_treefind_variable() (no MPI)
+	int node, nearest, p;
+	struct NgbNODE *current;
+	double dx, dy, dz, cur_mindist, xtmp, ytmp, ztmp;
+	float search_min[3], search_max[3], search_max_Lsub[3], search_min_Ladd[3];
+	
+	// search bounds
+	for(i = 0; i < 3; i++)
+	{
+		search_min[i] = searchcenter[i] - hsml;
+		search_max[i] = searchcenter[i] + hsml;
+	}
 
-		// starting node
-		node = All.MaxPart;
-		
-		if (guess >= 0) {
-			nearest = guess;
-		} else {
-			// pick random gas particle for guess of the min distance (why?)
-			//nearest = floor(get_random_number(SelRnd++) * N_gas);
-			nearest = (int)floor(N_gas/2.0);
+	search_max_Lsub[0] = search_max[0] - boxSize_X;
+	search_max_Lsub[1] = search_max[1] - boxSize_Y;
+	search_max_Lsub[2] = search_max[2] - boxSize_Z;
+
+	search_min_Ladd[0] = search_min[0] + boxSize_X;
+	search_min_Ladd[1] = search_min[1] + boxSize_Y;
+	search_min_Ladd[2] = search_min[2] + boxSize_Z;
+
+	// starting node
+	node = Ngb_MaxPart;
+	
+	if (guess >= 0) {
+		nearest = guess;
+	} else {
+		// pick random gas particle for guess of the min distance (why?)
+		//nearest = floor(get_random_number(SelRnd++) * N_gas);
+		nearest = (int)floor(N_gas/2.0);
+	}
+	
+	if (use_periodic) {
+		dx = NGB_PERIODIC_LONG_X(P[nearest].Pos[0] - pt.x);
+		dy = NGB_PERIODIC_LONG_Y(P[nearest].Pos[1] - pt.y);
+		dz = NGB_PERIODIC_LONG_Z(P[nearest].Pos[2] - pt.z);
+	} else {
+		dx = fabs(P[nearest].Pos[0] - pt.x);
+		dy = fabs(P[nearest].Pos[1] - pt.y);
+		dz = fabs(P[nearest].Pos[2] - pt.z);
+	}
+	cur_mindist = sqrt(dx * dx + dy * dy + dz * dz);
+
+	while(node >= 0)
+	{
+		if(node < Ngb_MaxPart)  // single particle
+		{
+			p = node;
+			node = Ngb_Nextnode[node];
+
+			if(P[p].Type > 0) // not gas particle
+				continue;
+
+			/*
+			if (use_periodic)
+				dx = NGB_PERIODIC_LONG_X(P[p].Pos[0] - pt.x);
+			else
+				dx = fabs(P[p].Pos[0] - pt.x);
+			if(dx > cur_mindist)
+					continue;
+					
+			if (use_periodic)
+				dy = NGB_PERIODIC_LONG_Y(P[p].Pos[1] - pt.y);
+			else
+				dy = fabs(P[p].Pos[1] - pt.y);
+			if(dy > cur_mindist)
+					continue;
+				
+			if (use_periodic)
+				dz = NGB_PERIODIC_LONG_Z(P[p].Pos[2] - pt.z);
+			else
+				dz = fabs(P[p].Pos[2] - pt.z);
+			if(dz > cur_mindist)
+					continue;
+			*/
+			
+			dx = NGB_PERIODIC_LONG_X(P[p].Pos[0] - pt.x);
+			if(dx > cur_mindist)
+				continue;
+				
+			dy = NGB_PERIODIC_LONG_Y(P[p].Pos[1] - pt.y);
+			if(dy > cur_mindist)
+				continue;
+				
+			dz = NGB_PERIODIC_LONG_Z(P[p].Pos[2] - pt.z);
+			if(dz > cur_mindist)
+				continue;
+	    
+			double curdist2 = dx * dx + dy * dy + dz * dz;
+			if(curdist2 > cur_mindist * cur_mindist)
+				continue;
+
+			cur_mindist = sqrt(curdist2);
+			nearest = p;
 		}
-		
-		if (use_periodic) {
-			dx = NGB_PERIODIC_LONG_X(P[nearest].Pos[0] - pt.x);
-			dy = NGB_PERIODIC_LONG_Y(P[nearest].Pos[1] - pt.y);
-			dz = NGB_PERIODIC_LONG_Z(P[nearest].Pos[2] - pt.z);
-		} else {
-			dx = fabs(P[nearest].Pos[0] - pt.x);
-			dy = fabs(P[nearest].Pos[1] - pt.y);
-			dz = fabs(P[nearest].Pos[2] - pt.z);
+		else if(node < Ngb_MaxPart + Ngb_MaxNodes) // internal node
+		{
+			current = &Ngb_Nodes[node];
+
+			// in case the node can be discarded
+			node = current->u.d.sibling;
+
+			// first quick tests along the axes (OLD)
+			/*
+			double test_dist = cur_mindist + 0.5 * current->len;
+			
+			if (use_periodic)
+				dx = NGB_PERIODIC_LONG_X(current->center[0] - pt.x);
+			else
+				dx = fabs(current->center[0] - pt.x);
+			if(dx > test_dist)
+					continue;
+					
+			if (use_periodic)
+				dy = NGB_PERIODIC_LONG_Y(current->center[1] - pt.y);
+			else
+				dy = fabs(current->center[1] - pt.y);
+			if(dy > test_dist)
+					continue;
+					
+			if (use_periodic)
+				dz = NGB_PERIODIC_LONG_Z(current->center[2] - pt.z);
+			else
+				dz = fabs(current->center[2] - pt.z);
+			if(dz > test_dist)
+					continue;
+
+			// now test against the minimal sphere enclosing everything
+			test_dist += FACT1 * current->len;
+			if(dx * dx + dy * dy + dz * dz > test_dist * test_dist)
+					continue;
+			*/
+			
+			// NEW
+			  if(search_min[0] > current->u.d.range_max[0] && search_max_Lsub[0] < current->u.d.range_min[0])
+			    continue;
+			  if(search_min_Ladd[0] > current->u.d.range_max[0] && search_max[0] < current->u.d.range_min[0])
+			    continue;
+
+			  if(search_min[1] > current->u.d.range_max[1] && search_max_Lsub[1] < current->u.d.range_min[1])
+			    continue;
+			  if(search_min_Ladd[1] > current->u.d.range_max[1] && search_max[1] < current->u.d.range_min[1])
+			    continue;
+
+			  if(search_min[2] > current->u.d.range_max[2] && search_max_Lsub[2] < current->u.d.range_min[2])
+			    continue;
+			  if(search_min_Ladd[2] > current->u.d.range_max[2] && search_max[2] < current->u.d.range_min[2])
+			    continue;
+
+			node = current->u.d.nextnode; // need to open the node
 		}
-		cur_mindist = sqrt(dx * dx + dy * dy + dz * dz);
+	}
 
-		int endnode = Nodes[node].u.d.sibling;
-		while(node != endnode)
-    {
-				if(node < All.MaxPart)  // single particle
-				{
-						p = node;
-						node = Nextnode[node];
+	*mindist = cur_mindist;
 
-						if(P[p].Type > 0) // not gas particle
-							continue;
-
-						if (use_periodic)
-							dx = NGB_PERIODIC_LONG_X(P[p].Pos[0] - pt.x);
-						else
-							dx = fabs(P[p].Pos[0] - pt.x);
-						if(dx > cur_mindist)
-								continue;
-								
-						if (use_periodic)
-							dy = NGB_PERIODIC_LONG_Y(P[p].Pos[1] - pt.y);
-						else
-							dy = fabs(P[p].Pos[1] - pt.y);
-						if(dy > cur_mindist)
-								continue;
-							
-						if (use_periodic)
-							dz = NGB_PERIODIC_LONG_Z(P[p].Pos[2] - pt.z);
-						else
-							dz = fabs(P[p].Pos[2] - pt.z);
-						if(dz > cur_mindist)
-								continue;
-							
-						double curdist2 = dx * dx + dy * dy + dz * dz;
-						if(curdist2 > cur_mindist * cur_mindist)
-								continue;
-
-						cur_mindist = sqrt(curdist2);
-						nearest = p;
-				}
-				else
-				{
-						if(node >= All.MaxPart + MaxNodes) {
-								// pseudo particle (indicates search box extended into another task domain)
-								// (can no longer guarantee nearest particle is on this processor)
-								node = Nextnode[node - MaxNodes];
-								continue;
-						}
-
-						current = &Nodes[node];
-
-						/* if(!(current->u.d.bitflags & (1 << BITFLAG_MULTIPLEPARTICLES)))
-						{
-								if(current->u.d.mass) // open cell
-								{
-										node = current->u.d.nextnode;
-										continue;
-								}
-						} */
-
-						// in case the node can be discarded
-						node = current->u.d.sibling;
-
-						// first quick tests along the axes
-						double test_dist = cur_mindist + 0.5 * current->len;
-						
-						if (use_periodic)
-							dx = NGB_PERIODIC_LONG_X(current->center[0] - pt.x);
-						else
-							dx = fabs(current->center[0] - pt.x);
-						if(dx > test_dist)
-								continue;
-								
-						if (use_periodic)
-							dy = NGB_PERIODIC_LONG_Y(current->center[1] - pt.y);
-						else
-							dy = fabs(current->center[1] - pt.y);
-						if(dy > test_dist)
-								continue;
-								
-						if (use_periodic)
-							dz = NGB_PERIODIC_LONG_Z(current->center[2] - pt.z);
-						else
-							dz = fabs(current->center[2] - pt.z);
-						if(dz > test_dist)
-								continue;
-
-						// now test against the minimal sphere enclosing everything
-						test_dist += FACT1 * current->len;
-						if(dx * dx + dy * dy + dz * dz > test_dist * test_dist)
-								continue;
-
-						node = current->u.d.nextnode; // need to open the node
-				}
-		}
-
-		*mindist = cur_mindist;
-
-		if (nearest < 0 || nearest > N_gas) {
-				cout << "ERROR: FindNearestGasParticle nearest=" << nearest << " out of bounds." << endl;
-				endrun(1118);
-		}
-		
-		return nearest;
+	if (nearest < 0 || nearest > N_gas) {
+		cout << "ERROR: FindNearestGasParticle nearest=" << nearest << " out of bounds." << endl;
+		endrun(1118);
+	}
+	
+	return nearest;
 }
 
 // get primary hydro ID - handle local ghosts
@@ -742,10 +781,10 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 								vals[TF_VAL_VEL_X]       = (float) P[SphP_ID].Vel[0]; //TODO: gradients
 								vals[TF_VAL_VEL_Y]       = (float) P[SphP_ID].Vel[1];
 								vals[TF_VAL_VEL_Z]       = (float) P[SphP_ID].Vel[2];
-								vals[TF_VAL_VEL_DIV]     = (float) SphP[SphP_ID].DivVel;
-								vals[TF_VAL_VEL_CURL]    = (float) SphP[SphP_ID].CurlVel;
+								//vals[TF_VAL_VEL_DIV]     = (float) SphP[SphP_ID].DivVel;
+								//vals[TF_VAL_VEL_CURL]    = (float) SphP[SphP_ID].CurlVel;
 								
-								vals[TF_VAL_POTENTIAL]   = (float) P[SphP_ID].Potential;
+								//vals[TF_VAL_POTENTIAL]   = (float) P[SphP_ID].Potential;
 								
 #ifdef METALS
 								vals[TF_VAL_METALLICITY] = (float) SphP[SphP_ID].Metallicity;
@@ -806,6 +845,8 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 inline double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt)
 {
 #ifdef NATURAL_NEIGHBOR_INTERP
+		int tlast = 0;
+		
 		// check degenerate point in R3, immediate return
 		if (fabs(pt.x - DP[DP_ID].x) <= INSIDE_EPS &&
 				fabs(pt.y - DP[DP_ID].y) <= INSIDE_EPS &&
@@ -842,6 +883,25 @@ inline double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt)
 		//jj = ref_SphP_dp_index[i]; //dp index of SphP point i
 		int jj = DP_ID;
 		
+		// clear auxiliary mesh (keep super-tetra)
+		/*
+		IF_DEBUG(cout << "DeRefMesh.Nvf = " << DeRefMesh.Nvf << " Ndp = " << DeRefMesh.Ndp << " Ndt = " <<
+		         DeRefMesh.Ndt << endl);
+		if (DeRefMesh.Ndp > 5) {
+			memset(DeRefMesh.VF,0,DeRefMesh.MaxNvf * sizeof(face));
+			memset(DeRefMesh.DP,0,(DeRefMesh.MaxNdp - 5) * sizeof(point));
+			memset(DeRefMesh.DT,0,DeRefMesh.MaxNdt * sizeof(tetra));
+			memset(DeRefMesh.DTC,0,DeRefMesh.MaxNdt * sizeof(tetra_center));
+			
+			for(int k = 0; k < DeRefMesh.MaxNdt; k++)
+			  DeRefMesh.DTF[k] = 0;
+				
+			// set aux mesh sizes to zero
+			DeRefMesh.Ndp = 5;
+			DeRefMesh.Ndt = 0;
+			DeRefMesh.Nvf = 0;
+		} */
+		
 		// recreate the voronoi cell of the parent's neighbors (auxiliary mesh approach)
 		initialize_and_create_first_tetra(&DeRefMesh);
 		
@@ -849,13 +909,8 @@ inline double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt)
 										mymalloc_movable(&DeRefMesh.DTC, "AuxDTC", DeRefMesh.MaxNdt * sizeof(tetra_center)));
 		DeRefMesh.DTF = static_cast<char*>(
 										mymalloc_movable(&DeRefMesh.DTF, "AuxDTF", DeRefMesh.MaxNdt * sizeof(char)));
-		//DeRefMesh.DTC = new tetra_center[DeRefMesh.MaxNdt];
-		//DeRefMesh.DTF = new char[DeRefMesh.MaxNdt];
-		for(int k = 0; k < DeRefMesh.Ndt; k++)
-		  DeRefMesh.DTF[k] = 0;
-			
-		int tlast = 0;
 		
+		// construct new auxiliary mesh around pt
 		for(int k = 0; k < n_edges+1; k++)
 		{
 				int q = dp_neighbors[k];
@@ -868,6 +923,7 @@ inline double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt)
 						DeRefMesh.DP = static_cast<point*>
 													 (myrealloc_movable(DeRefMesh.DP, (DeRefMesh.MaxNdp + 5) * sizeof(point)));
 						DeRefMesh.DP += 5;
+						//endrun(1157);
 				}
 				
 				DeRefMesh.DP[DeRefMesh.Ndp] = Mesh.DP[q];
@@ -940,16 +996,19 @@ inline double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt)
 		}
 		
 		// free
+		delete weights;
 		delete dp_new_vol;
 		delete dp_old_vol;
+		delete sphp_neighbors;
+		delete dp_neighbors;
+		
+		// free aux mesh
 		myfree(DeRefMesh.DTF);
 		myfree(DeRefMesh.DTC);
 		DeRefMesh.DTC = NULL;
 		myfree(DeRefMesh.DT);
 		myfree(DeRefMesh.DP - 5);
 		myfree(DeRefMesh.VF);
-		delete sphp_neighbors;
-		delete dp_neighbors;
 #endif //NNI
 
 #ifndef NATURAL_NEIGHBOR_INTERP

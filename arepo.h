@@ -7,20 +7,36 @@
 #define AREPO_RT_AREPO_H
 #ifdef ENABLE_AREPO
 
-#include "geometry.h"
-#include "transform.h"
-#include "spectrum.h"
-#include "volume.h"
+#ifdef DEUBG
+#define VERBOSE
+#endif
+
+typedef float MyFloat;
+typedef double MyDouble;
+typedef int MyIDType;
+
+#define MAXGRADIENTS 5
+
+#include "ArepoRT.h"
 #include "transfer.h"
 
 #include "mpi.h" //as in Sunrise, need to include outside the C-linkage block
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_integration.h>
+#include <gsl/gsl_spline.h>
+#include <gsl/gsl_errno.h>
+#include <assert.h>
 #include "gmp.h"
 
 extern "C" {
 #include "arepoconfig.h"
-#include "proto.h"   //allvars.h (mpi,gsl)
+//#include "proto.h"   //allvars.h (mpi,gsl)
+#include "mesh.h"
 #include "voronoi.h" //gmp
 }
+
+#include "allvars.h"
 
 // Arepo: main interface with Arepo to load a snapshot, create data structures, and return
 class Arepo
@@ -110,7 +126,7 @@ private:
 		float unitConversions[TF_NUM_VALS]; // mult factor from code units to ArepoVTK "units"
 		
 		// mesh
-    tessellation *T;
+		tessellation *T;
 		tessellation AuxMesh;
 		
 		int *EdgeList;

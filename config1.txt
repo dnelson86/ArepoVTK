@@ -6,11 +6,11 @@
 
 imageFile      = frame.tga             % output: TGA image filename
 rawRGBFile     = frame.raw.txt         % output: raw dump of floats (debug only)
-filename       = test3/snap_020        % input: simulation snapshot (no extension)
-paramFilename  = test3/param.txt       % input: Arepo parameter file
+%filename       = test3/snap_020        % input: simulation snapshot (no extension)
+%paramFilename  = test3/param.txt       % input: Arepo parameter file
 
-%filename = test/Arepo2b
-%paramFilename = test/param.txt
+filename = test/Arepo2b
+paramFilename = test/param.txt
 
 % General
 % -------

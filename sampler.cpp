@@ -4,6 +4,8 @@
  */
  
 #include "sampler.h"
+#include "transform.h"
+#include "camera.h"
 #include "integrator.h"
 #include "volume.h"
 
