@@ -2,7 +2,12 @@
  * camera.cpp
  * dnelson
  */
- 
+
+#include "ArepoRT.h"
+#include "geometry.h"
+#include "transform.h"
+#include "sampler.h"
+#include "fileio.h" 
 #include "camera.h"
 #include "spectrum.h"
 

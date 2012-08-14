@@ -6,7 +6,7 @@
 #ifndef AREPO_RT_GEOMETRY_H
 #define AREPO_RT_GEOMETRY_H
 
-#include "ArepoRT.h"
+class Ray;
 
 class Vector {
 public:

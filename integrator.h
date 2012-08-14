@@ -7,12 +7,6 @@
 #define AREPO_RT_INTEGRATOR_H
 
 #include "ArepoRT.h"
-#include "spectrum.h"
-#include "transform.h"
-#include "sampler.h"
-#include "volume.h"
-#include "camera.h"
-#include "renderer.h"
 
 class VolumeIntegrator {
 public:

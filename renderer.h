@@ -7,14 +7,7 @@
 #define AREPO_RT_RENDERER_H
 
 #include "ArepoRT.h"
-
 #include "util.h"
-#include "arepo.h"
-
-#include "camera.h"
-#include "sampler.h"
-#include "volume.h"
-#include "integrator.h"
 
 // Renderer
 class Renderer {

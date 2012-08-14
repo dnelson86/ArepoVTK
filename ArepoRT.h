@@ -14,6 +14,7 @@
 #define TASK_MAX_PIXEL_SIZE 100 //16
 #define INFINITY            FLT_MAX
 #define INSIDE_EPS          1.0e-6
+#define AUXMESH_ALLOC_SIZE  100
 
 #define MSUN_PER_PC3_IN_CGS 6.769e-23
 
@@ -21,10 +22,10 @@
 
 //#define USE_LINEALGO_BRESENHAM
 #define USE_LINEALGO_WU
-#define NATURAL_NEIGHBOR_INTERP
+//#define NATURAL_NEIGHBOR_INTERP
 //#define DEBUG_VERIFY_INCELL_EACH_STEP
 //#define DEBUG_VERIFY_ENTRY_CELLS
-//#define USE_AREPO_TREEFIND_FUNC
+#define USE_AREPO_TREEFIND_FUNC
 
 #ifdef DEBUG
 #define IF_DEBUG(expr) (expr)
@@ -42,9 +43,11 @@ typedef int ArepoMesh; //pointers
 // includes
 #include <math.h>
 #include <sys/time.h>
+#include <stdint.h>
 
 #include <cstdlib>
 #include <cstdio>
+#include <cstring>
 
 #include <iostream>
 #include <iomanip>
@@ -55,11 +58,13 @@ using namespace std;
 using std::string;
 #include <vector>
 using std::vector;
+#include <map>
 
 #include <malloc.h> //memalign
 
 #include "fileio.h" //Config
 
+class ConfigSet;
 extern ConfigSet Config;
 
 // global forward declarations
@@ -99,6 +104,8 @@ class TransferFunction;
 
 class VolumeIntegrator;
 class VoronoiIntegrator;
+
+class Timer;
 
 // global inlines
 inline float Lerp(float t, float v1, float v2) {

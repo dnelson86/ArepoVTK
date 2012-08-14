@@ -7,9 +7,7 @@
 #define AREPO_RT_SAMPLER_H
 
 #include "ArepoRT.h"
-#include "geometry.h"
 #include "util.h"
-#include "volume.h"
 
 class Sampler {
 public:

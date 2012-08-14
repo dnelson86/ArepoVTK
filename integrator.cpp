@@ -4,6 +4,13 @@
  */
  
 #include "integrator.h"
+#include "ArepoRT.h"
+#include "spectrum.h"
+#include "transform.h"
+#include "sampler.h"
+#include "volume.h"
+#include "camera.h"
+#include "renderer.h"
 
 // EmissionIntegrator
 void EmissionIntegrator::RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene)
@@ -146,7 +153,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 									<< " ray.min_t = " << ray.min_t << " ray.max_t = " << ray.max_t << endl);
 				
 		// find the voronoi cell the ray will enter (or be in) first
-		scene->arepoMesh->LocateEntryCell(ray);
+		scene->arepoMesh->LocateEntryCellBrute(ray); // TODO change to non-Brute
 		
 		// TODO: exchange?
 		

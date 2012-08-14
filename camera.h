@@ -7,10 +7,6 @@
 #define AREPO_RT_CAMERA_H
 
 #include "ArepoRT.h"
-#include "geometry.h"
-#include "transform.h"
-#include "sampler.h"
-#include "fileio.h"
 
 class Filter {
 public:

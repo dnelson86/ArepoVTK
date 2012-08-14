@@ -3,13 +3,14 @@
 # Dylan Nelson
 #
 
+#module load hpc/openmpi-1.6_gcc-4.7.0thread
+
 # user-configurable
 # -----------------
 
 EXECNAME = ArepoRT
 
 #OPT += -DDEBUG
-
 OPT  += -DENABLE_AREPO
 #OPT  += -DENABLE_OPENGL
 #OPT  += -DENABLE_CUDA
@@ -19,7 +20,7 @@ OPT  += -DENABLE_AREPO
 
 ARCH = $(shell uname)
 
-OPTIMIZE = -Wall -g -m64
+OPTIMIZE = -Wall -g -m64 #-03
 INCL     = -I ~/Arepo/
 
 CC       = mpic++
@@ -32,10 +33,12 @@ OBJS = ArepoRT.o camera.o fileio.o geometry.o integrator.o renderer.o sampler.o 
 HEAD = ArepoRT.h camera.h fileio.h geometry.h integrator.h renderer.h sampler.h spectrum.h transfer.h transform.h util.h volume.h
 MISC_RM = frame.raw.txt frame.tga
 
+#AREPO_OBJS = ../Arepo/libArepoVTK.a
+
 ifeq (ENABLE_AREPO,$(findstring ENABLE_AREPO,$(OPT)))
   OBJS += arepo.o
   HEAD += arepo.h
-  LIBS += -lgsl -lgslcblas -lgmp -lhdf5 -L ~/Arepo/ -larepo
+  LIBS += -lgsl -lgslcblas -lgmp -lhdf5 -pthread -L ~/Arepo/ -larepo
 endif
 
 $(EXECNAME): $(OBJS)

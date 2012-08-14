@@ -4,7 +4,7 @@
  */
 
 #include "volume.h"
-#include "fileio.h"
+#include "spectrum.h"
 
 // Scene
 Scene::Scene(VolumeRegion *vr, ArepoMesh *am)
