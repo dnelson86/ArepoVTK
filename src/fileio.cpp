@@ -25,7 +25,7 @@ void ConfigSet::ReadFile(string cfgfile)
 		while (is || nextLine.length() > 0) {
 				// read line
 				string line = "";
-				bool term   = false;
+				//bool term   = false;
 				
 				if (nextLine.length() > 0) {
 						line     = nextLine;
@@ -342,12 +342,12 @@ int parseSceneFile(const string &filename, int &nx, int &ny, int &nz, vector<flo
 		              << " nx = " << nx << " ny = " << ny << " nz = " << nz << endl;
 									
 		cout << "parseSceneFile volumeGrid data:";
-		for (int i=4; i < vals.size(); i++)
+		for (unsigned int i=4; i < vals.size(); i++)
 		  cout << " " << vals[i];
 		cout << endl;
 #endif
 		
-		for (int i=4; i < vals.size(); i++)
+		for (unsigned int i=4; i < vals.size(); i++)
 			data->push_back(vals[i]);
 		
 		return ni;
@@ -469,7 +469,7 @@ static bool writeShort(FILE* f, int16_t s)
     return (fwrite(&v, sizeof(v), 1, f) == 1);
 }
 
-static uchar readByte(FILE* f)
+/* static uchar readByte(FILE* f)
 {
     uchar               v;
     fread(&v, sizeof(v), 1, f);
@@ -481,7 +481,7 @@ static int16_t readShort(FILE* f)
     int16_t             v;
     fread(&v, sizeof(v), 1, f);
     return v;
-}
+} */
 
 /**
  * @param idLength      Identification field size in bytes (max 255).
@@ -507,12 +507,12 @@ static void writeHeader(uchar idLength, uchar colorMapType, uchar imageType,
     writeByte(file, imageType);
 }
 
-static void readHeader(tga_header_t* dst, FILE* file)
+/* static void readHeader(tga_header_t* dst, FILE* file)
 {
     dst->idLength = readByte(file);
     dst->colorMapType = readByte(file);
     dst->imageType = readByte(file);
-}
+} */
 
 /**
  * @param index         Index of first color map entry.
@@ -528,12 +528,12 @@ static void writeColorMapSpec(int16_t index, int16_t length,
     writeByte(file, entrySize);
 }
 
-static void readColorMapSpec(tga_colormapspec_t* dst, FILE* file)
+/* static void readColorMapSpec(tga_colormapspec_t* dst, FILE* file)
 {
     dst->index = readShort(file);
     dst->length = readShort(file);
     dst->entrySize = readByte(file);
-}
+} */
 
 /**
  * @param xOrigin       X coordinate of lower left corner.
@@ -562,7 +562,7 @@ static void writeImageSpec(int16_t xOrigin, int16_t yOrigin,
     writeByte(file, 0);
 }
 
-static void readImageSpec(tga_imagespec_t* dst, FILE* file)
+/* static void readImageSpec(tga_imagespec_t* dst, FILE* file)
 {
     dst->xOrigin = readShort(file);
     dst->yOrigin = readShort(file);
@@ -570,7 +570,7 @@ static void readImageSpec(tga_imagespec_t* dst, FILE* file)
     dst->height = readShort(file);
     dst->pixelDepth = readByte(file);
     dst->attributeBits = readByte(file);
-}
+} */
 
 /**
  * Save the rgb8888 buffer as Targa 24.

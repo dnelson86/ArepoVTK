@@ -1,14 +1,3 @@
-<<<<<<< .mine
-#libarepo.so: $(OBJS)
-#       $(CC) -shared -Wl,-soname,arepo -o libarepo.so$(OBJS) $(LIBS)
-
-$(OBJS) main.o: $(INCL) $(CONFIG)  compile_time_info.c
-
-compile_time_info.c: $(CONFIG)
-        $(PERL) prepare-config.perl $(CONFIG)
-
-=======
-
 -------------------------------------------------
 --- ArepoVTK: The Arepo Visualization ToolKit ---
 -------------------------------------------------
@@ -20,11 +9,11 @@ Current Version: 0.35 (23 Sep 2011)
 Installation/Compilation:
 
  (1) Get ArepoVTK Source:   hg clone /n/hernquistfs1/hgrepos/ArepoVTK/ ~/ArepoVTK/
- (2) Get Arepo Source:      svn checkout http://www.mpa-garching.mpg.de/svn/cosmo-group/Arepo ~/Arepo/
- (3) Copy Arepo Config:     cp ~/ArepoVTK/test/Config_ArepoVTK.sh ~/Arepo/
- (4) Build libarepo.a:      cd ~/Arepo && make libarepo.a CONFIG=Config_ArepoVTK.sh
- (5) Build ArepoVTK:        cd ~/ArepoVTK && make clean && make
- (6) Run ArepoRT Test:      ./ArepoRT test/config.txt
+ (2) Get Arepo Source:      svn checkout http://www.mpa-garching.mpg.de/svn/cosmo-group/Arepo ~/ArepoVTK/Arepo/
+ (3) Copy Config:           cp ~/ArepoVTK/Config_ArepoVTK.sh ~/ArepoVTK/Arepo/Config.sh
+ (3) Build libarepo.a:      cd ~/ArepoVTK/Arepo && make libarepo.a
+ (4) Build ArepoVTK:        cd ~/ArepoVTK && make clean && make
+ (5) Run ArepoRT Test:      ./ArepoRT test/config.txt
 
 Design:
 

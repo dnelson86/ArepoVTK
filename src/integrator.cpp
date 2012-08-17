@@ -37,7 +37,7 @@ Spectrum EmissionIntegrator::Transmittance(const Scene *scene, const Renderer *r
 }
 
 Spectrum EmissionIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
-															  const Sample *sample, RNG &rng, Spectrum *T) const
+															  const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell) const
 {
 		IF_DEBUG(cout << "EmissionIntegrator::Li()" << endl);
 		
@@ -108,15 +108,14 @@ Spectrum VoronoiIntegrator::Transmittance(const Scene *scene, const Renderer *re
 		cout << "CHECK" << endl;
 		endrun(1106);
     if (!scene->arepoMesh) return Spectrum(1.0f);
-
+		return Spectrum(1.0f); // added just to suppress return warning, CHECK
 }
 
 Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
-															  const Sample *sample, RNG &rng, Spectrum *T) const
+															  const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell) const
 {
 		IF_DEBUG(cout << "VoronoiIntegrator::Li()" << endl);
 		
-		int i;
     float t0, t1;
 		
     if (!scene->arepoMesh || !scene->arepoMesh->IntersectP(ray, &t0, &t1) || (t1-t0) == 0.0f) {
@@ -153,8 +152,9 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 									<< " ray.min_t = " << ray.min_t << " ray.max_t = " << ray.max_t << endl);
 				
 		// find the voronoi cell the ray will enter (or be in) first
-		scene->arepoMesh->LocateEntryCellBrute(ray); // TODO change to non-Brute
-		
+		scene->arepoMesh->LocateEntryCell(ray, prevEntryCell);
+		//scene->arepoMesh->LocateEntryCellBrute(ray);
+
 		// TODO: exchange?
 		
 		// init tracker of previous cell the ray marched through
@@ -193,10 +193,12 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
         // roulette terminate ray marching if transmittance is small
         if (Tr.y() < 1e-3) {
             const float continueProb = 0.5f;
-						Point p = ray(ray.min_t);
 						
-						IF_DEBUG(cout << " roulette ray.x = " << p.x << " y = " << p.y << " z = " 
-													<< p.z << " tr.y = " << Tr.y() << endl);
+#ifdef DEBUG
+						Point p = ray(ray.min_t);
+						cout << " roulette ray.x = " << p.x << " y = " << p.y << " z = " 
+													<< p.z << " tr.y = " << Tr.y() << endl;
+#endif
 													
             if (rng.RandomFloat() > continueProb)
 								break;

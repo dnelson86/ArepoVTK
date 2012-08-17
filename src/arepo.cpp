@@ -36,6 +36,7 @@ void Arepo::Init(int *argc, char*** argv)
 void Arepo::Cleanup()
 {
 		MPI_Finalize();
+		close_logfiles();
 }
 
 bool Arepo::LoadSnapshot()
@@ -55,6 +56,7 @@ bool Arepo::LoadSnapshot()
 
 		// call arepo: run setup
 		begrun1();
+		open_logfiles();
     
 		// check snapshot exists
 		if (ifstream(snapFilename.c_str())) {
@@ -125,7 +127,7 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		
 		if (Config.verbose)
 				cout << "[" << ThisTask << "] ArepoMesh: Ndp = " << Ndp << " Ndt = " << Ndt << " Nvf = " << Nvf 
-						 << " N_gas = " << N_gas << " NumPart = " << NumPart << endl << endl;
+						 << " NumGas = " << NumGas << " NumPart = " << NumPart << endl << endl;
 		
 		// boxsize
 		extent = BBox(Point(0.0,0.0,0.0),Point(All.BoxSize,All.BoxSize,All.BoxSize));
@@ -173,8 +175,8 @@ void ArepoMesh::LocateEntryCellBrute(const Ray &ray)
 		}
 
 #ifdef DEBUG
-		if (DP_ID >= N_gas)
-				cout << " LocateEntryCellBrute is [Local Ghost] DP_ID = " << DP_ID << " (N_gas = " << N_gas << ")" << endl;
+		if (DP_ID >= NumGas)
+				cout << " LocateEntryCellBrute is [Local Ghost] DP_ID = " << DP_ID << " (NumGas = " << NumGas << ")" << endl;
 #endif
 		
 		IF_DEBUG(cout << " brute DP_ID = " << DP_ID << " DP[DP_ID].index = " << DP[DP_ID].index 
@@ -194,13 +196,16 @@ void ArepoMesh::LocateEntryCellBrute(const Ray &ray)
 
 // set ray.min_t and ray.max_t bounds first
 
-void ArepoMesh::LocateEntryCell(const Ray &ray)
+void ArepoMesh::LocateEntryCell(const Ray &ray, int prevEntryCell)
 {
 		Point hitbox  = ray(ray.min_t);
+		
+#ifdef DEBUG
 		Point exitbox = ray(ray.max_t);
 		
-		IF_DEBUG(cout << " ray starts at x = " << hitbox.x << " y = " << hitbox.y << " z = " << hitbox.z << endl);
-		IF_DEBUG(cout << " ray ends at   x = " << exitbox.x << " y = " << exitbox.y << " z = " << exitbox.z << endl);		
+		cout << " ray starts at x = " << hitbox.x << " y = " << hitbox.y << " z = " << hitbox.z << endl;
+		cout << " ray ends at   x = " << exitbox.x << " y = " << exitbox.y << " z = " << exitbox.z << endl;
+#endif		
 		
 		// use peanokey to find domain and task for ray
 		if (ray.task == -1) {
@@ -213,21 +218,17 @@ void ArepoMesh::LocateEntryCell(const Ray &ray)
 		double mindist, mindist2;
 		
 #ifndef USE_AREPO_TREEFIND_FUNC
-		int use_periodic = 0;
-		float hsml = 10.0; //TODO this is really the "guess" which should be good (small) so that not too many nodes are opened, but unknown if this is effectively the "max" so that if this is too small no point will be found?
-		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, hsml, &mindist, -1, use_periodic);
+		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, prevEntryCell);
 #endif
 		
 #ifdef USE_AREPO_TREEFIND_FUNC
 		endrun(6233);
 		mindist = -1;
 		double pos[3];
-		int found_global;
 		pos[0] = hitbox.x;
 		pos[1] = hitbox.y;
 		pos[2] = hitbox.z;
-		const int dp_min = 0; // TODO 
-		//= ngb_treefind_nearest_local(pos,-1,&mindist,0,&found_global);
+		const int dp_min = 0; //= ngb_treefind_nearest_local(pos,-1,&mindist,0,&found_global);
 #endif
 	 
 		IF_DEBUG(cout << " dp_min = " << dp_min
@@ -327,7 +328,7 @@ void ArepoMesh::LocateEntryCell(const Ray &ray)
 		}
 		
 		// if we did not finish in a primary cell, check that we iterated over at least one neighbor
-		if (dp_new >= N_gas && !count) {
+		if (dp_new >= NumGas && !count) {
 				cout << "ERROR: Refined entry tree search ended in ghost but count=0" << endl;
 				endrun(1107);
 		}
@@ -359,48 +360,66 @@ void ArepoMesh::VerifyPointInCell(int dp, Point &pos)
 		const int start_edge = midpoint_idx[dp].first;
 		const int n_edges    = midpoint_idx[dp].second;
 		
-		int c = -1;
+		//int c = -1;
 		
 		for (int i=0; i < n_edges; i++)
 		{
 				const int dp_neighbor = opposite_points[start_edge + i];
 				
-				celldist = Vector(pos.x - DP[dp].x, pos.y - DP[dp].y, pos.z - DP[dp].z);
+				celldist = Vector(pos.x - DP[dp_neighbor].x,
+				                  pos.y - DP[dp_neighbor].y,
+													pos.z - DP[dp_neighbor].z);
 				
 				dist2point = celldist.LengthSquared();
 				
 				if (dist2point < dist2point_min) {
 						dist2point_min = dist2point;
-						c = dp_neighbor;
+						//c = dp_neighbor;
 				}
 		}
 	
 		// check
 		if (dist2point/dist2point_min > 1+INSIDE_EPS) {
-				cout << "VerifyPointInCell FAILED! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y
-				     << " pos.z = " << pos.z << endl;
+				cout << "VerifyPointInCell FAILED! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y << " pos.z = " << pos.z << endl;
 				endrun(1129);
 		}
 		
-		IF_DEBUG(cout << "VerifyPointInCell Passed! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y
-				          << " pos.z = " << pos.z << endl);
+		IF_DEBUG(cout << "VerifyPointInCell Passed! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y << " pos.z = " << pos.z << endl);
 
 }
 
-int ArepoMesh::FindNearestGasParticle(Point &pt, float hsml, double *mindist, int guess, int use_periodic)
+int ArepoMesh::FindNearestGasParticle(Point &pt, int guess)
 {
 	// based on ngbtree_walk.c:ngb_treefind_variable() (no MPI)
 	int node, nearest, p;
 	struct NgbNODE *current;
 	double dx, dy, dz, cur_mindist, xtmp, ytmp, ztmp;
 	float search_min[3], search_max[3], search_max_Lsub[3], search_min_Ladd[3];
+
+	// starting node
+	node = Ngb_MaxPart;
+	
+	if (guess >= 0) {
+		nearest = guess;
+	} else {
+		// pick random gas particle for guess of the min distance
+		//nearest = floor(get_random_number(SelRnd++) * NumGas);
+		nearest = (int)floor(NumGas/2.0);
+	}
+	
+	dx = NGB_PERIODIC_LONG_X(P[nearest].Pos[0] - pt.x);
+	dy = NGB_PERIODIC_LONG_Y(P[nearest].Pos[1] - pt.y);
+	dz = NGB_PERIODIC_LONG_Z(P[nearest].Pos[2] - pt.z);
+
+	cur_mindist = sqrt(dx * dx + dy * dy + dz * dz);
 	
 	// search bounds
-	for(i = 0; i < 3; i++)
-	{
-		search_min[i] = searchcenter[i] - hsml;
-		search_max[i] = searchcenter[i] + hsml;
-	}
+	search_min[0] = pt.x - cur_mindist;
+	search_min[1] = pt.y - cur_mindist;
+	search_min[2] = pt.z - cur_mindist;
+	search_max[0] = pt.x + cur_mindist;
+	search_max[1] = pt.y + cur_mindist;
+	search_max[2] = pt.z + cur_mindist;
 
 	search_max_Lsub[0] = search_max[0] - boxSize_X;
 	search_max_Lsub[1] = search_max[1] - boxSize_Y;
@@ -409,29 +428,7 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, float hsml, double *mindist, in
 	search_min_Ladd[0] = search_min[0] + boxSize_X;
 	search_min_Ladd[1] = search_min[1] + boxSize_Y;
 	search_min_Ladd[2] = search_min[2] + boxSize_Z;
-
-	// starting node
-	node = Ngb_MaxPart;
 	
-	if (guess >= 0) {
-		nearest = guess;
-	} else {
-		// pick random gas particle for guess of the min distance (why?)
-		//nearest = floor(get_random_number(SelRnd++) * N_gas);
-		nearest = (int)floor(N_gas/2.0);
-	}
-	
-	if (use_periodic) {
-		dx = NGB_PERIODIC_LONG_X(P[nearest].Pos[0] - pt.x);
-		dy = NGB_PERIODIC_LONG_Y(P[nearest].Pos[1] - pt.y);
-		dz = NGB_PERIODIC_LONG_Z(P[nearest].Pos[2] - pt.z);
-	} else {
-		dx = fabs(P[nearest].Pos[0] - pt.x);
-		dy = fabs(P[nearest].Pos[1] - pt.y);
-		dz = fabs(P[nearest].Pos[2] - pt.z);
-	}
-	cur_mindist = sqrt(dx * dx + dy * dy + dz * dz);
-
 	while(node >= 0)
 	{
 		if(node < Ngb_MaxPart)  // single particle
@@ -441,29 +438,6 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, float hsml, double *mindist, in
 
 			if(P[p].Type > 0) // not gas particle
 				continue;
-
-			/*
-			if (use_periodic)
-				dx = NGB_PERIODIC_LONG_X(P[p].Pos[0] - pt.x);
-			else
-				dx = fabs(P[p].Pos[0] - pt.x);
-			if(dx > cur_mindist)
-					continue;
-					
-			if (use_periodic)
-				dy = NGB_PERIODIC_LONG_Y(P[p].Pos[1] - pt.y);
-			else
-				dy = fabs(P[p].Pos[1] - pt.y);
-			if(dy > cur_mindist)
-					continue;
-				
-			if (use_periodic)
-				dz = NGB_PERIODIC_LONG_Z(P[p].Pos[2] - pt.z);
-			else
-				dz = fabs(P[p].Pos[2] - pt.z);
-			if(dz > cur_mindist)
-					continue;
-			*/
 			
 			dx = NGB_PERIODIC_LONG_X(P[p].Pos[0] - pt.x);
 			if(dx > cur_mindist)
@@ -491,60 +465,27 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, float hsml, double *mindist, in
 			// in case the node can be discarded
 			node = current->u.d.sibling;
 
-			// first quick tests along the axes (OLD)
-			/*
-			double test_dist = cur_mindist + 0.5 * current->len;
-			
-			if (use_periodic)
-				dx = NGB_PERIODIC_LONG_X(current->center[0] - pt.x);
-			else
-				dx = fabs(current->center[0] - pt.x);
-			if(dx > test_dist)
-					continue;
-					
-			if (use_periodic)
-				dy = NGB_PERIODIC_LONG_Y(current->center[1] - pt.y);
-			else
-				dy = fabs(current->center[1] - pt.y);
-			if(dy > test_dist)
-					continue;
-					
-			if (use_periodic)
-				dz = NGB_PERIODIC_LONG_Z(current->center[2] - pt.z);
-			else
-				dz = fabs(current->center[2] - pt.z);
-			if(dz > test_dist)
-					continue;
+			// next check against bound
+			if(search_min[0] > current->u.d.range_max[0] && search_max_Lsub[0] < current->u.d.range_min[0])
+				continue;
+			if(search_min_Ladd[0] > current->u.d.range_max[0] && search_max[0] < current->u.d.range_min[0])
+				continue;
 
-			// now test against the minimal sphere enclosing everything
-			test_dist += FACT1 * current->len;
-			if(dx * dx + dy * dy + dz * dz > test_dist * test_dist)
-					continue;
-			*/
-			
-			// NEW
-			  if(search_min[0] > current->u.d.range_max[0] && search_max_Lsub[0] < current->u.d.range_min[0])
-			    continue;
-			  if(search_min_Ladd[0] > current->u.d.range_max[0] && search_max[0] < current->u.d.range_min[0])
-			    continue;
+			if(search_min[1] > current->u.d.range_max[1] && search_max_Lsub[1] < current->u.d.range_min[1])
+				continue;
+			if(search_min_Ladd[1] > current->u.d.range_max[1] && search_max[1] < current->u.d.range_min[1])
+				continue;
 
-			  if(search_min[1] > current->u.d.range_max[1] && search_max_Lsub[1] < current->u.d.range_min[1])
-			    continue;
-			  if(search_min_Ladd[1] > current->u.d.range_max[1] && search_max[1] < current->u.d.range_min[1])
-			    continue;
-
-			  if(search_min[2] > current->u.d.range_max[2] && search_max_Lsub[2] < current->u.d.range_min[2])
-			    continue;
-			  if(search_min_Ladd[2] > current->u.d.range_max[2] && search_max[2] < current->u.d.range_min[2])
-			    continue;
+			if(search_min[2] > current->u.d.range_max[2] && search_max_Lsub[2] < current->u.d.range_min[2])
+				continue;
+			if(search_min_Ladd[2] > current->u.d.range_max[2] && search_max[2] < current->u.d.range_min[2])
+				continue;
 
 			node = current->u.d.nextnode; // need to open the node
 		}
 	}
 
-	*mindist = cur_mindist;
-
-	if (nearest < 0 || nearest > N_gas) {
+	if (nearest < 0 || nearest > NumGas) {
 		cout << "ERROR: FindNearestGasParticle nearest=" << nearest << " out of bounds." << endl;
 		endrun(1118);
 	}
@@ -557,13 +498,15 @@ inline int ArepoMesh::getSphPID(int dp_id)
 {
 		int SphP_ID = -1;
 		
-		if (dp_id >= 0 && dp_id < N_gas)
+		if (dp_id >= 0 && dp_id < NumGas)
 				SphP_ID = dp_id;
-		else if (dp_id >= N_gas)
-				SphP_ID = dp_id - N_gas;
+		else if (dp_id >= NumGas)
+				SphP_ID = dp_id - NumGas;
 		
 		if (SphP_ID < 0)
 				endrun(1135);
+				
+		return SphP_ID;
 }
 
 bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, 
@@ -592,12 +535,15 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 
 		// just for verbose reporting and for the midp vector
 		Point hitbox  = ray(*t0);
+		
+#ifdef DEBUG
 		Point exitbox = ray(*t1);
 		
-		IF_DEBUG(hitbox.print(" hitbox "));
-		IF_DEBUG(exitbox.print(" exitbox "));
-		IF_DEBUG(cellp.print(" cellp (DP.xyz) "));
-		
+		hitbox.print(" hitbox ");
+		exitbox.print(" exitbox ");
+		cellp.print(" cellp (DP.xyz) ");
+#endif
+
 		// alternative connectivity
 		const pair<int,int> edge = midpoint_idx[ray.index];
 		
@@ -656,7 +602,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		if (qmin == -1) {
 				Point exitcell = ray(*t0 + min_t);
 				
-				if (!extent.Inside(exitcell)) { // && ray.index >= N_gas
+				if (!extent.Inside(exitcell)) { // && ray.index >= NumGas
 						// set intersection with box face to allow for final contribution to ray
 						IF_DEBUG(cout << " failed to intersect face, exitcell outside box, ok!" << endl);
 						min_t = ray.max_t;
@@ -668,7 +614,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		
 		//TODO: temp disable adding any contribution from ghosts to rays
 		bool addFlag = true;
-		if (qmin != -1 && ray.index >= N_gas)
+		if (qmin != -1 && ray.index >= NumGas)
 				addFlag = false;
 		
 		// check for proper exit point
@@ -745,7 +691,6 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 						Vector norm_sample(exitcell - prev_sample_pt);
 
 						int nSamples = (int)floorf(norm_sample.Length() / viStepSize);
-						double fracstep = 1.0 / nSamples;
 						norm_sample = Normalize(norm_sample);
 						
 						IF_DEBUG(prev_sample_pt.print(" prev_sample_pt "));
@@ -766,9 +711,12 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 								
 								double rho = nnInterpScalar(SphP_ID, ray.index, midpt);
 								
-								IF_DEBUG(cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
+#ifdef DEBUG
+								double fracstep = 1.0 / nSamples;
+								cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
 															<< (i*fracstep)+fracstep << "] rho = " << SphP[SphP_ID].Density
-															<< " rho nni = " << rho << endl);
+															<< " rho nni = " << rho << endl;
+#endif
 								
 								// pack cell quantities for TF
 								float vals[TF_NUM_VALS];
@@ -878,7 +826,7 @@ inline double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt)
 #endif
 		
 		//P[i] = cell to be split ("active") or in our case the parent of the interpolate pt
-		//j = N_gas + count; ("new P/SphP id")
+		//j = NumGas + count; ("new P/SphP id")
 		//P[j] and SphP[j] are new, i is old
 		//jj = ref_SphP_dp_index[i]; //dp index of SphP point i
 		int jj = DP_ID;
@@ -1081,13 +1029,13 @@ void ArepoMesh::LimitCellDensities()
 				
 						int SphP_ID = -1;
 						
-						if (DP[dp].index >= 0 && DP[dp].index < N_gas)
+						if (DP[dp].index >= 0 && DP[dp].index < NumGas)
 								SphP_ID = DP[dp].index;
-						else if (dp >= N_gas)
-								SphP_ID = DP[dp].index - N_gas;
+						else if (dp >= NumGas)
+								SphP_ID = DP[dp].index - NumGas;
 								
 						// valid cell?
-						if (DP[dp].index < N_gas && SphP_ID >= 0) {
+						if (DP[dp].index < NumGas && SphP_ID >= 0) {
 								if (!extent.Inside(dtc)) {
 										IF_DEBUG(cout << " Zeroing Density and Grad SphP_ID=" << SphP_ID << " dtc.x = " << dtc.x
 										              << " dtc.y = " << dtc.y << " dtc.z = " << dtc.z << endl);
@@ -1126,10 +1074,10 @@ void ArepoMesh::CalculateMidpoints()
 		{
 				int SphP_ID = -1;
 				
-				if (DP[i].index >= 0 && DP[i].index < N_gas)
+				if (DP[i].index >= 0 && DP[i].index < NumGas)
 						SphP_ID = DP[i].index;
-				else if (i >= N_gas)
-						SphP_ID = DP[i].index - N_gas;
+				else if (i >= NumGas)
+						SphP_ID = DP[i].index - NumGas;
 				
 				if (SphP_ID < 0)
 						endrun(1133);
@@ -1142,10 +1090,10 @@ void ArepoMesh::CalculateMidpoints()
 		{
 				int SphP_ID = -1;
 				
-				if (DP[i].index >= 0 && DP[i].index < N_gas)
+				if (DP[i].index >= 0 && DP[i].index < NumGas)
 						SphP_ID = DP[i].index;
-				else if (i >= N_gas)
-						SphP_ID = DP[i].index - N_gas;
+				else if (i >= NumGas)
+						SphP_ID = DP[i].index - NumGas;
 		
 				if (SphP_ID < 0)
 						endrun(1134);
@@ -1165,7 +1113,7 @@ void ArepoMesh::CalculateMidpoints()
 				// search for primary cell and record to map
 				while (dp_indices.first != dp_indices.second)
 				{
-						if (dp_indices.first->second >= 0 && dp_indices.first->second < N_gas) {
+						if (dp_indices.first->second >= 0 && dp_indices.first->second < NumGas) {
 								primary_cells.push_back(dp_indices.first->second);
 								break;
 						}
@@ -1174,7 +1122,7 @@ void ArepoMesh::CalculateMidpoints()
 		}
 		
 		// verify size
-		if (primary_cells.size() != Ndp)
+		if (primary_cells.size() != (unsigned int)Ndp)
 				endrun(1132);
 				
 		// use VF array to generate connnections (reorganize it to index by point)
@@ -1190,10 +1138,10 @@ void ArepoMesh::CalculateMidpoints()
 		{
 				int SphP_ID = -1;
 				
-				if (DP[i].index >= 0 && DP[i].index < N_gas)
+				if (DP[i].index >= 0 && DP[i].index < NumGas)
 						SphP_ID = DP[i].index;
-				else if (i >= N_gas)
-						SphP_ID = DP[i].index - N_gas;
+				else if (i >= NumGas)
+						SphP_ID = DP[i].index - NumGas;
 						
 				if (SphP_ID < 0)
 						continue;
@@ -1212,12 +1160,12 @@ void ArepoMesh::CalculateMidpoints()
 				
 						int SphP_ID_n = -1;
 						
-						if (DP[dp_neighbor].index >= 0 && DP[dp_neighbor].index < N_gas)
+						if (DP[dp_neighbor].index >= 0 && DP[dp_neighbor].index < NumGas)
 								SphP_ID_n = DP[dp_neighbor].index;
-						else if (dp_neighbor >= N_gas) {
-								//cout << " N_gas=" << N_gas << " dp_neighbor=" << dp_neighbor << " DP[dp_neighbor].index="
+						else if (dp_neighbor >= NumGas) {
+								//cout << " NumGas=" << NumGas << " dp_neighbor=" << dp_neighbor << " DP[dp_neighbor].index="
 								//     << DP[dp_neighbor].index << endl;
-								SphP_ID_n = DP[dp_neighbor].index - N_gas;
+								SphP_ID_n = DP[dp_neighbor].index - NumGas;
 						}
 								
 						//cout << "pri=" << setw(2) << i << " dp_neighbor=" << dp_neighbor << " SphID=" << SphP_ID_n << endl;
@@ -1254,7 +1202,7 @@ void ArepoMesh::ComputeQuantityBounds()
 		float umin = INFINITY;
 		float umean = 0.0;
 		
-		for (int i=0; i < N_gas; i++) {
+		for (int i=0; i < NumGas; i++) {
 				if (SphP[i].Density > pmax)
 						pmax = SphP[i].Density;
 				if (SphP[i].Density < pmin)
@@ -1270,11 +1218,11 @@ void ArepoMesh::ComputeQuantityBounds()
 		
 		valBounds[TF_VAL_DENS*3 + 0] = pmin;
 		valBounds[TF_VAL_DENS*3 + 1] = pmax;
-		valBounds[TF_VAL_DENS*3 + 2] = pmean / N_gas;
+		valBounds[TF_VAL_DENS*3 + 2] = pmean / NumGas;
 		
 		valBounds[TF_VAL_UTHERM*3 + 0] = umin;
 		valBounds[TF_VAL_UTHERM*3 + 1] = umax;
-		valBounds[TF_VAL_UTHERM*3 + 2] = umean / N_gas;
+		valBounds[TF_VAL_UTHERM*3 + 2] = umean / NumGas;
 		
 		IF_DEBUG(cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0] 
 									<< " max = " << valBounds[TF_VAL_DENS*3 + 1] 
@@ -1301,7 +1249,7 @@ void ArepoMesh::ComputeVoronoiEdges()
 		int startingTetra = -1;
 		
 		tetra *prev, *next;
-		int i_face,i,j,k,l,m,ii,jj,kk,ll,nn,pp,tt,nr,nr_next;
+		int i_face,i,j,k,l,m,ii,jj,kk,ll,nn,pp,/*tt,*/nr,nr_next;
 		
 		int dp1,dp2;		
 		
@@ -1319,7 +1267,7 @@ void ArepoMesh::ComputeVoronoiEdges()
 		// for each hydro point, find a tetra with it as a vertex (rough)
 		//for(i = 0; i < T->Ndt; i++) {
 		//		for(j = 0; j < DIMS + 1; j++) {
-		//				if(DP[DT[i].p[j]].index >= 0 && DP[DT[i].p[j]].index < N_gas) // local, non-ghost, TODO: removed task
+		//				if(DP[DT[i].p[j]].index >= 0 && DP[DT[i].p[j]].index < NumGas) // local, non-ghost, TODO: removed task
 		//						whichtetra[DP[DT[i].p[j]].index] = i;
 		//		}
     //}
@@ -1471,7 +1419,7 @@ void ArepoMesh::ComputeVoronoiEdges()
 		} //i_face
 		
 		/* // ugh 2D algorithm never going to work
-		for(i = 0; i < N_gas; i++) {
+		for(i = 0; i < NumGas; i++) {
 				if(whichtetra[i] < 0)
 						continue;
 
@@ -1538,8 +1486,8 @@ void ArepoMesh::DumpMesh()
 														 << " iz = " << DP[i].iz << endl;
 		}
 		
-		cout << endl << "SphP Hydro [" << N_gas << "]:" << endl;
-		for (int i=0; i < N_gas; i++) {
+		cout << endl << "SphP Hydro [" << NumGas << "]:" << endl;
+		for (int i=0; i < NumGas; i++) {
 				cout << setw(3) << i << " dens = " << SphP[i].Density
 														 << " pres = " << SphP[i].Pressure
 														 << " uthm = " << SphP[i].Utherm
@@ -1588,7 +1536,7 @@ void ArepoMesh::DumpMesh()
 
     cout << endl << "Voronoi Connections (DC):" << endl;
 		int dc,next;
-		for (int i=0; i < N_gas; i++) {
+		for (int i=0; i < NumGas; i++) {
 				dc   = SphP[i].first_connection;
 				cout << " SphP[" << setw(3) << i << "] DC.first = " << setw(2) << SphP[i].first_connection;
 				
@@ -1602,22 +1550,22 @@ void ArepoMesh::DumpMesh()
 		}
 		
 		if (Nedges) {
-			cout << endl << "Voronoi Edges (N_gas=" << N_gas << "):" << endl;
-			for (int i=0; i < N_gas; i++) {
+			cout << endl << "Voronoi Edges (NumGas=" << NumGas << "):" << endl;
+			for (int i=0; i < NumGas; i++) {
 					cout << setw(3) << i << " Nedges = " << setw(2) << Nedges[i] << " NedgesOffset = " 
 							 << setw(3) << NedgesOffset[i] << endl;
 			}
 		}
 		
 		cout << endl << "Primary_Cells and Midpoint_Idx (size=" << primary_cells.size() << "):" << endl;
-		for (int i=0; i < primary_cells.size(); i++) {
+		for (unsigned int i=0; i < primary_cells.size(); i++) {
 				cout << "[" << setw(2) << i << "] primary id = " << primary_cells[i] 
 				     << " edges start " << midpoint_idx[i].first << " num edges = " 
 						 << midpoint_idx[i].second << endl;
 		}
 		
 		cout << endl << "Midpoints and Opposite_Points (size=" << midpoints.size() << "):" << endl;
-		for (int i=0; i < opposite_points.size(); i++) {
+		for (unsigned int i=0; i < opposite_points.size(); i++) {
 				cout << "[" << setw(2) << i << "] x = " << midpoints[i].x << " y = " << midpoints[i].y
 				     << " z = " << midpoints[i].z << " opposite id = " << opposite_points[i] << endl;
 		}

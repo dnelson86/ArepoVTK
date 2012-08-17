@@ -169,7 +169,7 @@ bool Film::DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L)
 		xyz[1] *= filterWt;
 		xyz[2] *= filterWt;
 		
-		bool syncNeeded = false; // not thread safe!
+		//bool syncNeeded = false; // not thread safe!
 		int off1, off2;	
 
 #ifdef USE_LINEALGO_BRESENHAM
@@ -266,7 +266,7 @@ bool Film::DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L)
 #define rfpart_(x) (1.0f-fpart_(x))		
 		
 		float gradient = dy / dx;		
-		float xend,yend,xgap,ygap;
+		float xend,yend,xgap;//,ygap;
 		
 /*	// special case: vertical line (dy==0 because swapped already)
 		IF_DEBUG(cout << " dx: " << dx << " dy: " << dy << " grad: " << gradient << endl);
@@ -391,7 +391,7 @@ void Film::Splat(const CameraSample &sample, const Spectrum &L)
     if (x < xPixelStart || x - xPixelStart >= xPixelCount ||
         y < yPixelStart || y - yPixelStart >= yPixelCount) return;
 				
-    Pixel &pixel = (*pixels)(x - xPixelStart, y - yPixelStart);
+    //Pixel &pixel = (*pixels)(x - xPixelStart, y - yPixelStart);
 		
     //AtomicAdd(&pixel.splatXYZ[0], xyz[0]);
     //AtomicAdd(&pixel.splatXYZ[1], xyz[1]);
@@ -539,7 +539,7 @@ bool Camera::RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L)
 		p2.print("Camera::RasterizeLine p2 W ");
 		
 		// transform start and end points to raster space
-    float x1,y1,x2,y2;
+    //float x1,y1,x2,y2;
 		Point start,end;
 		
 		Transform w2r = Inverse(RasterToCamera) * Inverse(CameraToWorld);
