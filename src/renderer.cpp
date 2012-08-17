@@ -60,7 +60,7 @@ void RendererTask::Run() {
 				// Evaluate radiance along camera rays
 				for (int i=0; i < sampleCount; i++)
 				{
-						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i]);
+						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], prevEntryCell);
 
 						// error check on value of Ls[i]
         }
@@ -149,7 +149,7 @@ void Renderer::Render(const Scene *scene)
 		waitUntilAllTasksDone();
 
 		// free tasks when all done
-		for (int i=0; i < renderTasks.size(); i++)
+		for (unsigned int i=0; i < renderTasks.size(); i++)
 				delete renderTasks[i];
 		
 		// do rasterization stage in serial (TODO)
@@ -182,7 +182,7 @@ void Renderer::RasterizeStage(const Scene *scene)
 						edges.clear();
 						
 						if(scene->arepoMesh->TetraEdges(i,&edges)) {
-								for (int j = 0; j < edges.size(); j++) {
+								for (unsigned int j = 0; j < edges.size(); j++) {
 										IF_DEBUG(cout << " RL p1.x = " << edges[j].p1.x << " p1.y = " << edges[j].p1.y
 																	<< " p1.z = " << edges[j].p1.z << " p2.x = " << edges[j].p2.x
 																	<< " p2.y = " << edges[j].p2.y << " p2.z = " << edges[j].p2.z << endl);
@@ -197,10 +197,10 @@ void Renderer::RasterizeStage(const Scene *scene)
 				edges.clear();
 				Spectrum Lvor   = Spectrum::FromRGB(Config.rgbVoronoi);
 				
-				//for (int i = 0; i < scene->arepoMesh->Nvf; i++) {
+				//for (unsigned int i = 0; i < scene->arepoMesh->Nvf; i++) {
 				int i = 26;
 						if (scene->arepoMesh->VoronoiEdges(i,&edges)) {
-								for (int j = 0; j < edges.size(); j++) {
+								for (unsigned int j = 0; j < edges.size(); j++) {
 										cout << " VE p1.x = " << edges[j].p1.x << " p1.y = " << edges[j].p1.y
 																	<< " p1.z = " << edges[j].p1.z << " p2.x = " << edges[j].p2.x
 																	<< " p2.y = " << edges[j].p2.y << " p2.z = " << edges[j].p2.z << endl;
@@ -217,7 +217,7 @@ void Renderer::RasterizeStage(const Scene *scene)
 				Spectrum Ledge  = Spectrum::FromRGB(Config.rgbLine);
 				
 				if (scene->arepoMesh->WorldBound().Edges(&edges)) {
-						for (int i = 0; i < edges.size(); ++i) {
+						for (unsigned int i = 0; i < edges.size(); ++i) {
 								// rasterize individual line segment
 								camera->RasterizeLine(edges[i].p1,edges[i].p2,Ledge);
 						}
@@ -228,9 +228,9 @@ void Renderer::RasterizeStage(const Scene *scene)
 		cout << " [Task=Root] Rasterization phase: [" << time << "] seconds." << endl;
 }
 
-Spectrum Renderer::Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T) const
+Spectrum Renderer::Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell) const
 {
-    Spectrum Lvi = volumeIntegrator->Li(scene, this, ray, sample, rng, T);
+    Spectrum Lvi = volumeIntegrator->Li(scene, this, ray, sample, rng, T, prevEntryCell);
 		
     return Lvi;
 }

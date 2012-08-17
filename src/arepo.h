@@ -30,10 +30,9 @@ typedef int MyIDType;
 #include "gmp.h"
 
 extern "C" {
-#include "arepoconfig.h"
-//#include "proto.h"   //allvars.h (mpi,gsl)
-#include "mesh.h"
-#include "voronoi.h" //gmp
+#include "../Arepo/build/arepoconfig.h"
+#include "../Arepo/src/mesh.h"
+#include "../Arepo/src/voronoi.h" //gmp
 }
 
 #include "allvars.h"
@@ -88,11 +87,11 @@ public:
     }
 		
 		// mesh traversal
-		void LocateEntryCell(const Ray &ray);
+		void LocateEntryCell(const Ray &ray, int prevEntryCell);
 		void LocateEntryCellBrute(const Ray &ray);
 		void VerifyPointInCell(int dp, Point &pos);
 		
-		int FindNearestGasParticle(Point &pt, double *mindist, int guess, int use_periodic);
+		int FindNearestGasParticle(Point &pt, int guess);
 		bool AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, int previous_cell, 
 															Spectrum &Lv, Spectrum &Tr);
 		

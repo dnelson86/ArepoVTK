@@ -42,7 +42,7 @@ void rtTestIsoDiskRender()
 	Transform world2camera = LookAt(Point(Config.cameraPosition), Point(Config.cameraLookAt), cameraVecUp);
 	
 	// setup transfer function
-	for (int i=0; i < Config.tfSet.size(); i++)
+	for (unsigned int i=0; i < Config.tfSet.size(); i++)
 		tf->AddParseString(Config.tfSet[i]);
 
 	// would recreate per frame
@@ -118,7 +118,7 @@ void rtTestRenderScene(string filename)
 	Scene *scene          = new Scene(vr, arepoMesh);
 			
 	// debugging only (Arepo2b overrides)
-	for (int i=0; i < N_gas; i++) {
+	for (int i=0; i < NumGas; i++) {
 		SphP[i].Density      = 0.01;
 		SphP[i].Grad.drho[0] = 0.0;
 		SphP[i].Grad.drho[1] = 0.0;
@@ -135,7 +135,7 @@ void rtTestRenderScene(string filename)
 	//SphP[5].Density      = 2.8; // upper right far corner
 	
 #ifdef DEBUG
-	for (int i=0; i < N_gas; i++) {
+	for (int i=0; i < NumGas; i++) {
 			cout << "SphP[" << setw(2) << i << "] dens = " << setw(10) << SphP[i].Density 
 			 << " grad.x = " << setw(10) << SphP[i].Grad.drho[0] << " grad.y = " 
 			 << setw(10) << SphP[i].Grad.drho[1] << " grad.z = " << setw(10) << SphP[i].Grad.drho[2] << endl;

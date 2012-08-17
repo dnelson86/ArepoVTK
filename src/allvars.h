@@ -6,6 +6,8 @@
 #ifndef AREPO_RT_ALLVARS_H
 #define AREPO_RT_ALLVARS_H
 
+/* memory management */
+
 #ifndef DISABLE_MEMORY_MANAGER
 #define  mymalloc(x, y)            mymalloc_fullinfo(x, y, __FUNCTION__, __FILE__, __LINE__)
 #define  mymalloc_movable(x, y, z) mymalloc_movable_fullinfo(x, y, z, __FUNCTION__, __FILE__, __LINE__)
@@ -31,6 +33,8 @@
 #define  report_memory_usage(x, y) printf("Memory manager disabled.\n")
 #endif
 
+/* magic constants */
+
 #define MAX_REAL_NUMBER      1e37
 #define MAXLEN_OUTPUTLIST    1100
 #define TIMEBINS             60
@@ -39,7 +43,13 @@
 
 #define NUMBER_OF_MEASUREMENTS_TO_RECORD  6
 
+#define FACT1                0.366025403785    /* FACT1 = 0.5 * (sqrt(3)-1) */
+#define SUNRISE              4711
+#define MAXLEN_PATH          256
+
 typedef int integertime;
+
+/* box and periodic */
 
 extern MyDouble boxSize, boxHalf;
 #define boxSize_X boxSize
@@ -49,6 +59,7 @@ extern MyDouble boxSize, boxHalf;
 #define boxSize_Z boxSize
 #define boxHalf_Z boxHalf
 
+#ifdef PERIODIC
 #define NGB_PERIODIC_LONG_X(x) (xtmp=fabs(x),(xtmp>boxHalf_X)?(boxSize_X-xtmp):xtmp)
 #define NGB_PERIODIC_LONG_Y(x) (ytmp=fabs(x),(ytmp>boxHalf_Y)?(boxSize_Y-ytmp):ytmp)
 #define NGB_PERIODIC_LONG_Z(x) (ztmp=fabs(x),(ztmp>boxHalf_Z)?(boxSize_Z-ztmp):ztmp)
@@ -56,28 +67,44 @@ extern MyDouble boxSize, boxHalf;
 #define NEAREST_X(x) (xtmp=(x),(xtmp>boxHalf_X)?(xtmp-boxSize_X):( (xtmp< -boxHalf_X)?(xtmp+boxSize_X):(xtmp) ) )
 #define NEAREST_Y(x) (ytmp=(x),(ytmp>boxHalf_Y)?(ytmp-boxSize_Y):( (ytmp< -boxHalf_Y)?(ytmp+boxSize_Y):(ytmp) ) )
 #define NEAREST_Z(x) (ztmp=(x),(ztmp>boxHalf_Z)?(ztmp-boxSize_Z):( (ztmp< -boxHalf_Z)?(ztmp+boxSize_Z):(ztmp) ) )
+#else
 
-#define FACT1 0.366025403785	/* FACT1 = 0.5 * (sqrt(3)-1) */
+#define NGB_PERIODIC_LONG_X(x) fabs(x)
+#define NGB_PERIODIC_LONG_Y(x) fabs(x)
+#define NGB_PERIODIC_LONG_Z(x) fabs(x)
 
-/* Sunrise status code */
-#define SUNRISE 4711
+#define NEAREST_X(x) (x)
+#define NEAREST_Y(x) (x)
+#define NEAREST_Z(x) (x)
+#endif
 
-#define MAXLEN_PATH       256
+/* file pointers */
+
+extern FILE *FdInfo,            /**< file handle for info.txt log-file. */
+ *FdEnergy,                     /**< file handle for energy.txt log-file. */
+ *FdTimings,                    /**< file handle for timings.txt log-file. */
+ *FdBalance,                    /**< file handle for balance.txt log-file. */
+ *FdTimebin,                    /**< file handle for timebins.txt log-file. */
+ *FdDomain,                     /**< file handle for domain.txt log-file. */
+ *FdMemory,                     /**< file handle for memory.txt log-file. */
+ *FdCPU;                        /**< file handle for cpu.txt log-file. */
+
 
 /*********************************************************/
 /*  Global variables                                     */
 /*********************************************************/
 
 extern int ThisTask, NTask, PTask;
-extern int NumPart, N_gas;
+extern int NumPart, NumGas;
 extern int RestartFlag, RestartSnapNum, WriteMiscFiles;
-extern long long Ntype[6];
 extern char ParameterFile[MAXLEN_PATH];
 
 extern struct global_data_all_processes
 {
+  // ArepoVTK note: this has to match with the compiled Arepo version to read the parameterfile ok
+	
   long long TotNumPart;		/**<  total particle numbers (global value) */
-  long long TotN_gas;		/**<  total gas particle number (global value) */
+  long long TotNumGas;		/**<  total gas particle number (global value) */
 
   int MaxPart;
   int MaxPartSph;
@@ -102,7 +129,6 @@ extern struct global_data_all_processes
   int NumFilesWrittenInParallel;
   int BufferSize;
   int BunchSize;
-  double PartAllocFactor;
   double TreeAllocFactor;
   double TopNodeAllocFactor;
   double NgbTreeAllocFactor;
@@ -127,10 +153,6 @@ extern struct global_data_all_processes
   /* some force counters  */
 
   long long TotNumOfForces;	/**< counts total number of force computations  */
-
-  int PicXpixels, PicYpixels;
-  int PicXaxis, PicYaxis, PicZaxis;
-  double PicXmin, PicXmax, PicYmin, PicYmax, PicZmin, PicZmax;
 
 #ifdef SUBBOX_SNAPSHOTS
   double SubboxXmin, SubboxXmax, SubboxYmin, SubboxYmax, SubboxZmin, SubboxZmax;
@@ -447,8 +469,10 @@ void myfree_fullinfo(void *p, const char *func, const char *file, int line);
 void myfree_movable_fullinfo(void *p, const char *func, const char *file, int line);
 
 void mymalloc_init(void);
-
 void dump_memory_table(void);
+
+void open_logfiles(void);
+void close_logfiles(void);
 }
  
 #endif //AREPO_RT_ALLVARS_H

@@ -359,7 +359,7 @@ void startTasks(const vector<Task *> &tasks)
 {
 		// sequential execution requested
 		if (Config.nCores == 1) {
-				for (int i=0; i < tasks.size(); i++) {
+				for (unsigned int i=0; i < tasks.size(); i++) {
 						IF_DEBUG(cout << "startTasks:: Starting SEQUENTIAL run task [" << i << "]" << endl);
 						tasks[i]->Run();
 				}

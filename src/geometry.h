@@ -141,11 +141,11 @@ public:
 
 class Ray {
 public:
-    Ray() : min_t(0.0f), max_t(INFINITY), time(0.0f), depth(0), index(0), task(0) { }
+    Ray() : min_t(0.0f), max_t(INFINITY), index(0), task(0), depth(0), time(0.0f) { }
 		
     Ray(const Point &origin, const Vector &direction,
         float start, float end = INFINITY, float t = 0.0f, int d = 0, int ind = -6, int tsk = -1)
-        : o(origin), d(direction), min_t(start), max_t(end), time(t), depth(d), index(ind), task(tsk) {
+        : o(origin), d(direction), min_t(start), max_t(end), index(ind), task(tsk), depth(d), time(t) {
 		}
 		
     Point operator()(float t) const { return o + d * t; }

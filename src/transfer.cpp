@@ -338,5 +338,6 @@ bool TransferFunction::AddParseString(string &addTFstr)
 		// "2gauss"
 		//tf->AddGaussian(TF_VAL_DENS,2e-3,3e-4,s1);
 		//tf->AddGaussian(TF_VAL_DENS,2e-2,3e-3,s2);
-
+		
+		return true;
 }

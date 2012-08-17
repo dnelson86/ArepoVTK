@@ -11,7 +11,7 @@
 class VolumeIntegrator {
 public:
 		// pure virtual
-    ~VolumeIntegrator() { };
+    virtual ~VolumeIntegrator() { };
 		
     virtual void Preprocess(const Scene *scene, const Camera *camera,const Renderer *renderer) {
     }
@@ -19,7 +19,8 @@ public:
     }
 		
     virtual Spectrum Li(const Scene *scene, const Renderer *renderer, const Ray &ray, 
-		                    const Sample *sample, RNG &rng, Spectrum *transmittance) const = 0;
+		                    const Sample *sample, RNG &rng, Spectrum *transmittance, 
+												int prevEntryCell) const = 0;
     virtual Spectrum Transmittance(const Scene *scene, const Renderer *renderer, const Ray &ray,
 																	 const Sample *sample, RNG &rng) const = 0;
 };
@@ -31,12 +32,13 @@ public:
 				IF_DEBUG(cout << "EmissionIntegrator(" << ss << ") constructor." << endl);
 				stepSize = ss;
     }
+		//~EmissionIntegrator() { };
 
     // methods
 		void Preprocess(const Scene *scene, const Camera *camera, const Renderer *renderer) { }
     void RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene);
     Spectrum Li(const Scene *scene, const Renderer *renderer, const Ray &ray, 
-		            const Sample *sample, RNG &rng, Spectrum *transmittance) const;
+		            const Sample *sample, RNG &rng, Spectrum *transmittance, int prevEntryCell) const;
     Spectrum Transmittance(const Scene *scene, const Renderer *,
             const Ray &ray, const Sample *sample, RNG &rng) const;
 private:
@@ -51,12 +53,13 @@ public:
     VoronoiIntegrator() {
 				IF_DEBUG(cout << "VoronoiIntegrator() constructor." << endl);
     }
+		//~VoronoiIntegrator() { };
 
     // methods
 		void Preprocess(const Scene *scene, const Camera *camera, const Renderer *renderer);
     void RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene);
     Spectrum Li(const Scene *scene, const Renderer *renderer, const Ray &ray, 
-		            const Sample *sample, RNG &rng, Spectrum *transmittance) const;
+		            const Sample *sample, RNG &rng, Spectrum *transmittance, int prevEntryCell) const;
     Spectrum Transmittance(const Scene *scene, const Renderer *,
             const Ray &ray, const Sample *sample, RNG &rng) const;
 private:
