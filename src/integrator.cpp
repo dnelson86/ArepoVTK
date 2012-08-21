@@ -37,7 +37,7 @@ Spectrum EmissionIntegrator::Transmittance(const Scene *scene, const Renderer *r
 }
 
 Spectrum EmissionIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
-															  const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell) const
+															  const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell, int taskNum) const
 {
 		IF_DEBUG(cout << "EmissionIntegrator::Li()" << endl);
 		
@@ -112,7 +112,7 @@ Spectrum VoronoiIntegrator::Transmittance(const Scene *scene, const Renderer *re
 }
 
 Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
-															  const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell) const
+															  const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell, int taskNum) const
 {
 		IF_DEBUG(cout << "VoronoiIntegrator::Li()" << endl);
 		
@@ -187,7 +187,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 				previous_cell = temp_previous;
 				temp_previous = ray.index;
 				
-				if (!scene->arepoMesh->AdvanceRayOneCellNew(ray, &t0, &t1, previous_cell, Lv, Tr) )
+				if (!scene->arepoMesh->AdvanceRayOneCellNew(ray, &t0, &t1, previous_cell, Lv, Tr, taskNum) )
 						break;
 				
         // roulette terminate ray marching if transmittance is small

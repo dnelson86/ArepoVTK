@@ -11,31 +11,8 @@
 #define VERBOSE
 #endif
 
-typedef float MyFloat;
-typedef double MyDouble;
-typedef int MyIDType;
-
-#define MAXGRADIENTS 5
-
-#include "ArepoRT.h"
 #include "transfer.h"
-
-#include "mpi.h" //as in Sunrise, need to include outside the C-linkage block
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_math.h>
-#include <gsl/gsl_integration.h>
-#include <gsl/gsl_spline.h>
-#include <gsl/gsl_errno.h>
-#include <assert.h>
-#include "gmp.h"
-
-extern "C" {
-#include "../Arepo/build/arepoconfig.h"
-#include "../Arepo/src/mesh.h"
-#include "../Arepo/src/voronoi.h" //gmp
-}
-
-#include "allvars.h"
+#include "voronoi_3db.h"
 
 // Arepo: main interface with Arepo to load a snapshot, create data structures, and return
 class Arepo
@@ -60,11 +37,7 @@ class ArepoMesh {
 public:
 		// construction
 		ArepoMesh(const TransferFunction *tf);
-    ~ArepoMesh() {
-        if (EdgeList)     delete EdgeList;
-        if (Nedges)       delete Nedges;
-        if (NedgesOffset) delete NedgesOffset;
-    }
+    ~ArepoMesh();
 
 		// preprocessing
 		void ComputeVoronoiEdges();
@@ -91,15 +64,14 @@ public:
 		void LocateEntryCellBrute(const Ray &ray);
 		void VerifyPointInCell(int dp, Point &pos);
 		
-		int FindNearestGasParticle(Point &pt, int guess);
+		int FindNearestGasParticle(Point &pt, int guess, double *mindist);
 		bool AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, int previous_cell, 
-															Spectrum &Lv, Spectrum &Tr);
+															Spectrum &Lv, Spectrum &Tr, int taskNum);
 		
 		inline int getSphPID(int dp_id);
 		
 		// fluid data introspection
-		inline double nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt);
-		inline void computeAuxVolumes(double *vol);
+		double nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum);
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
 		// data
@@ -126,7 +98,7 @@ private:
 		
 		// mesh
 		tessellation *T;
-		tessellation AuxMesh;
+		tessellation *AuxMeshes;
 		
 		int *EdgeList;
 		int *Nedges;

@@ -9,7 +9,7 @@
 #include "transform.h"
 #include "camera.h"
 
-#include "arepo.h"
+#include "voronoi_3db.h"
 #include "integrator.h"
 #include "volume.h"
 #include "renderer.h"
@@ -86,18 +86,18 @@ void rtTestRenderScene(string filename)
 		camera = CreateOrthographicCamera(Inverse(world2camera), film);
 		
 	Sampler *sampler     = CreateStratifiedSampler(film, camera);
-	
+
 	// Integrator
 	//VolumeIntegrator *vi = CreateEmissionVolumeIntegrator(Config.viStepSize);
 	VolumeIntegrator *vi  = CreateVoronoiVolumeIntegrator();
-	
+
 	// renderer
 	Renderer *re         = new Renderer(sampler, camera, vi);
-	
+
 	// transfer function
 	const Spectrum sig_a = Spectrum::FromRGB(Config.rgbAbsorb);
 	TransferFunction *tf = new TransferFunction(sig_a);
-	
+
 	// debugging:
 	Spectrum s1 = Spectrum::FromNamed("red");
 	Spectrum s2 = Spectrum::FromNamed("green");
@@ -175,7 +175,7 @@ int main (int argc, char* argv[])
 	// init
 #ifdef ENABLE_AREPO
     Arepo arepo = Arepo(Config.filename, Config.paramFilename);
-		
+
     arepo.Init(&argc,&argv);
     arepo.LoadSnapshot();
 #endif

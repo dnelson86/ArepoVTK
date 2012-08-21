@@ -7,7 +7,7 @@
 #define AREPO_RT_H
 
 // defines
-#define AREPO_RT_VERSION    0.35
+#define AREPO_RT_VERSION    0.37
 #define L1_CACHE_LINE_SIZE  64
 #define FILTER_TABLE_SIZE   16
 #define TASK_MULT_FACT      8 //32
@@ -22,10 +22,14 @@
 
 //#define USE_LINEALGO_BRESENHAM
 #define USE_LINEALGO_WU
+
 //#define NATURAL_NEIGHBOR_INTERP
+#define NATURAL_NEIGHBOR_IDW
+
 //#define DEBUG_VERIFY_INCELL_EACH_STEP
 //#define DEBUG_VERIFY_ENTRY_CELLS
 //#define USE_AREPO_TREEFIND_FUNC
+//#define DISABLE_MEMORY_MANAGER
 
 #ifdef DEBUG
 #define IF_DEBUG(expr) (expr)

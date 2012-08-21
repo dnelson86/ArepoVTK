@@ -60,7 +60,7 @@ void RendererTask::Run() {
 				// Evaluate radiance along camera rays
 				for (int i=0; i < sampleCount; i++)
 				{
-						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], prevEntryCell);
+						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], prevEntryCell, taskNum);
 
 						// error check on value of Ls[i]
         }
@@ -125,10 +125,10 @@ void Renderer::Render(const Scene *scene)
 		if (!nTasks) {
 				// calculate number of tasks automatically
 				int nTasks = max(TASK_MULT_FACT * nCores, nPixels / (TASK_MAX_PIXEL_SIZE*TASK_MAX_PIXEL_SIZE));
-				nTasks = RoundUpPowerOfTwo(nTasks);
+				Config.nTasks = RoundUpPowerOfTwo(nTasks);
 		}
 		
-		cout << endl << "Render Setup: Using [" << nTasks << "] tasks with [" << nCores 
+		cout << endl << "Render Setup: Using [" << Config.nTasks << "] tasks with [" << nCores 
 				 << "] system cores (of " << sysconf(_SC_NPROCESSORS_ONLN) << " available) for " << camera->film->xResolution << "x"
 		     << camera->film->yResolution << " image (" << nPixels << " pixels)." << endl << endl;
 				 
@@ -138,7 +138,7 @@ void Renderer::Render(const Scene *scene)
 		// add render tasks to queue
 		vector<Task *> renderTasks;
 		
-		for (int i=0; i < nTasks; i++)
+		for (int i=0; i < Config.nTasks; i++)
 				renderTasks.push_back(new RendererTask(scene, this, camera, sampler, sample, 
 																							 nTasks-1-i, nTasks));
 
@@ -228,9 +228,9 @@ void Renderer::RasterizeStage(const Scene *scene)
 		cout << " [Task=Root] Rasterization phase: [" << time << "] seconds." << endl;
 }
 
-Spectrum Renderer::Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell) const
+Spectrum Renderer::Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell, int taskNum) const
 {
-    Spectrum Lvi = volumeIntegrator->Li(scene, this, ray, sample, rng, T, prevEntryCell);
+    Spectrum Lvi = volumeIntegrator->Li(scene, this, ray, sample, rng, T, prevEntryCell, taskNum);
 		
     return Lvi;
 }
