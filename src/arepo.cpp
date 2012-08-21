@@ -3,6 +3,8 @@
  * dnelson
  */
  
+#include <alloca.h>
+ 
 #include "transform.h"
 #include "spectrum.h"
 #include "volume.h"
@@ -17,9 +19,6 @@
 #ifndef VORONOI
 #error ERROR. Missing required Arepo compilation option VORONOI.
 #endif
-//#ifndef VORONOI_NEW_IMAGE
-//#error ERROR. Missing required Arepo compilation option VORONOI_NEW_IMAGE.
-//#endif
 #ifndef VORONOI_DYNAMIC_UPDATE
 #error ERROR. Missing required Arepo compilation option VORONOI_DYNAMIC_UPDATE.
 #endif
@@ -57,7 +56,7 @@ bool Arepo::LoadSnapshot()
 		// call arepo: run setup
 		begrun1();
 		open_logfiles();
-    
+		
 		// check snapshot exists
 		if (ifstream(snapFilename.c_str())) {
 				freopen("/dev/tty","w",stdout);
@@ -140,10 +139,95 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		ArepoMesh::CalculateMidpoints();
 		//ArepoMesh::LimitCellDensities();
 		
-		// copy individual allocation factors for auxiliary mesh
-		AuxMesh.Indi.AllocFacNdp = AUXMESH_ALLOC_SIZE / 2;
-		AuxMesh.Indi.AllocFacNdt = AUXMESH_ALLOC_SIZE;
-		AuxMesh.Indi.AllocFacNvf = AUXMESH_ALLOC_SIZE;
+#ifdef NATURAL_NEIGHBOR_INTERP
+		// allocate auxiliary meshes
+		int numMeshes = Config.nTasks;
+		AuxMeshes = new tessellation[numMeshes];
+		
+		// define neutral index
+		DPinfinity = -5;		
+		
+		double box = All.BoxSize;
+		double tetra_incircle, tetra_sidelength, tetra_height, tetra_face_height;		
+		
+		tetra_incircle = 1.5 * box;
+		tetra_sidelength = tetra_incircle * sqrt(24);
+		tetra_height = sqrt(2.0 / 3) * tetra_sidelength;
+		tetra_face_height = sqrt(3.0) / 2.0 * tetra_sidelength;		
+		
+		for(int k = 0; k < numMeshes; k++)
+		{
+			// copy individual allocation factors for auxiliary meshes
+			//init_clear_auxmesh(&AuxMeshes[k]);
+
+			point *p;
+			int i;
+			
+			AuxMeshes[k].Indi.AllocFacNdp = AUXMESH_ALLOC_SIZE / 2;
+			AuxMeshes[k].Indi.AllocFacNdt = AUXMESH_ALLOC_SIZE;
+			AuxMeshes[k].Indi.AllocFacNvf = AUXMESH_ALLOC_SIZE;
+
+			AuxMeshes[k].MaxNdp = (int)T->Indi.AllocFacNdp;
+			AuxMeshes[k].MaxNdt = (int)T->Indi.AllocFacNdt;
+			AuxMeshes[k].MaxNvf = (int)T->Indi.AllocFacNvf;		
+
+			AuxMeshes[k].VF = static_cast<face*>
+										 (mymalloc_movable(AuxMeshes[k].VF, "VFaux", AuxMeshes[k].MaxNvf * sizeof(face)));
+			AuxMeshes[k].DP = static_cast<point*>
+										 (mymalloc_movable(AuxMeshes[k].DP, "DPaux", (AuxMeshes[k].MaxNdp+5) * sizeof(point)));
+			AuxMeshes[k].DP += 5; // leave first five for bounding tetra + infinity
+			AuxMeshes[k].DT = static_cast<tetra*>
+										 (mymalloc_movable(AuxMeshes[k].DT, "DTaux", AuxMeshes[k].MaxNdt * sizeof(tetra)));
+			
+			AuxMeshes[k].DTC = static_cast<tetra_center*>(
+											mymalloc_movable(&AuxMeshes[k].DTC, "AuxDTC", AuxMeshes[k].MaxNdt * sizeof(tetra_center)));
+			AuxMeshes[k].DTF = static_cast<char*>(
+											mymalloc_movable(&AuxMeshes[k].DTF, "AuxDTF", AuxMeshes[k].MaxNdt * sizeof(char)));	
+
+			point *DP = AuxMeshes[k].DP;
+			//tetra *DT = AuxMeshes[k].DT;
+
+			/* first, let's make the points */
+			DP[-4].x = 0.5 * tetra_sidelength;
+			DP[-4].y = -1.0 / 3 * tetra_face_height;
+			DP[-4].z = -0.25 * tetra_height;
+
+			DP[-3].x = 0;
+			DP[-3].y = 2.0 / 3 * tetra_face_height;
+			DP[-3].z = -0.25 * tetra_height;
+
+			DP[-2].x = -0.5 * tetra_sidelength;
+			DP[-2].y = -1.0 / 3 * tetra_face_height;
+			DP[-2].z = -0.25 * tetra_height;
+
+			DP[-1].x = 0;
+			DP[-1].y = 0;
+			DP[-1].z = 0.75 * tetra_height;
+
+			for(i = -4; i <= -1; i++)
+				{
+					DP[i].x += 0.5 * box;
+					DP[i].y += 0.5 * box;
+					DP[i].z += 0.5 * box;
+				}
+
+			for(i = -4, p = &DP[-4]; i < 0; i++, p++)
+				{
+					p->index = -1;
+					p->task = ThisTask;
+					p->timebin = 0;
+				}
+
+			/* we also define a neutral element at infinity */
+			DP[DPinfinity].x = GSL_POSINF;
+			DP[DPinfinity].y = GSL_POSINF;
+			DP[DPinfinity].z = GSL_POSINF;
+			DP[DPinfinity].index = -1;
+			DP[DPinfinity].task = ThisTask;
+			DP[DPinfinity].timebin = 0;
+			
+		}
+#endif
 		
 		// TODO: temp units
 		unitConversions[TF_VAL_DENS]   = All.UnitDensity_in_cgs / MSUN_PER_PC3_IN_CGS;
@@ -154,6 +238,31 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		
 		// debugging
 		//ArepoMesh::DumpMesh();
+}
+
+ArepoMesh::~ArepoMesh()
+{
+		// free custom connectivity
+		if (EdgeList)     delete EdgeList;
+		if (Nedges)       delete Nedges;
+		if (NedgesOffset) delete NedgesOffset;
+				
+#ifdef NATURAL_NEIGHBOR_INTERP
+		// free aux meshes
+		int numMeshes = Config.nTasks;
+		
+		for(int k = numMeshes-1; k == 0; k--)
+		{
+			myfree(AuxMeshes[k].DTF);
+			myfree(AuxMeshes[k].DTC);
+			AuxMeshes[k].DTC = NULL;
+			myfree(AuxMeshes[k].DT);
+			myfree(AuxMeshes[k].DP - 5);
+			myfree(AuxMeshes[k].VF);
+		}
+		
+		delete AuxMeshes;
+#endif
 }
 
 void ArepoMesh::LocateEntryCellBrute(const Ray &ray)
@@ -218,7 +327,7 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int prevEntryCell)
 		double mindist, mindist2;
 		
 #ifndef USE_AREPO_TREEFIND_FUNC
-		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, prevEntryCell);
+		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, prevEntryCell, &mindist);
 #endif
 		
 #ifdef USE_AREPO_TREEFIND_FUNC
@@ -388,7 +497,7 @@ void ArepoMesh::VerifyPointInCell(int dp, Point &pos)
 
 }
 
-int ArepoMesh::FindNearestGasParticle(Point &pt, int guess)
+int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 {
 	// based on ngbtree_walk.c:ngb_treefind_variable() (no MPI)
 	int node, nearest, p;
@@ -490,6 +599,8 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, int guess)
 		endrun(1118);
 	}
 	
+	*mindist = cur_mindist;
+	
 	return nearest;
 }
 
@@ -510,7 +621,7 @@ inline int ArepoMesh::getSphPID(int dp_id)
 }
 
 bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, 
-																		 int previous_cell, Spectrum &Lv, Spectrum &Tr)
+																		 int previous_cell, Spectrum &Lv, Spectrum &Tr, int taskNum)
 {
 		double min_t = MAX_REAL_NUMBER;
 		int qmin = -1; // next
@@ -709,7 +820,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 								
 								IF_DEBUG(midpt.print(" substep midpt "));
 								
-								double rho = nnInterpScalar(SphP_ID, ray.index, midpt);
+								double rho = nnInterpScalar(SphP_ID, ray.index, midpt, taskNum);
 								
 #ifdef DEBUG
 								double fracstep = 1.0 / nSamples;
@@ -790,173 +901,157 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 }
 
 // natural neighbor interpolation on scalar field at position pt inside Voronoi cell SphP_ID
-inline double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt)
+double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum)
 {
-#ifdef NATURAL_NEIGHBOR_INTERP
-		int tlast = 0;
-		
-		// check degenerate point in R3, immediate return
-		if (fabs(pt.x - DP[DP_ID].x) <= INSIDE_EPS &&
-				fabs(pt.y - DP[DP_ID].y) <= INSIDE_EPS &&
-				fabs(pt.z - DP[DP_ID].z) <= INSIDE_EPS)
-				return SphP[SphP_ID].Density;
+	// check degenerate point in R3, immediate return
+	if (fabs(pt.x - DP[DP_ID].x) <= INSIDE_EPS &&
+			fabs(pt.y - DP[DP_ID].y) <= INSIDE_EPS &&
+			fabs(pt.z - DP[DP_ID].z) <= INSIDE_EPS)
+			return SphP[SphP_ID].Density;
 				
+#ifdef NATURAL_NEIGHBOR_IDW
+
+#define POWER_PARAM 2.0
+
 		// list of neighbors
 		const int start_edge = midpoint_idx[DP_ID].first;
 		const int n_edges    = midpoint_idx[DP_ID].second;
 		
-		int *dp_neighbors   = new int[n_edges+1];
-		int *sphp_neighbors = new int[n_edges+1];
+		// add parent to list
+		int dp_neighbor, sphp_neighbor;
+		float weight,weightsum,distsq;
+		double val = 0.0;
 		
-		for (int i=0; i < n_edges; i++) {
-				dp_neighbors[i]   = opposite_points[start_edge + i];
-				sphp_neighbors[i] = getSphPID(opposite_points[start_edge + i]);
+		// loop over each neighbor
+		for (int k=0; k < n_edges; k++) {
+			dp_neighbor = opposite_points[start_edge + k];
+			sphp_neighbor = getSphPID(dp_neighbor);
+			
+			// calculate weight as 1.0/dist^power (Shepard's Method)
+		  distsq = (DP[dp_neighbor].x - pt.x) * (DP[dp_neighbor].x - pt.x) + 
+			         (DP[dp_neighbor].y - pt.y) * (DP[dp_neighbor].y - pt.y) + 
+							 (DP[dp_neighbor].z - pt.z) * (DP[dp_neighbor].z - pt.z);
+			weight = 1.0 / pow(distsq,POWER_PARAM);
+			weightsum += weight;
+			
+			val += SphP[sphp_neighbor].Density * weight;
 		}
+		
+		// add in primary parent
+		distsq = (DP[DP_ID].x - pt.x) * (DP[DP_ID].x - pt.x) + 
+			       (DP[DP_ID].y - pt.y) * (DP[DP_ID].y - pt.y) + 
+						 (DP[DP_ID].z - pt.z) * (DP[DP_ID].z - pt.z);
+						 
+		weight = 1.0 / pow(distsq,POWER_PARAM);
+		weightsum += weight;
+		
+		val += SphP[SphP_ID].Density * weight;
+		
+		// normalize weights
+		val /= weightsum;
+			
+#else
+
+#ifdef NATURAL_NEIGHBOR_INTERP
+		int tlast = 0;
+		
+		// list of neighbors
+		const int start_edge = midpoint_idx[DP_ID].first;
+		const int n_edges    = midpoint_idx[DP_ID].second;
+		
 		// add parent to list
 		dp_neighbors[n_edges]   = DP_ID;
 		sphp_neighbors[n_edges] = SphP_ID;
+
+		// recreate the voronoi cell of the parent's neighbors (auxiliary mesh approach):
+		init_clear_auxmesh(&AuxMeshes[taskNum]);
+		//memset(&AuxMeshes[taskNum].DP[0],0,sizeof(point) * AuxMeshes[taskNum].Ndp);
+		//memset(&AuxMeshes[taskNum].DT[5],0,sizeof(tetra) * (AuxMeshes[taskNum].Ndt-5));
+		//memset(&AuxMeshes[taskNum].VF[0],0,sizeof(face) * AuxMeshes[taskNum].Nvf);
 		
-#ifdef DEBUG
-		cout << " dp_neighbors: ";
-		for (int i=0; i < n_edges; i++)
-				cout << " " << opposite_points[start_edge + i] << "(sphp=" << 
-								getSphPID(opposite_points[start_edge + i]) << ")";
-		cout << " " << DP_ID << " (sphp=" << SphP_ID << ")";
-		cout << " [" << n_edges+1 << " neighbors]" << endl;
-#endif
-		
-		//P[i] = cell to be split ("active") or in our case the parent of the interpolate pt
-		//j = NumGas + count; ("new P/SphP id")
-		//P[j] and SphP[j] are new, i is old
-		//jj = ref_SphP_dp_index[i]; //dp index of SphP point i
-		int jj = DP_ID;
-		
-		// clear auxiliary mesh (keep super-tetra)
-		/*
-		IF_DEBUG(cout << "DeRefMesh.Nvf = " << DeRefMesh.Nvf << " Ndp = " << DeRefMesh.Ndp << " Ndt = " <<
-		         DeRefMesh.Ndt << endl);
-		if (DeRefMesh.Ndp > 5) {
-			memset(DeRefMesh.VF,0,DeRefMesh.MaxNvf * sizeof(face));
-			memset(DeRefMesh.DP,0,(DeRefMesh.MaxNdp - 5) * sizeof(point));
-			memset(DeRefMesh.DT,0,DeRefMesh.MaxNdt * sizeof(tetra));
-			memset(DeRefMesh.DTC,0,DeRefMesh.MaxNdt * sizeof(tetra_center));
+		//AuxMeshes[taskNum].Ndp = 0;
+		//AuxMeshes[taskNum].Ndt = 5;
+		//AuxMeshes[taskNum].Nvf = 0;
 			
-			for(int k = 0; k < DeRefMesh.MaxNdt; k++)
-			  DeRefMesh.DTF[k] = 0;
-				
-			// set aux mesh sizes to zero
-			DeRefMesh.Ndp = 5;
-			DeRefMesh.Ndt = 0;
-			DeRefMesh.Nvf = 0;
-		} */
-		
-		// recreate the voronoi cell of the parent's neighbors (auxiliary mesh approach)
-		initialize_and_create_first_tetra(&DeRefMesh);
-		
-		DeRefMesh.DTC = static_cast<tetra_center*>(
-										mymalloc_movable(&DeRefMesh.DTC, "AuxDTC", DeRefMesh.MaxNdt * sizeof(tetra_center)));
-		DeRefMesh.DTF = static_cast<char*>(
-										mymalloc_movable(&DeRefMesh.DTF, "AuxDTF", DeRefMesh.MaxNdt * sizeof(char)));
-		
 		// construct new auxiliary mesh around pt
-		for(int k = 0; k < n_edges+1; k++)
+		for(int k = 0; k < n_edges; k++)
 		{
-				int q = dp_neighbors[k];
+				int q = opposite_points[start_edge + k];
 		
-				if(DeRefMesh.Ndp + 2 >= DeRefMesh.MaxNdp)
-				{
-						DeRefMesh.Indi.AllocFacNdp *= ALLOC_INCREASE_FACTOR;
-						DeRefMesh.MaxNdp = (int)DeRefMesh.Indi.AllocFacNdp;
-						DeRefMesh.DP -= 5;
-						DeRefMesh.DP = static_cast<point*>
-													 (myrealloc_movable(DeRefMesh.DP, (DeRefMesh.MaxNdp + 5) * sizeof(point)));
-						DeRefMesh.DP += 5;
-						//endrun(1157);
-				}
+				if(AuxMeshes[taskNum].Ndp + 2 >= AuxMeshes[taskNum].MaxNdp)
+					endrun(1157);
 				
-				DeRefMesh.DP[DeRefMesh.Ndp] = Mesh.DP[q];
-		    set_integers_for_point(&DeRefMesh, DeRefMesh.Ndp);
-		    tlast = insert_point(&DeRefMesh, DeRefMesh.Ndp, tlast);
-		    DeRefMesh.Ndp++;
+				AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[q];
+		    set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
+		    tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
+		    AuxMeshes[taskNum].Ndp++;
 				
-				//IF_DEBUG(cout << " inserted neighbor k=" << k << " new tlast=" << tlast << " totnum=" << 
-				//				 DeRefMesh.Ndp << endl);
+				IF_DEBUG(cout << " inserted neighbor k=" << k << " new tlast=" << tlast << " totnum=" << 
+								 AuxMeshes[taskNum].Ndp << endl);
 		}
 		
+		// add primary parent as well
+		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[DP_ID];
+		set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
+		tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
+		AuxMeshes[taskNum].Ndp++;
+		
+						/*
 		// compute old circumcircles and volumes
-		compute_circumcircles(&DeRefMesh);
+		compute_circumcircles(&AuxMeshes[taskNum]);
 		
-		double *dp_old_vol = new double[DeRefMesh.Ndp+1];
-		double *dp_new_vol = new double[DeRefMesh.Ndp+1];
+		double dp_old_vol[AUXMESH_ALLOC_SIZE/2];
+		double dp_new_vol[AUXMESH_ALLOC_SIZE/2];
 		
-		//computeAuxVolumes(dp_old_vol);
-		derefine_refine_compute_volumes(dp_old_vol);
+		compute_auxmesh_volumes(&AuxMeshes[taskNum], dp_old_vol);
 		
 #ifdef DEBUG
 		cout << " old volumes:";
-		for (int k = 0; k < DeRefMesh.Ndp; k++) {
+		for (int k = 0; k < AuxMeshes[taskNum].Ndp; k++) {
 				cout << " [k=" << k << "] " << dp_old_vol[k];
 		}
 		cout << endl;
 #endif		
 		
 		// add interpolate point
-		DeRefMesh.DP[DeRefMesh.Ndp].x = pt.x;
-		DeRefMesh.DP[DeRefMesh.Ndp].y = pt.y;
-		DeRefMesh.DP[DeRefMesh.Ndp].z = pt.z;
-		DeRefMesh.DP[DeRefMesh.Ndp].ID = -1; //unused
-		set_integers_for_point(&DeRefMesh, DeRefMesh.Ndp);
-		tlast = insert_point(&DeRefMesh, DeRefMesh.Ndp, tlast);
-		DeRefMesh.Ndp++;
+		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].x = pt.x;
+		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].y = pt.y;
+		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].z = pt.z;
+		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].ID = -1; //unused
 		
-		//IF_DEBUG(cout << " inserted interpolate new tlast=" << tlast << " totnum=" << DeRefMesh.Ndp << endl);
+		set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
+
+		tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
+		AuxMeshes[taskNum].Ndp++;
 		
+		IF_DEBUG(cout << " inserted interpolate new tlast=" << tlast << " totnum=" << AuxMeshes[taskNum].Ndp << endl);
+	
 		// compute new circumcircles and volumes
-		compute_circumcircles(&DeRefMesh);
-		//computeAuxVolumes(dp_new_vol);
-		derefine_refine_compute_volumes(dp_new_vol);
-		
+		compute_circumcircles(&AuxMeshes[taskNum]);
+
+		compute_auxmesh_volumes(&AuxMeshes[taskNum], dp_new_vol);
+
 #ifdef DEBUG
 		cout << " new volumes:";
-		for (int k = 0; k < DeRefMesh.Ndp; k++) {
+		for (int k = 0; k < AuxMeshes[taskNum].Ndp; k++) {
 				cout << " [k=" << k << "] " << dp_new_vol[k];
 		}
 		cout << endl;
 #endif
 
 		// calculate scalar value based on neighbor values and area fraction weights
-		double *weights = new double[DeRefMesh.Ndp-1];
-		double invInterpVol = 1.0 / dp_new_vol[DeRefMesh.Ndp-1];
+		float weight;
 		
-		for (int k=0; k < DeRefMesh.Ndp-1; k++)
-			weights[k] = (dp_old_vol[k]-dp_new_vol[k]) * invInterpVol;
-			
-#ifdef DEBUG
-		cout << " weights (vals):";
-		for (int k=0; k < DeRefMesh.Ndp-1; k++)
-				cout << " [k=" << k << "]" << weights[k] << " (" << sphp_neighbors[k] << ")";
-		cout << endl;
-#endif
-
 		double val = 0.0;
-		for (int k=0; k < DeRefMesh.Ndp-1; k++) {
-				val += SphP[sphp_neighbors[k]].Density * weights[k];
+		
+		for (int k=0; k < AuxMeshes[taskNum].Ndp-1; k++) {
+		    weight = (dp_old_vol[k]-dp_new_vol[k]);
+				val += SphP[sphp_neighbors[k]].Density * weight;
 		}
 		
-		// free
-		delete weights;
-		delete dp_new_vol;
-		delete dp_old_vol;
-		delete sphp_neighbors;
-		delete dp_neighbors;
-		
-		// free aux mesh
-		myfree(DeRefMesh.DTF);
-		myfree(DeRefMesh.DTC);
-		DeRefMesh.DTC = NULL;
-		myfree(DeRefMesh.DT);
-		myfree(DeRefMesh.DP - 5);
-		myfree(DeRefMesh.VF);
+		val /= dp_new_vol[AuxMeshes[taskNum].Ndp-1];
+*/
+	double val   = SphP[SphP_ID].Density;
 #endif //NNI
 
 #ifndef NATURAL_NEIGHBOR_INTERP
@@ -970,41 +1065,9 @@ inline double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt)
 		//				fabs(val-val_old)/val << endl);
 #endif
 
+#endif // NATURAL_NEIGHBOR_IDW
+
 		return val;
-}
-
-inline void ArepoMesh::computeAuxVolumes(double *vol)
-{
-		int i, bit, nr;
-
-		for(i = 0; i < AuxMesh.Ndp; i++)
-				vol[i] = 0;
-
-		Edge_visited = static_cast<unsigned char*>(
-									mymalloc_movable(&Edge_visited, "Edge_visited", AuxMesh.Ndt * sizeof(unsigned char)));
-
-		for(i = 0; i < AuxMesh.Ndt; i++)
-				Edge_visited[i] = 0;
-
-		for(i = 0; i < AuxMesh.Ndt; i++)
-		{
-				if(AuxMesh.DT[i].t[0] < 0)	/* deleted ? */
-						continue;
-
-				bit = 1;
-				nr  = 0;
-
-				while(Edge_visited[i] != EDGE_ALL)
-				{
-						if((Edge_visited[i] & bit) == 0)
-						derefine_refine_process_edge(&AuxMesh, vol, i, nr);
-
-						bit <<= 1;
-						nr++;
-				}
-		}
-
-		myfree(Edge_visited);
 }
 
 // for now just zero hydro quantities of primary cells that extend beyond the box

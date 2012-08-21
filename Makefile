@@ -32,7 +32,7 @@ HEAD = ArepoRT.h camera.h fileio.h geometry.h integrator.h renderer.h sampler.h 
 MISC_RM = frame.raw.txt frame.tga
 
 ifeq (ENABLE_AREPO,$(findstring ENABLE_AREPO,$(OPT)))
-  OBJS += arepo.o
+  OBJS += arepo.o voronoi_3db.o
   HEAD += arepo.h
   LIBS += -lgsl -lgslcblas -lgmp -lhdf5 -pthread -L ./Arepo/ -larepo
 endif

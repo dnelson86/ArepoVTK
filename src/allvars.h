@@ -6,6 +6,8 @@
 #ifndef AREPO_RT_ALLVARS_H
 #define AREPO_RT_ALLVARS_H
 
+#define  terminate(...) {char termbuf1[1000], termbuf2[1000]; sprintf(termbuf1, "Code termination on task=%d, function %s(), file %s, line %d", ThisTask, __FUNCTION__, __FILE__, __LINE__); sprintf(termbuf2, __VA_ARGS__); printf("%s: %s\n", termbuf1, termbuf2); fflush(stdout); MPI_Abort(MPI_COMM_WORLD, 1); exit(0);}
+
 /* memory management */
 
 #ifndef DISABLE_MEMORY_MANAGER
@@ -51,7 +53,9 @@ typedef int integertime;
 
 /* box and periodic */
 
-extern MyDouble boxSize, boxHalf;
+extern MyDouble boxSize, boxHalf; // NOTE: this is maybe not the boxSize global used by Arepo functions since this is
+                                  // "C++ mangled" (whether or not a function is inside an extern "C" determines which
+																	// it sees
 #define boxSize_X boxSize
 #define boxHalf_X boxHalf
 #define boxSize_Y boxSize
