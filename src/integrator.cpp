@@ -37,7 +37,7 @@ Spectrum EmissionIntegrator::Transmittance(const Scene *scene, const Renderer *r
 }
 
 Spectrum EmissionIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
-															  const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell, int taskNum) const
+															  const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, int taskNum) const
 {
 		IF_DEBUG(cout << "EmissionIntegrator::Li()" << endl);
 		
@@ -112,7 +112,7 @@ Spectrum VoronoiIntegrator::Transmittance(const Scene *scene, const Renderer *re
 }
 
 Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
-															  const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell, int taskNum) const
+															  const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, int taskNum) const
 {
 		IF_DEBUG(cout << "VoronoiIntegrator::Li()" << endl);
 		

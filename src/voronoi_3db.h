@@ -9,9 +9,8 @@
  
 #include "ArepoRT.h"
  
- 
 typedef float MyFloat;
-typedef double MyDouble;
+typedef float MyDouble;
 typedef int MyIDType;
 
 #define MAXGRADIENTS 5

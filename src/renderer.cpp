@@ -60,7 +60,7 @@ void RendererTask::Run() {
 				// Evaluate radiance along camera rays
 				for (int i=0; i < sampleCount; i++)
 				{
-						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], prevEntryCell, taskNum);
+						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], &prevEntryCell, taskNum);
 
 						// error check on value of Ls[i]
         }
@@ -228,7 +228,7 @@ void Renderer::RasterizeStage(const Scene *scene)
 		cout << " [Task=Root] Rasterization phase: [" << time << "] seconds." << endl;
 }
 
-Spectrum Renderer::Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T, int prevEntryCell, int taskNum) const
+Spectrum Renderer::Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, int taskNum) const
 {
     Spectrum Lvi = volumeIntegrator->Li(scene, this, ray, sample, rng, T, prevEntryCell, taskNum);
 		

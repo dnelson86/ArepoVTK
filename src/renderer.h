@@ -20,7 +20,7 @@ public:
     void Render(const Scene *scene);
 		void RasterizeStage(const Scene *scene);
 		
-    Spectrum Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T = NULL, int prevEntryCell = -1, int taskNum = -1) const;
+    Spectrum Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T = NULL, int *prevEntryCell = NULL, int taskNum = -1) const;
     Spectrum Transmittance(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng) const;
 		
 private:
