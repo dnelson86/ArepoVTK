@@ -344,11 +344,15 @@ extern struct particle_data
   MyDouble Pos[3] __attribute__((__aligned__(16)));
   MyDouble Mass;
   MyFloat  Vel[3] __attribute__((__aligned__(16)));
+	MyFloat  GravAccel[3];
   MyIDType ID;
 
-  //float GravCost[GRAVCOSTLEVELS];	/**< weight factors used for balancing the work-load */
+  float OldAcc;         /**< magnitude of old gravitational force. Used in relative opening criterion */
+  float Soft;
+	
+  float GravCost[GRAVCOSTLEVELS];	/**< weight factors used for balancing the work-load */
   short int Type;		/**< flags particle type.  0=gas, 1=halo, 2=disk, 3=bulge, 4=stars, 5=bndry */
-  //short int TimeBin;
+  short int TimeBin;
 }
  *P,				/**< holds particle data on local processor */
  *DomainPartBuf;		/**< buffer for particle data used in domain decomposition */

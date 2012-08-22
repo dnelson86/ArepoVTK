@@ -60,7 +60,7 @@ public:
     }
 		
 		// mesh traversal
-		void LocateEntryCell(const Ray &ray, int prevEntryCell);
+		void LocateEntryCell(const Ray &ray, int *prevEntryCell);
 		void LocateEntryCellBrute(const Ray &ray);
 		void VerifyPointInCell(int dp, Point &pos);
 		

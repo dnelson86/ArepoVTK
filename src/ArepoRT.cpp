@@ -18,7 +18,7 @@
 #include "util.h"
 #include "spectrum.h"
 
-void rtTestIsoDiskRender()
+void rtIsoDiskCosmoCutoutRender()
 {
 	Timer timer;
 	timer.Start();
@@ -181,8 +181,8 @@ int main (int argc, char* argv[])
 #endif
 
 	// debug test render
-	rtTestRenderScene(Config.filename);
-	//rtTestIsoDiskRender();
+	//rtTestRenderScene(Config.filename);
+	rtIsoDiskCosmoCutoutRender();
 	
 	// cleanup
 #ifdef ENABLE_AREPO

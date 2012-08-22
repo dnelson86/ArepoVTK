@@ -305,7 +305,7 @@ void ArepoMesh::LocateEntryCellBrute(const Ray &ray)
 
 // set ray.min_t and ray.max_t bounds first
 
-void ArepoMesh::LocateEntryCell(const Ray &ray, int prevEntryCell)
+void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 {
 		Point hitbox  = ray(ray.min_t);
 		
@@ -327,7 +327,8 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int prevEntryCell)
 		double mindist, mindist2;
 		
 #ifndef USE_AREPO_TREEFIND_FUNC
-		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, prevEntryCell, &mindist);
+		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, *prevEntryCell, &mindist);
+		*prevEntryCell = dp_min;
 #endif
 		
 #ifdef USE_AREPO_TREEFIND_FUNC
@@ -426,7 +427,7 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int prevEntryCell)
 				}
 		}
 		
-		if (count > 10) {
+		if (count > 20) {
 				cout << "WARNING: LocateEntryCell iterated [" << count << "] times." << endl;
 				cout << " tree found dp_min=" << dp_min << " x = " << DP[dp_min].x << " y = " << 
 								DP[dp_min].y << " z = " << DP[dp_min].z << endl;
@@ -502,9 +503,13 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 	// based on ngbtree_walk.c:ngb_treefind_variable() (no MPI)
 	int node, nearest, p;
 	struct NgbNODE *current;
-	double dx, dy, dz, cur_mindist, xtmp, ytmp, ztmp;
+	double dx, dy, dz, cur_mindist, cur_mindist_sq, xtmp, ytmp, ztmp;
 	float search_min[3], search_max[3], search_max_Lsub[3], search_min_Ladd[3];
 
+#ifdef DEBUG
+	int count_indpart=0,count_intnode=0,count_extnode=0;
+#endif
+	
 	// starting node
 	node = Ngb_MaxPart;
 	
@@ -520,7 +525,8 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 	dy = NGB_PERIODIC_LONG_Y(P[nearest].Pos[1] - pt.y);
 	dz = NGB_PERIODIC_LONG_Z(P[nearest].Pos[2] - pt.z);
 
-	cur_mindist = sqrt(dx * dx + dy * dy + dz * dz);
+	cur_mindist_sq = dx * dx + dy * dy + dz * dz;
+  cur_mindist = sqrt(cur_mindist_sq);
 	
 	// search bounds
 	search_min[0] = pt.x - cur_mindist;
@@ -538,10 +544,12 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 	search_min_Ladd[1] = search_min[1] + boxSize_Y;
 	search_min_Ladd[2] = search_min[2] + boxSize_Z;
 	
+
 	while(node >= 0)
 	{
 		if(node < Ngb_MaxPart)  // single particle
 		{
+			IF_DEBUG(count_indpart++);
 			p = node;
 			node = Ngb_Nextnode[node];
 
@@ -561,14 +569,15 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 				continue;
 	    
 			double curdist2 = dx * dx + dy * dy + dz * dz;
-			if(curdist2 > cur_mindist * cur_mindist)
+			if(curdist2 > cur_mindist_sq)
 				continue;
-
-			cur_mindist = sqrt(curdist2);
+				
+			cur_mindist_sq = curdist2;
 			nearest = p;
 		}
 		else if(node < Ngb_MaxPart + Ngb_MaxNodes) // internal node
 		{
+			IF_DEBUG(count_intnode++);
 			current = &Ngb_Nodes[node];
 
 			// in case the node can be discarded
@@ -592,6 +601,12 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 
 			node = current->u.d.nextnode; // need to open the node
 		}
+		else
+		{
+			IF_DEBUG(count_extnode++);
+			node = Ngb_Nextnode[node - Ngb_MaxNodes];
+			continue;
+		}
 	}
 
 	if (nearest < 0 || nearest > NumGas) {
@@ -599,7 +614,17 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 		endrun(1118);
 	}
 	
-	*mindist = cur_mindist;
+#ifdef DEBUG
+	cout << "FindNearestGasParticle(): start nearest=" << nearest << " x = " << P[nearest].Pos[0] << " y = " << 
+			P[nearest].Pos[1] << " z = " << P[nearest].Pos[2] << " cur_mindist = " << cur_mindist << endl;
+	cout << " search_min = " << search_min[0] << " " << search_min[1] << " " << search_min[2] << endl;
+	cout << " search_max = " << search_max[0] << " " << search_max[1] << " " << search_max[2] << endl;
+	cout << " search_max_Lsub = " << search_max_Lsub[0] << " " << search_max_Lsub[1] << " " << search_max_Lsub[2] << endl;
+	cout << " search_min_Ladd = " << search_min_Ladd[0] << " " << search_min_Ladd[1] << " " << search_min_Ladd[2] << endl;
+	cout << " count_indpart = " << count_indpart << " count_intnode = " << count_intnode << " count_extnode = " << count_extnode << endl;
+#endif	
+	
+	*mindist = sqrt(cur_mindist_sq);
 	
 	return nearest;
 }
