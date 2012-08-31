@@ -18,7 +18,7 @@ OPT  += -DENABLE_AREPO
 
 ARCH = $(shell uname)
 
-OPTIMIZE = -Wall -g -m64 #-03
+OPTIMIZE = -Wall -g -m64 -O3
 INCL     = -I ./Arepo/
 
 CC       = mpic++

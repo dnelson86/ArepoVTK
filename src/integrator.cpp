@@ -145,7 +145,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		ray.max_t = t1;
 		
 		// maximum ray integration length from config
-		if (Config.rayMaxT)
+		if (Config.rayMaxT && Config.rayMaxT < ray.max_t)
 				ray.max_t = Config.rayMaxT;
 				
 		IF_DEBUG(cout << " t0 = " << t0 << " t1 = " << t1

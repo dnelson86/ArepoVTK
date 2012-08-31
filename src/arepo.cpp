@@ -102,14 +102,15 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 {
 		IF_DEBUG(cout << "ArepoMesh() constructor." << endl);
 		
-		// transfer function and transform
+		// transfer function and sampling setup
 		transferFunction = tf;
 		viStepSize       = Config.viStepSize;
 		
-		// set NULL
-		Nedges       = NULL;
-		EdgeList     = NULL;
-		NedgesOffset = NULL;
+		//sampleWt = 0.2f; //All.BoxSize / pow(NumGas,0.333);
+		sampleWt = 0.001f;
+		
+		if (viStepSize)
+			sampleWt *= viStepSize;
 		
 		// set pointers into Arepo data structures
 		T   = &Mesh;
@@ -134,7 +135,6 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		IF_DEBUG(extent.print(" ArepoMesh extent "));
 		
 		// preprocessing
-		//ArepoMesh::ComputeVoronoiEdges();
 		ArepoMesh::ComputeQuantityBounds();
 		ArepoMesh::CalculateMidpoints();
 		//ArepoMesh::LimitCellDensities();
@@ -241,12 +241,7 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 }
 
 ArepoMesh::~ArepoMesh()
-{
-		// free custom connectivity
-		if (EdgeList)     delete EdgeList;
-		if (Nedges)       delete Nedges;
-		if (NedgesOffset) delete NedgesOffset;
-				
+{				
 #ifdef NATURAL_NEIGHBOR_INTERP
 		// free aux meshes
 		int numMeshes = Config.nTasks;
@@ -270,7 +265,7 @@ void ArepoMesh::LocateEntryCellBrute(const Ray &ray)
 		// note: using the brute force search is O(N_rays * NumPart) - not good
 		Point hitbox  = ray(ray.min_t);
 		
-		int DP_ID;
+		int DP_ID = -1;
 		double minDist = MAX_REAL_NUMBER;
 		
 		for (int i=0; i < Ndp; i++) {
@@ -748,11 +743,38 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 				}
 		}
 		
-		//TODO: temp disable adding any contribution from ghosts to rays
+		// disable adding any contribution from ghosts to rays
 		bool addFlag = true;
 		if (qmin != -1 && ray.index >= NumGas)
 				addFlag = false;
 		
+		// pack cell-center values to test TF
+		float vals[TF_NUM_VALS];
+		
+		vals[TF_VAL_DENS]        = (float) SphP[SphP_ID].Density;
+		vals[TF_VAL_UTHERM]      = (float) SphP[SphP_ID].Utherm;
+		vals[TF_VAL_PRES]        = (float) SphP[SphP_ID].Pressure;
+		vals[TF_VAL_ENERGY]      = (float) SphP[SphP_ID].Energy;
+		
+		vals[TF_VAL_VEL_X]       = (float) P[SphP_ID].Vel[0];
+		vals[TF_VAL_VEL_Y]       = (float) P[SphP_ID].Vel[1];
+		vals[TF_VAL_VEL_Z]       = (float) P[SphP_ID].Vel[2];		
+		
+		// check if TF evaluates to zero at this cell midpoint
+/*
+		if (!transferFunction->InRange(vals)) {
+				// if next cell in our path also evaluates TF to zero, skip this current cell, otherwise sample this
+				// current cell to make sure we don't miss the ramp up of our TF
+				if (qmin != -1) {
+						float vals_next[TF_NUM_VALS];
+						vals_next[TF_VAL_DENS]        = (float) SphP[qmin].Density;
+						vals_next[TF_VAL_UTHERM]      = (float) SphP[qmin].Utherm;
+						
+						if (!transferFunction->InRange(vals_next))
+								addFlag = false;
+				}
+		}
+*/		
 		// check for proper exit point
 		if (qmin != -1)
 		{
@@ -761,8 +783,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 				min_t = Clamp(min_t,0.0,(*t1-*t0));
 				
 				if (addFlag)
-				{ //TODO
-				
+				{
 						// entry and exit points for this cell
 						Point hitcell  = ray(ray.min_t);
 						Point exitcell = ray(*t0 + min_t);
@@ -787,32 +808,14 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 						midpt -= sphCen;
 						
 						IF_DEBUG(midpt.print(" onestep midp rel sphcen "));
-						
-						double rho    = SphP[SphP_ID].Density;
-						double utherm = SphP[SphP_ID].Utherm;
-						
-						// optical depth: treat as constant over entire cell
+
+						// optical depth: always use gradient for tau calculation (though apply as one value for whole cell)
 						Spectrum stepTau(0.0);
-						
-						// use gradients if requested
-						if (Config.useDensGradients) {
-								rho += Dot(sphDensGrad,midpt);
-								stepTau += transferFunction->sigma_t() * rho * len;
-						} else {
-								// always use gradient for tau calculation
-								stepTau += transferFunction->sigma_t() * (rho + Dot(sphDensGrad,midpt)) * len;
-						}
-						//if (Config.useUthermGradients) //TODO: gradient (MATERIALS)
-						//		utherm += Dot(sphUthermGrad,midpt);
-						
-						// reduce transmittance for optical depth
-						//Tr *= Exp(-stepTau); //TODO
+						stepTau += transferFunction->sigma_t() * (SphP[SphP_ID].Density + Dot(sphDensGrad,midpt)) * len;
+						//Tr *= Exp(-stepTau); // reduce transmittance for optical depth
 						
 						// TODO: sub-step length should be adaptive based on gradients
-						// TODO: should only substep if the TF will evaluate nonzero somewhere inside
 
-						// TODO: fix non-sub-stepping!!
-						
 						// if not sub-stepping then set default
 						if (!viStepSize)
 							viStepSize = len;
@@ -822,7 +825,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 						//double fracstep = 1.0 / nSamples;
 						//double halfstep = 0.5 / nSamples;
 						
-						// sub-stepping: strict in world space
+						// setup sub-stepping: strict in world space
 						Vector prev_sample_pt(ray(ray.depth * viStepSize));
 						Vector norm_sample(exitcell - prev_sample_pt);
 
@@ -833,19 +836,17 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 						
 						IF_DEBUG(cout << " sub-stepping len = " << len << " nSamples = " << nSamples 
 													<< " (step = " << len/nSamples << ")" << endl);
-						
+
 						for (int i = 0; i < nSamples; ++i) {
-								//Vector midpt(hitcell[0] + (i*fracstep+halfstep) * norm[0],
-								//						 hitcell[1] + (i*fracstep+halfstep) * norm[1],
-								//						 hitcell[2] + (i*fracstep+halfstep) * norm[2]);
-														 
+								// where are we inside the cell?
 								Vector midpt(prev_sample_pt[0] + ((i+1)*viStepSize) * norm_sample[0],
 														 prev_sample_pt[1] + ((i+1)*viStepSize) * norm_sample[1],
 														 prev_sample_pt[2] + ((i+1)*viStepSize) * norm_sample[2]);				 
 								
 								IF_DEBUG(midpt.print(" substep midpt "));
 								
-								double rho = nnInterpScalar(SphP_ID, ray.index, midpt, taskNum);
+								// subsample (replace fields in vals by interpolated values)
+								int status = subSampleCell(SphP_ID, ray.index, midpt, &vals[0], taskNum);
 								
 #ifdef DEBUG
 								double fracstep = 1.0 / nSamples;
@@ -854,46 +855,19 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 															<< " rho nni = " << rho << endl;
 #endif
 								
-								// pack cell quantities for TF
-								float vals[TF_NUM_VALS];
-								
-								vals[TF_VAL_DENS]        = (float) rho;
-								vals[TF_VAL_UTHERM]      = (float) SphP[SphP_ID].Utherm; //TODO: gradient (MATERIALS)
-								vals[TF_VAL_PRES]        = (float) SphP[SphP_ID].Pressure; //TODO: gradient
-								vals[TF_VAL_ENERGY]      = (float) SphP[SphP_ID].Energy;
-								
-								vals[TF_VAL_VEL_X]       = (float) P[SphP_ID].Vel[0]; //TODO: gradients
-								vals[TF_VAL_VEL_Y]       = (float) P[SphP_ID].Vel[1];
-								vals[TF_VAL_VEL_Z]       = (float) P[SphP_ID].Vel[2];
-								//vals[TF_VAL_VEL_DIV]     = (float) SphP[SphP_ID].DivVel;
-								//vals[TF_VAL_VEL_CURL]    = (float) SphP[SphP_ID].CurlVel;
-								
-								//vals[TF_VAL_POTENTIAL]   = (float) P[SphP_ID].Potential;
-								
-#ifdef METALS
-								vals[TF_VAL_METALLICITY] = (float) SphP[SphP_ID].Metallicity;
-#endif
-#ifdef COOLING
-								vals[TF_VAL_NE]          = (float) SphP[SphP_ID].Ne;
-#endif
-#ifdef USE_SFR
-								vals[TF_VAL_SFR]         = (float) SphP[SphP_ID].Sfr;
-#endif
-
 								// apply TF to integrated (total) quantities (only appropriate for constant?)
 								if (Config.projColDens) {
-										rho    *= len;
-										utherm *= len;
+										endrun(1299); // best check this
+										vals[TF_VAL_DENS] *= len;
 								}
 						
 								// compute emission-only source term using transfer function
-								Lv += Tr * transferFunction->Lve(vals) /* * fracstep*/;
+								Lv += Tr * transferFunction->Lve(vals) * sampleWt;
 								
 							// update previous sample point marker
 							ray.depth++;
-						}
-		
-				} //addFlag //TODO
+						} // nSamples
+				} //addFlag
 				
 				// update ray: transfer to next voronoi cell (possibly on different task)
 				ray.task  = DP[qmin].task;
@@ -920,23 +894,31 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 								 << " " << DP[ray.index].z << endl << endl;
 						endrun(1130);
 				}
-		}
+		} // qmin
 		
 		return true;		
 }
 
-// natural neighbor interpolation on scalar field at position pt inside Voronoi cell SphP_ID
-double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum)
+// interpolate scalar fields at position pt inside Voronoi cell SphP_ID (various methods)
+int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, int taskNum)
 {
 	// check degenerate point in R3, immediate return
 	if (fabs(pt.x - DP[DP_ID].x) <= INSIDE_EPS &&
 			fabs(pt.y - DP[DP_ID].y) <= INSIDE_EPS &&
 			fabs(pt.z - DP[DP_ID].z) <= INSIDE_EPS)
-			return SphP[SphP_ID].Density;
+	{
+			vals[TF_VAL_DENS]   = SphP[SphP_ID].Density;
+			vals[TF_VAL_UTHERM] = SphP[SphP_ID].Utherm;
+			return 1;
+	}
+				
+	// zero vals we will override in this function
+	vals[TF_VAL_DENS]   = 0.0;
+	vals[TF_VAL_UTHERM] = 0.0;				
 				
 #ifdef NATURAL_NEIGHBOR_IDW
 
-#define POWER_PARAM 2.0
+#define POWER_PARAM 7.0
 
 		// list of neighbors
 		const int start_edge = midpoint_idx[DP_ID].first;
@@ -945,7 +927,6 @@ double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum
 		// add parent to list
 		int dp_neighbor, sphp_neighbor;
 		float weight,weightsum,distsq;
-		double val = 0.0;
 		
 		// loop over each neighbor
 		for (int k=0; k < n_edges; k++) {
@@ -959,7 +940,8 @@ double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum
 			weight = 1.0 / pow(distsq,POWER_PARAM);
 			weightsum += weight;
 			
-			val += SphP[sphp_neighbor].Density * weight;
+			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
+			vals[TF_VAL_UTHERM] += SphP[sphp_neighbor].Utherm * weight;
 		}
 		
 		// add in primary parent
@@ -970,33 +952,30 @@ double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum
 		weight = 1.0 / pow(distsq,POWER_PARAM);
 		weightsum += weight;
 		
-		val += SphP[SphP_ID].Density * weight;
+		vals[TF_VAL_DENS]   += SphP[SphP_ID].Density * weight;
+		vals[TF_VAL_UTHERM] += SphP[SphP_ID].Utherm * weight;
 		
 		// normalize weights
-		val /= weightsum;
+		vals[TF_VAL_DENS]   /= weightsum;
+		vals[TF_VAL_UTHERM] /= weightsum;
 			
 #else
 
 #ifdef NATURAL_NEIGHBOR_INTERP
 		int tlast = 0;
+		int dp_neighbor, sphp_neighbor;
+
+		float weight;	
+		
+		double dp_old_vol[AUXMESH_ALLOC_SIZE/2];
+		double dp_new_vol[AUXMESH_ALLOC_SIZE/2];
 		
 		// list of neighbors
 		const int start_edge = midpoint_idx[DP_ID].first;
 		const int n_edges    = midpoint_idx[DP_ID].second;
-		
-		// add parent to list
-		dp_neighbors[n_edges]   = DP_ID;
-		sphp_neighbors[n_edges] = SphP_ID;
 
 		// recreate the voronoi cell of the parent's neighbors (auxiliary mesh approach):
 		init_clear_auxmesh(&AuxMeshes[taskNum]);
-		//memset(&AuxMeshes[taskNum].DP[0],0,sizeof(point) * AuxMeshes[taskNum].Ndp);
-		//memset(&AuxMeshes[taskNum].DT[5],0,sizeof(tetra) * (AuxMeshes[taskNum].Ndt-5));
-		//memset(&AuxMeshes[taskNum].VF[0],0,sizeof(face) * AuxMeshes[taskNum].Nvf);
-		
-		//AuxMeshes[taskNum].Ndp = 0;
-		//AuxMeshes[taskNum].Ndt = 5;
-		//AuxMeshes[taskNum].Nvf = 0;
 			
 		// construct new auxiliary mesh around pt
 		for(int k = 0; k < n_edges; k++)
@@ -1006,7 +985,9 @@ double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum
 				if(AuxMeshes[taskNum].Ndp + 2 >= AuxMeshes[taskNum].MaxNdp)
 					endrun(1157);
 				
+				// insert point
 				AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[q];
+				
 		    set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
 		    tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
 		    AuxMeshes[taskNum].Ndp++;
@@ -1021,13 +1002,8 @@ double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum
 		tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
 		AuxMeshes[taskNum].Ndp++;
 		
-						/*
 		// compute old circumcircles and volumes
 		compute_circumcircles(&AuxMeshes[taskNum]);
-		
-		double dp_old_vol[AUXMESH_ALLOC_SIZE/2];
-		double dp_new_vol[AUXMESH_ALLOC_SIZE/2];
-		
 		compute_auxmesh_volumes(&AuxMeshes[taskNum], dp_old_vol);
 		
 #ifdef DEBUG
@@ -1053,7 +1029,6 @@ double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum
 	
 		// compute new circumcircles and volumes
 		compute_circumcircles(&AuxMeshes[taskNum]);
-
 		compute_auxmesh_volumes(&AuxMeshes[taskNum], dp_new_vol);
 
 #ifdef DEBUG
@@ -1065,18 +1040,25 @@ double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum
 #endif
 
 		// calculate scalar value based on neighbor values and area fraction weights
-		float weight;
-		
-		double val = 0.0;
-		
-		for (int k=0; k < AuxMeshes[taskNum].Ndp-1; k++) {
-		    weight = (dp_old_vol[k]-dp_new_vol[k]);
-				val += SphP[sphp_neighbors[k]].Density * weight;
+		for (int k=0; k < n_edges; k++) {
+			dp_neighbor = opposite_points[start_edge + k];
+			sphp_neighbor = getSphPID(dp_neighbor);
+			
+			weight = dp_old_vol[k] - dp_new_vol[k];
+			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
+			vals[TF_VAL_UTHERM] += SphP[sphp_neighbor].Utherm * weight;
 		}
 		
-		val /= dp_new_vol[AuxMeshes[taskNum].Ndp-1];
-*/
-	double val   = SphP[SphP_ID].Density;
+		// add primary parent
+		weight = dp_old_vol[n_edges] - dp_new_vol[n_edges];
+		
+		vals[TF_VAL_DENS]   += SphP[SphP_ID].Density * weight;
+		vals[TF_VAL_UTHERM] += SphP[SphP_ID].Utherm * weight;
+		
+		// normalize by volume of last added cell (around interp point)
+		vals[TF_VAL_DENS]   /= dp_new_vol[AuxMeshes[taskNum].Ndp-1];
+		vals[TF_VAL_UTHERM] /= dp_new_vol[AuxMeshes[taskNum].Ndp-1];
+
 #endif //NNI
 
 #ifndef NATURAL_NEIGHBOR_INTERP
@@ -1084,15 +1066,15 @@ double ArepoMesh::nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum
 		Vector sphCen(     SphP[SphP_ID].Center[0],   SphP[SphP_ID].Center[1],   SphP[SphP_ID].Center[2]);
 		Vector sphDensGrad(SphP[SphP_ID].Grad.drho[0],SphP[SphP_ID].Grad.drho[1],SphP[SphP_ID].Grad.drho[2]);
     pt -= sphCen;	// make relative to cell center	
-		double val   = SphP[SphP_ID].Density + Dot(sphDensGrad,pt);
 		
-		//IF_DEBUG(cout << "NNI: " << val << " LinearGrad: " << val_old << " frac diff = " << 
-		//				fabs(val-val_old)/val << endl);
+		vals[TF_VAL_DENS]   = SphP[SphP_ID].Density + Dot(sphDensGrad,pt);
+		vals[TF_VAL_UTHERM] = SphP[SphP_ID].Utherm; // no utherm gradient unless MATERIALS
+		
 #endif
 
 #endif // NATURAL_NEIGHBOR_IDW
 
-		return val;
+		return 1;
 }
 
 // for now just zero hydro quantities of primary cells that extend beyond the box
@@ -1312,248 +1294,217 @@ void ArepoMesh::ComputeQuantityBounds()
 		valBounds[TF_VAL_UTHERM*3 + 1] = umax;
 		valBounds[TF_VAL_UTHERM*3 + 2] = umean / NumGas;
 		
-		IF_DEBUG(cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0] 
+		cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0] 
 									<< " max = " << valBounds[TF_VAL_DENS*3 + 1] 
-									<< " mean = " << valBounds[TF_VAL_DENS*3 + 2] << endl);
+									<< " mean = " << valBounds[TF_VAL_DENS*3 + 2] << endl;
 									
-		IF_DEBUG(cout << " Utherm  min = " << valBounds[TF_VAL_UTHERM*3 + 0] 
+		cout << " Utherm  min = " << valBounds[TF_VAL_UTHERM*3 + 0] 
 									<< " max = " << valBounds[TF_VAL_UTHERM*3 + 1] 
-									<< " mean = " << valBounds[TF_VAL_UTHERM*3 + 2] << endl);
-									
+									<< " mean = " << valBounds[TF_VAL_UTHERM*3 + 2] << endl;
+			
+/*			
+		for (int i = 0; i < NumGas; i++) {
+				//SphP[i].Density /= valBounds[TF_VAL_DENS*3 + 0];
+				//SphP[i].Utherm  /= valBounds[TF_VAL_UTHERM*3 + 0];
+				//SphP[i].Density = log(SphP[i].Density);
+				//SphP[i].Utherm  = log(SphP[i].Utherm);
+				SphP[i].Density = 1.0;
+				SphP[i].Utherm  = 1.0;
+		}
+	*/	
+
+	/*
+		float invMaxMinusMin = 1.0f / (valBounds[TF_VAL_DENS*3 + 1] - valBounds[TF_VAL_DENS*3 + 0]);
+	
+		for (int i = 0; i < NumGas; i++) {
+				SphP[i].Density = (SphP[i].Density - valBounds[TF_VAL_DENS*3 + 0]) * invMaxMinusMin;
+		}	
+		
+		*/
 }
 
-void ArepoMesh::ComputeVoronoiEdges()
+int ArepoMesh::ComputeVoronoiEdges()
 {
 		IF_DEBUG(cout << "ArepoMesh::ComputeVoronoiEdges()" << endl);
-		
+
 		// geometric conventions (voronoi.h)
 		const int edge_start[6]     = { 0, 0, 0, 1, 1, 2 };
 		const int edge_end[6]       = { 1, 2, 3, 2, 3, 3 };
 		const int edge_opposite[6]  = { 3, 1, 2, 3, 0, 1 };
-		const int edge_nexttetra[6] = { 2, 3, 1, 0, 2, 0 };
-		
-		int Nel    = 0;
-		int MaxNel = 10 * Nvf;
-		int startingTetra = -1;
+		const int edge_nexttetra[6] = { 2, 3, 1, 0, 2, 0 };		
 		
 		tetra *prev, *next;
-		int i_face,i,j,k,l,m,ii,jj,kk,ll,nn,pp,/*tt,*/nr,nr_next;
+		int i,j,k,l,m,ii,jj,kk,ll,tt,next_tt;
+		int dp1,dp2,edge_nr,bit,nr_next,count;
 		
-		int dp1,dp2;		
+		vertexList.reserve(2*Nvf);
+		numVertices.reserve(Nvf);
+		vertexOffset.reserve(Nvf);
 		
-		// allocate
-		EdgeList     = new int[MaxNel];
-		Nedges       = new int[Nvf];
-		NedgesOffset = new int[Nvf];
-		Edge_visited = new unsigned char[T->Ndt];
+		Edge_visited = new unsigned char[Ndt];
 		
 		// zero
-		for(i = 0; i < Nvf; i++) {
-				Nedges[i]     = 0;
-    }
+		for(i = 0; i < Ndt; i++)
+			Edge_visited[i] = 0;
 
-		// for each hydro point, find a tetra with it as a vertex (rough)
-		//for(i = 0; i < T->Ndt; i++) {
-		//		for(j = 0; j < DIMS + 1; j++) {
-		//				if(DP[DT[i].p[j]].index >= 0 && DP[DT[i].p[j]].index < NumGas) // local, non-ghost, TODO: removed task
-		//						whichtetra[DP[DT[i].p[j]].index] = i;
-		//		}
-    //}
+		// loop over all local tetra
+		for(tt = 0; tt < Ndt; tt++)
+		{
 		
-		for (i_face = 0; i_face < Nvf; i_face++) {
+			if (Mesh.DT[tt].t[0] < 0) // skip deleted tetras
+				continue;
+	
+			bit  = 1;
+			edge_nr = 0;
+			
+			// loop over all edges of this tetra
+			while( Edge_visited[tt] != EDGE_ALL ) {
+			
+				if( (Edge_visited[tt] & bit) != 0 ) {
+					bit <<= 1;
+					edge_nr++;
+					continue;
+				}
 
-				// locate tetra containing both points
-				dp1 = VF[i_face].p1;
-				dp2 = VF[i_face].p2;
-				
-				// skip voronoi faces that have vertices in the boundary tetra
-				if (dp1 == -5 || dp2 == -5) {
-						IF_DEBUG(cout << " VF[" << i_face << "] skipping! dp1 = " << dp1 << " dp2 = " << dp2 << endl << endl);
-						continue;
-				}
-		
-				// TODO: do this some other way, right now its Order(Nvf*Ndt) - not good
-				for (i = 0; i < T->Ndt; i++) {
-						if (DT[i].p[0] != dp1 && DT[i].p[1] != dp1 && DT[i].p[2] != dp1 && DT[i].p[3] != dp1)
-						    continue;
-						if (DT[i].p[0] != dp2 && DT[i].p[1] != dp2 && DT[i].p[2] != dp2 && DT[i].p[3] != dp2)
-								continue;
-						if (DT[i].t[0] >= 0) // deleted?
-								startingTetra = i;
-				}
-				
-				if (startingTetra < 0) {
-						cout << "ComputeVoronoiEdges(" << i_face << ") ERROR! startingTetra = " << startingTetra << endl;
-						endrun(1105);
-				}
-				
-				// set starting tetra
-				tetra *t = &DT[startingTetra];
-				
-				if (t->t[0] < 0) {
-						cout << "ComputeVoronoiEdges(" << i_face << ") ERROR! Starting t->t[0] = " << t->t[0] << endl;
-						endrun(1104);				
-				}
-				
-				IF_DEBUG(cout << " VF[" << i_face << "] startingTetra = " << startingTetra << " (" << (t-DT) << ")" << endl);
-		
-				// set edge number to traverse around
-				for (i = 0; i < 4; i++) {
-						if (DT[startingTetra].p[i] == dp1) ii = i;
-						if (DT[startingTetra].p[i] == dp2) jj = i;
-				}
-				
-				if (ii > jj) swap(ii,jj);
-				
-				if (ii==0 && jj==1) nr = 0;
-				if (ii==0 && jj==2) nr = 1;
-				if (ii==0 && jj==3) nr = 2;
-				if (ii==1 && jj==2) nr = 3;
-				if (ii==1 && jj==3) nr = 4;
-				if (ii==2 && jj==3) nr = 5;
-				
-				IF_DEBUG(cout << " starting ii = " << ii << " jj = " << jj << " nr = " << nr << endl);
-				
-				// zero
-				for(i = 0; i < T->Ndt; i++)
-						Edge_visited[i] = 0;
-				
-				i = edge_start[nr];
-				j = edge_end[nr];
-				k = edge_opposite[nr];
-				l = edge_nexttetra[nr];
+				tetra *t = &DT[tt];
 
-				Edge_visited[startingTetra] |= (1 << nr);
-				
-				pp = startingTetra;
+				// edge-point relation
+				i = edge_start[edge_nr];
+				j = edge_end[edge_nr];
+				k = edge_opposite[edge_nr];
+				l = edge_nexttetra[edge_nr];
+			
+				// mark edge as visited
+				Edge_visited[tt] |= (1 << edge_nr);
+
+				// delaunay points on both side of face
+				dp1 = t->p[i];
+				dp2 = t->p[j];
+
+				// skip large tetra
+				if(dp1 < 0 || dp2 < 0) {
+					bit <<= 1;
+					edge_nr++;
+					continue;
+				}
+
+				// skip ghost points (both local and foreign)
+				if((DP[dp1].task != ThisTask || DP[dp1].index < 0 || DP[dp1].index >= NumGas) &&
+					 (DP[dp2].task != ThisTask || DP[dp2].index < 0 || DP[dp2].index >= NumGas)) {
+					bit <<= 1;
+					edge_nr++;
+					continue;
+				}
+
+				// count number of face vertices
+				count = 0;
 				prev = t;
 
 				do
 				{
-						nn   = prev->t[l];
-						next = &DT[nn];
-						
-						Nedges[i_face]++;
-						
-						if(Nel >= MaxNel) {
-								cout << "ERROR: Nel > MaxNel" << endl;
-								endrun(1100);
-						}
-						
-						EdgeList[Nel] = (int)(prev - DT); //i.e. element offset in DT/DTC [0,Ndt-1]
-						IF_DEBUG(cout << " adding i = " << i_face << " EdgeList[" << Nel << "] = " << EdgeList[Nel] 
-								          << " (num=" << Nedges[i_face] << ")" << endl);
-						Nel++;
-						
-						// verify 3/4 (k,i,j) of tetra vertices are shared with the next tetra (opposite p[l])
-						for(m = 0, ll = ii = jj = -1; m < 4; m++)
-						{
-								if(next->p[m] == prev->p[k])
-									ll = m;
-								if(next->p[m] == prev->p[i])
-									ii = m;
-								if(next->p[m] == prev->p[j])
-									jj = m;
-						}
+					count++;
+					next_tt = prev->t[l];
+					next = &DT[next_tt];
 
-						if(ll < 0 || ii < 0 || jj < 0) {
-								cout << "ERROR: Inconsistency. ll = " << ll << " ii = " << ii << " jj = " << jj << " kk = " << kk
-								     << " l = " << l << " i = " << i << " j = " << j << " k = " << k << endl;
-								cout << "  prev p[0] = " << prev->p[0] << " p[1] = " << prev->p[1] << " p[2] = " 
-								     << prev->p[2] << " p[3] = " << prev->p[3] << endl;
-								cout << "  prev t[0] = " << prev->t[0] << " t[1] = " << prev->t[1] << " t[2] = " 
-								     << prev->t[2] << " t[3] = " << prev->t[3] << endl;						 
-								cout << "  next p[0] = " << next->p[0] << " p[1] = " << next->p[1] << " p[2] = " 
-								     << next->p[2] << " p[3] = " << next->p[3] << endl;
-								endrun(1101);
-						}
+					for(m = 0, ll = ii = jj = -1; m < 4; m++) {
+						if(next->p[m] == prev->p[k])
+							ll = m;
+						if(next->p[m] == prev->p[i])
+							ii = m;
+						if(next->p[m] == prev->p[j])
+							jj = m;
+					}
 
-						kk = 6 - (ll + ii + jj);
-						
-						// flag visited edge with bitmask
-						for(nr_next = 0; nr_next < 6; nr_next++) {
-								if((edge_start[nr_next] == ii && edge_end[nr_next] == jj) ||
-									 (edge_start[nr_next] == jj && edge_end[nr_next] == ii))
-								{
-										if((Edge_visited[nn] & (1 << nr_next)) && next != t) {
-												cout << "ERROR: Inconsistency (2)." << endl;
-												endrun(1102);
-										}
+					if(ll < 0 || ii < 0 || jj < 0)
+						terminate("inconsistency");
 
-										//bitwise OR itself with 1*nr_next^2 (see EDGE_X)
-										Edge_visited[nn] |= (1 << nr_next);
-										break;
-								}
-						}
-						
-						IF_DEBUG(cout << " moving to tetra = " << nn << endl);
-						
-						prev = next;
-						pp = nn;
-						i = ii;
-						l = ll;
-						j = jj;
-						k = kk;
+					kk = 6 - (ll + ii + jj);
+					i = ii;
+					l = ll;
+					j = jj;
+					k = kk;
 
-				} while(next != t);
-
-				IF_DEBUG(cout << " finished voronoi face i_face = " << i_face << " with Nedges = " 
-											<< Nedges[i_face] << endl << endl);
-				
-				if (Nedges[i_face] < DIMS || Nedges[i_face] > 20) {
-						cout << "ComputeVoronoiEdges(" << i_face << ") ERROR! Strange Nedges = " << Nedges[i_face] << endl;
-						endrun(1103);
+					prev = next;
 				}
-		} //i_face
-		
-		/* // ugh 2D algorithm never going to work
-		for(i = 0; i < NumGas; i++) {
-				if(whichtetra[i] < 0)
-						continue;
+				while(next != t);
 
-				qstart = q = &DT[whichtetra[i]];
-				cout << " starting in tetra = " << whichtetra[i] << endl;
+				count++;
+
+				// add count of vertices for this face to Nvertices and first vertex tetra index to VertexList				
+				numVertices.push_back(count);
+				vertexList.push_back(tt);
+				
+				IF_DEBUG(cout << " face i=" << numVertices.size() << " have [" << count << "] vertices" << endl);
+				
+				// add subsequent tetra indices for the other vertices of this voronoi face
+				count = 0;
+				prev = t;
+				
 				do
 				{
-				
-						Nedges[i]++;
+					count++;
+					next_tt = prev->t[l];
+					next = &DT[next_tt];
+		
+					vertexList.push_back(next_tt);
+						
+					IF_DEBUG(cout << "  adding to face i=" << numVertices.size() << " VertexList[" << vertexList.size() << "] = " << vertexList.back() << endl);
+		
+					for(m = 0, ll = ii = jj = -1; m < 4; m++)
+					{
+						if(next->p[m] == prev->p[k])
+							ll = m;
+						if(next->p[m] == prev->p[i])
+							ii = m;
+						if(next->p[m] == prev->p[j])
+							jj = m;
+					}
 
-						if(Nel >= MaxNel) {
-								cout << "ERROR: Nel > MaxNel" << endl;
-								return;
+					if(ll < 0 || ii < 0 || jj < 0)
+						terminate("inconsistency");
+
+					kk = 6 - (ll + ii + jj);
+
+					// flag edge
+					for(nr_next = 0; nr_next < 6; nr_next++) {
+						if((edge_start[nr_next] == ii && edge_end[nr_next] == jj) || (edge_start[nr_next] == jj && edge_end[nr_next] == ii))
+						{
+							if((Edge_visited[next_tt] & (1 << nr_next)) && next != t)
+								terminate("inconsistency");
+
+							Edge_visited[next_tt] |= (1 << nr_next);
+							break;
 						}
+					}
 
-						EdgeList[Nel] = q - DT; //i.e. element offset in DT/DTC [0,Ndt-1]
-						cout << " adding i = " << i << " EdgeList[" << Nel << "] = " << EdgeList[Nel] << endl;
-						Nel++;
-						
-						for(j = 0; j < DIMS+1; j++) {
-								if(DP[q->p[j]].index == i) { // TODO: removed task
-										cout << " found hydro point in tetra at index j = " << j << endl;
-										break;
-								}
-						}
+					i = ii;
+					l = ll;
+					j = jj;
+					k = kk;
 
-						// traverse
-						k = j+1;
+					prev = next;
 
-						if(k >= DIMS+1)
-								k -= (DIMS+1);
-						
-						// move to adjacent tetra, opposite from p[k]
-						cout << " moving to tetra = " << q->t[k] << endl;
-						q = &DT[q->t[k]];
-						
-				} while(q != qstart);
-				
-				cout << " finished hydro point i = " << i << " with Nedges = " << Nedges[i] << endl << endl;
-    }
-		*/
+				}
+				while(next != t);
 
-		for(i = 1, NedgesOffset[0] = 0; i < Nvf; i++) {
-				NedgesOffset[i] = NedgesOffset[i - 1] + Nedges[i - 1];
+				bit <<= 1;
+				edge_nr++;
+		
+			} // edges
+		} // tt		
+		
+		// create offset table
+		vertexOffset.push_back(0);
+		
+		for(size_t i = 1; i < numVertices.size(); i++) {
+			vertexOffset.push_back(vertexOffset[i - 1] + numVertices[i - 1]);
+			cout << "[" << i << "] numVert=" << numVertices[i-1] << " offset=" << vertexOffset.back() << endl;
 		}
-
+		
+		delete Edge_visited;
+		
+		return numVertices.size();
+		
 }
 
 void ArepoMesh::DumpMesh()
@@ -1637,11 +1588,11 @@ void ArepoMesh::DumpMesh()
 				cout << " DC.last = " << SphP[i].last_connection << endl;		
 		}
 		
-		if (Nedges) {
+		if (numVertices.size()) {
 			cout << endl << "Voronoi Edges (NumGas=" << NumGas << "):" << endl;
 			for (int i=0; i < NumGas; i++) {
-					cout << setw(3) << i << " Nedges = " << setw(2) << Nedges[i] << " NedgesOffset = " 
-							 << setw(3) << NedgesOffset[i] << endl;
+					cout << setw(3) << i << " numVert = " << setw(2) << numVertices[i] << " vertexOffset = " 
+							 << setw(3) << vertexOffset[i] << endl;
 			}
 		}
 		
@@ -1692,22 +1643,23 @@ bool ArepoMesh::TetraEdges(const int i, vector<Line> *edges)
 
 bool ArepoMesh::VoronoiEdges(const int i_face, vector<Line> *edges)
 {
-		IF_DEBUG(cout << "VoronoiEdges(" << i_face << ") Nedges=" << Nedges[i_face]
-									<< " NedgesOffset = " << NedgesOffset[i_face] << endl);
+		IF_DEBUG(cout << "VoronoiEdges(" << i_face << ") numVertices=" << numVertices[i_face]
+									<< " vertexOffset = " << vertexOffset[i_face] << endl);
 		
-		if (Nedges[i_face] <= 0 || Nedges[i_face] < DIMS || i_face < 0 || i_face >= Nvf) {
-				IF_DEBUG(cout << "WARNING: Nedges[" << i_face << "] empty, degenerate, or out of bounds." << endl);
+		if (numVertices[i_face] <= 0 || numVertices[i_face] < DIMS || i_face < 0 || i_face >= Nvf) {
+				IF_DEBUG(cout << "WARNING: Nvert[" << i_face << "] empty, degenerate, or out of bounds." << endl);
 				return false;
 		}
 		
-		int s_ind = EdgeList[NedgesOffset[i_face]];
+		int s_ind = vertexList[vertexOffset[i_face]];
 		int n_ind;
 		
 		Point prev = Point(DTC[s_ind].cx, DTC[s_ind].cy, DTC[s_ind].cz);
 		Point next;
 
-		for (int i=1; i < Nedges[i_face]+1; i++) {				
-				n_ind = EdgeList[(NedgesOffset[i_face] + i) % Nedges[i_face]];
+		// loop over remaining vertices (one extra at end with modulo to connect to first point)
+		for (int i=1; i < numVertices[i_face]; i++) {	
+				n_ind = vertexList[(vertexOffset[i_face] + i)];// % numVertices[i_face]];
 				next  = Point(DTC[n_ind].cx, DTC[n_ind].cy, DTC[n_ind].cz);
 				
 				if (!extent.Inside(prev) || !extent.Inside(next)) {

@@ -40,7 +40,7 @@ public:
     ~ArepoMesh();
 
 		// preprocessing
-		void ComputeVoronoiEdges();
+		int ComputeVoronoiEdges();
 		void ComputeQuantityBounds();
 		void CalculateMidpoints();
 		void LimitCellDensities();
@@ -71,7 +71,7 @@ public:
 		inline int getSphPID(int dp_id);
 		
 		// fluid data introspection
-		double nnInterpScalar(int SphP_ID, int DP_ID, Vector &pt, int taskNum);
+		int subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, int taskNum);
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
 		// data
@@ -90,7 +90,7 @@ private:
     // rendering
 		BBox extent;
     const TransferFunction *transferFunction;
-		float viStepSize;
+		float viStepSize, sampleWt;
 		
 		// units, etc
 		float valBounds[TF_NUM_VALS*3];     // min,max,mean for each non-derived quantity
@@ -100,9 +100,10 @@ private:
 		tessellation *T;
 		tessellation *AuxMeshes;
 		
-		int *EdgeList;
-		int *Nedges;
-		int *NedgesOffset;
+		// for drawing voronoi faces and edges
+		vector<int> vertexList;
+		vector<int> numVertices;
+		vector<int> vertexOffset;
 		
 		// sunrise alternative connectivity construction
 		

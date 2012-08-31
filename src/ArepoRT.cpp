@@ -98,14 +98,17 @@ void rtTestRenderScene(string filename)
 	const Spectrum sig_a = Spectrum::FromRGB(Config.rgbAbsorb);
 	TransferFunction *tf = new TransferFunction(sig_a);
 
+	// setup transfer functions from file
+	for (unsigned int i=0; i < Config.tfSet.size(); i++)
+		tf->AddParseString(Config.tfSet[i]);
+	
 	// debugging:
 	Spectrum s1 = Spectrum::FromNamed("red");
 	Spectrum s2 = Spectrum::FromNamed("green");
 	Spectrum s3 = Spectrum::FromNamed("blue");
-	tf->AddConstant(TF_VAL_DENS,s3);
-	//tf->AddTophat(TF_VAL_DENS,5.0,10.0,spec);
-	tf->AddGaussian(TF_VAL_DENS,2.8,0.1,s1);
-	tf->AddGaussian(TF_VAL_DENS,5.0,0.5,s2);
+	//tf->AddConstant(TF_VAL_DENS,s3);
+	//tf->AddGaussian(TF_VAL_DENS,2.8,0.1,s1);
+	//tf->AddGaussian(TF_VAL_DENS,5.0,0.5,s2);
 	
 	// create volume/density/scene geometry (debugging only)
 	//VolumeRegion *vr     = CreateGridVolumeRegion(volume2world, filename);

@@ -34,19 +34,33 @@
 
 class TransferFunc1D {
 public:
-		TransferFunc1D(short int ty, short int vn, vector<float> &params, vector<Spectrum> &spec);
-	
+		TransferFunc1D(short int ty, short int vn, vector<float> &params, vector<Spectrum> &spec, string ctName);
+		~TransferFunc1D();
+		
+		void CheckReverse();
 		bool InRange(const float *vals);
 		Spectrum Lve(const float *vals) const;
 		
 private:
 		short int valNum;   // 1 - density, 2 - utherm
-		short int type;     // 1 - constant, 2 - tophat, 3 - gaussian
+		short int type;     // 1 - constant, 2 - tophat, 3 - gaussian,
+												// 4 - constant (discrete), 5 - tophat (discrete), 6 - gaussian (discrete)
+												
+		// all the following parameters only apply to certain types of transfer functions
+		
 		bool clamp;         // false - return zero outside range
 		                    // true - extrapolate constant values above/below range
+												
 		float range[2];     // min,max of val to calculate TF on
 		Spectrum le;
 		float gaussParam[2]; // mean, sigma
+		
+		// discrete only
+		string colorTable;
+		int colorTableLen;
+		vector<float> colorTableVals;
+		float ctMinMax[2];
+		float ctStep;
 };
 
 class TransferFunction /*: public VolumeRegion*/ {
@@ -55,18 +69,27 @@ public:
     TransferFunction(const Spectrum &sig_a);
 		~TransferFunction();
 
-    // methods
+    // methods (one rgb color)
 		bool AddGaussian(int valNum, float midp, float sigma, Spectrum &spec);
     bool AddTophat(int valNum, float min, float max, Spectrum &spec);
 		bool AddConstant(int valNum, Spectrum &spec);
+		
+		// methods (arbitrary number of rgb colors)
 		bool AddPiecewise(int valNum, vector<float> &params);
 		
+		// methods (discrete color table)
+		bool AddConstantDiscrete(int valNum, string ctName, float ctMin, float ctMax);
+		bool AddTophatDiscrete(int valNum, string ctName, float ctMin, float ctMax, float min, float max);
+		bool AddGaussianDiscrete(int valNum, string ctName, float ctMin, float ctMax, float midp, float sigma);
+		
+		// handle inputs
 		bool AddParseString(string &addTFstr);
 		
 		// evaluation
     //Spectrum sigma_a(const Point &p, const Vector &, float) const {    }
     //Spectrum sigma_s(const Point &p, const Vector &, float) const {    }
 		Spectrum sigma_t() const { return sig_t; }
+		bool InRange(const float *vals) const;
     Spectrum Lve(const float *vals) const;
     //Spectrum tau(const Ray &r, float stepSize, float offset) const {   }
 		
