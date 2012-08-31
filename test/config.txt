@@ -1,0 +1,70 @@
+
+% Sample ArepoVTK Configuration File
+
+% Input/Output
+% ------------
+
+imageFile      = frame2.tga             % output: TGA image filename
+rawRGBFile     = frame2.raw.txt         % output: raw dump of floats (debug only)
+filename       = test/Arepo2b
+paramFilename  = test/param.txt
+
+% General
+% -------
+
+nCores         = 4                     % number of cores to use (0=all)
+nTasks         = 16                     % number of tasks/threads to run (0=auto)
+quickRender    = false                 % unused
+openWindow     = false                 % unused
+verbose        = true                  % report more information
+
+% Frame
+% -----
+
+imageXPixels   = 800                 % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 800                 % frame resolution (Y), e.g. 768,  1080
+swScale        = 0.52                 % screenWindow mult factor * [-1,1]
+                                      % 0.52 ortho face, 0.80 angled above, boxsize/2 in
+                                      % general if centering camera at [boxsize/2,boxsize/2,0]
+% Camera
+% ------
+cameraFOV      = 0.0                 % degrees (0=orthographic camera)
+cameraPosition = 0.5 0.5 0.0         % (XYZ) camera position in world coord system
+cameraLookAt   = 0.5 0.5 0.5          % (XYZ) point centered in camera FOV
+
+% Transfer Function
+% -----------------
+
+%addTF_01 = constant Density 1e6 0.0 0.0
+%addTF_02 = gaussian Density 1e-3 2e-4 green
+%addTF_03 = gaussian Density 2e-2 3e-3 0.0 0.1 0.0
+addTF_04 = constant_table Density idl_33_blue-red 10.0 0.05
+addTF_01 = gaussian_table Density idl_33_blue-red 0.1 10.0 3.0 0.2
+addTF_02 = gaussian_table Density idl_33_blue-red 4.0 5.0 4.5 0.2
+addTF_03 = gaussian_table Density cubehelix_1 1.0 2.0 1.5 0.2
+
+% Render
+% ------
+
+drawBBox         = true              % draw simulation bounding box
+drawTetra        = true              % draw delaunay tetrahedra
+drawVoronoi      = true              % draw voronoi polyhedra faces
+
+projColDens      = false             % integrate quantities (density, etc) along each path 
+                                     % length, to make e.g. a "projected column density" image
+
+useDensGradients = true              % use density gradient within cells
+
+viStepSize       = 0.2               % volume integration sub-stepping size (0=disabled)
+                                     % in (Arepo) code units
+
+rayMaxT          = 0.0               % maximum ray integration parametric length
+
+rgbLine          = 0.1 0.1 0.1       % (RGB) bounding box
+rgbTetra         = 0.02 0.0 0.0      % (RGB) tetra edges
+rgbVoronoi       = 0.0 0.02 0.0      % (RGB) voronoi edges
+
+rgbAbsorb        = 0.0 0.0 0.0       % (RGB) absorption
+
+% End.
+

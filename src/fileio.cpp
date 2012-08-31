@@ -309,14 +309,36 @@ bool WriteFloatFile(const char *filename, float *values, int nx, int ny)
     return true;
 }
 
+int loadDiscreteColorTable(const string &filename, vector<float> *vals)
+{
+		// set colortables path
+		string filepath = "colortables/" + filename + ".tbl";
+		
+		if (!ReadFloatFile(filepath.c_str(), vals)) {
+				cout << "ERROR: Unable to open color table file: '" << filepath << "', exiting." << endl;
+				exit(1161);
+		}
+
+		int numEntries = (int)(*vals)[0];
+		
+		if (numEntries != ((int)vals->size()-1)/4) {
+				cout << "ERROR: Corrupt color table file: '" << filepath << "', exiting." << endl;
+				exit(1162);
+		}
+			
+		// pop the first entry (the count of the number of entries in this color table)
+		vals->erase(vals->begin());
+
+		return numEntries;
+}
+
 int parseSceneFile(const string &filename, int &nx, int &ny, int &nz, vector<float> *data)
 {
 		int ni = 0;
 		vector<float> vals;
 		
-		if (!ReadFloatFile(filename.c_str(), &vals)) {
+		if (!ReadFloatFile(filename.c_str(), &vals))
 				return 0;
-		}
 
 		// size
 		if (vals.size() >= 4) {

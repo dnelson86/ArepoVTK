@@ -44,7 +44,7 @@ void RendererTask::Run() {
 		
     while ((sampleCount = sampler->GetMoreSamples(samples, rng)) > 0)
 		{
-				IF_DEBUG(cout << " [Task=" << taskNum << "] RendererTask::Run() maxSamples = " << maxSamples 
+				IF_DEBUG(cout << " [Task=" << setw(2) << taskNum << "] RendererTask::Run() maxSamples = " << maxSamples 
 											<< " sampleCount = " << sampleCount << endl);
 				
         // generate camera rays and compute radiance along rays
@@ -76,7 +76,7 @@ void RendererTask::Run() {
     }
 
 		float time = (float)timer2.Time();
-		cout << " [Task=" << taskNum << "] Raytracing phase: [" << time << "] seconds." << endl;
+		cout << " [Task=" << setw(2) << taskNum << "] Raytracing phase: [" << time << "] seconds." << endl;
 		
     // Clean up after _SamplerRendererTask_ is done with its image region
     camera->film->UpdateDisplay(sampler->xPixelStart, sampler->yPixelStart, 
@@ -197,18 +197,20 @@ void Renderer::RasterizeStage(const Scene *scene)
 				edges.clear();
 				Spectrum Lvor   = Spectrum::FromRGB(Config.rgbVoronoi);
 				
-				//for (unsigned int i = 0; i < scene->arepoMesh->Nvf; i++) {
-				int i = 26;
+				// compute edges
+				int numFaces = scene->arepoMesh->ComputeVoronoiEdges();	
+				
+				for (int i = 0; i < numFaces-1; i++) {
 						if (scene->arepoMesh->VoronoiEdges(i,&edges)) {
 								for (unsigned int j = 0; j < edges.size(); j++) {
-										cout << " VE p1.x = " << edges[j].p1.x << " p1.y = " << edges[j].p1.y
+										IF_DEBUG(cout << " VE p1.x = " << edges[j].p1.x << " p1.y = " << edges[j].p1.y
 																	<< " p1.z = " << edges[j].p1.z << " p2.x = " << edges[j].p2.x
-																	<< " p2.y = " << edges[j].p2.y << " p2.z = " << edges[j].p2.z << endl;
+																	<< " p2.y = " << edges[j].p2.y << " p2.z = " << edges[j].p2.z << endl);
 										camera->RasterizeLine(edges[j].p1,edges[j].p2,Lvor);
 								}
 
 						}
-				//}
+				}
 		} 
 
 		// testing: acquire and rasterize edges of VR/AM BBox
@@ -225,7 +227,7 @@ void Renderer::RasterizeStage(const Scene *scene)
 		} 
 
 		float time = (float)timer2.Time();
-		cout << " [Task=Root] Rasterization phase: [" << time << "] seconds." << endl;
+		cout << endl << " [Task=00] Rasterization phase: [" << time << "] seconds." << endl;
 }
 
 Spectrum Renderer::Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, int taskNum) const

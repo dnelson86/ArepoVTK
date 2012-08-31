@@ -47,7 +47,7 @@ public:
 		bool drawBBox, drawTetra, drawVoronoi;
 		bool projColDens, useDensGradients;		
 		
-		double viStepSize;
+		float viStepSize;
 		float rayMaxT;
 		float rgbLine[3], rgbTetra[3], rgbVoronoi[3];
 		float rgbAbsorb[3];
@@ -64,14 +64,11 @@ private:
 		template<class T> static T string_to_T(const string& str);
 };
 
-//#include "ArepoRT.h"
-
-//#include <ctype.h>
-//#include <stdlib.h>
-
 bool ReadFloatFile(const char *filename, vector<float> *values);
 bool WriteFloatFile(const char *filename, float *values, int nx, int ny);
 int parseSceneFile(const string &filename, int &nx, int &ny, int &nz, vector<float> *data);
+
+int loadDiscreteColorTable(const string &filename, vector<float> *colorTableVals);
 
 void WriteImage(const string &name, float *pixels, float *alpha, int XRes, int YRes, 
                 int totalXRes, int totalYRes, int xOffset, int yOffset);
