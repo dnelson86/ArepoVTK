@@ -55,6 +55,10 @@ void rtIsoDiskCosmoCutoutRender()
 		
 	Sampler *sampler     = CreateStratifiedSampler(film, camera);
 	Renderer *re         = new Renderer(sampler, camera, vi);
+
+#ifdef NATURAL_NEIGHBOR_SPHKERNEL
+       cout << "NATURAL_NEIGHBOR_SPHKERNEL" << endl;
+#endif
 	
 	cout << endl << "Raytracer Init and Arepo Preprocessing: [" << (float)timer.Time() << "] seconds." << endl;
 	
@@ -103,9 +107,9 @@ void rtTestRenderScene(string filename)
 		tf->AddParseString(Config.tfSet[i]);
 	
 	// debugging:
-	Spectrum s1 = Spectrum::FromNamed("red");
-	Spectrum s2 = Spectrum::FromNamed("green");
-	Spectrum s3 = Spectrum::FromNamed("blue");
+	//Spectrum s1 = Spectrum::FromNamed("red");
+	//Spectrum s2 = Spectrum::FromNamed("green");
+	//Spectrum s3 = Spectrum::FromNamed("blue");
 	//tf->AddConstant(TF_VAL_DENS,s3);
 	//tf->AddGaussian(TF_VAL_DENS,2.8,0.1,s1);
 	//tf->AddGaussian(TF_VAL_DENS,5.0,0.5,s2);
@@ -184,8 +188,8 @@ int main (int argc, char* argv[])
 #endif
 
 	// debug test render
-	//rtTestRenderScene(Config.filename);
-	rtIsoDiskCosmoCutoutRender();
+	rtTestRenderScene(Config.filename);
+	//rtIsoDiskCosmoCutoutRender();
 	
 	// cleanup
 #ifdef ENABLE_AREPO
