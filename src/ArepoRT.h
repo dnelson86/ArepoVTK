@@ -23,9 +23,16 @@
 //#define USE_LINEALGO_BRESENHAM
 #define USE_LINEALGO_WU
 
+/* interpolation methods (choose one) */
+
 #define NATURAL_NEIGHBOR_INTERP
 //#define NATURAL_NEIGHBOR_IDW
+//#define NATURAL_NEIGHBOR_SPHKERNEL
+//#define CELL_GRADIENTS_ONLY
 
+//#define NNI_DISABLE_EXACT
+
+/* special behavior */
 //#define DEBUG_VERIFY_INCELL_EACH_STEP
 //#define DEBUG_VERIFY_ENTRY_CELLS
 //#define USE_AREPO_TREEFIND_FUNC

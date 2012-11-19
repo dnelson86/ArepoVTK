@@ -21,8 +21,8 @@ verbose        = true                  % report more information
 % Frame
 % -----
 
-imageXPixels   = 800                 % frame resolution (X), e.g. 1024, 1920
-imageYPixels   = 800                 % frame resolution (Y), e.g. 768,  1080
+imageXPixels   = 200                 % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 200                 % frame resolution (Y), e.g. 768,  1080
 swScale        = 0.52                 % screenWindow mult factor * [-1,1]
                                       % 0.52 ortho face, 0.80 angled above, boxsize/2 in
                                       % general if centering camera at [boxsize/2,boxsize/2,0]
@@ -39,23 +39,23 @@ cameraLookAt   = 0.5 0.5 0.5          % (XYZ) point centered in camera FOV
 %addTF_02 = gaussian Density 1e-3 2e-4 green
 %addTF_03 = gaussian Density 2e-2 3e-3 0.0 0.1 0.0
 addTF_04 = constant_table Density idl_33_blue-red 10.0 0.05
-addTF_01 = gaussian_table Density idl_33_blue-red 0.1 10.0 3.0 0.2
-addTF_02 = gaussian_table Density idl_33_blue-red 4.0 5.0 4.5 0.2
-addTF_03 = gaussian_table Density cubehelix_1 1.0 2.0 1.5 0.2
+%addTF_01 = gaussian_table Density idl_33_blue-red 0.1 10.0 3.0 0.2
+%addTF_02 = gaussian_table Density idl_33_blue-red 4.0 5.0 4.5 0.2
+%addTF_03 = gaussian_table Density cubehelix_1 1.0 2.0 1.5 0.2
 
 % Render
 % ------
 
-drawBBox         = true              % draw simulation bounding box
-drawTetra        = true              % draw delaunay tetrahedra
-drawVoronoi      = true              % draw voronoi polyhedra faces
+drawBBox         = false              % draw simulation bounding box
+drawTetra        = false              % draw delaunay tetrahedra
+drawVoronoi      = false              % draw voronoi polyhedra faces
 
 projColDens      = false             % integrate quantities (density, etc) along each path 
                                      % length, to make e.g. a "projected column density" image
 
 useDensGradients = true              % use density gradient within cells
 
-viStepSize       = 0.2               % volume integration sub-stepping size (0=disabled)
+viStepSize       = 0.1               % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
 
 rayMaxT          = 0.0               % maximum ray integration parametric length

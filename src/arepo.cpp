@@ -899,6 +899,19 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		return true;		
 }
 
+#ifdef NATURAL_NEIGHBOR_SPHKERNEL
+inline float sph_kernel(float dist, float hinv)
+{
+  float u = dist * hinv;
+  
+  if(u < 0.5)
+    return (KERNEL_COEFF_1 + KERNEL_COEFF_2 * (u - 1) * u * u);
+  if(u < 1.0)
+    return KERNEL_COEFF_5 * (1.0 - u) * (1.0 - u) * (1.0 - u);
+  return 0;
+}
+#endif
+
 // interpolate scalar fields at position pt inside Voronoi cell SphP_ID (various methods)
 int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, int taskNum)
 {
@@ -918,7 +931,7 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 				
 #ifdef NATURAL_NEIGHBOR_IDW
 
-#define POWER_PARAM 7.0
+#define POWER_PARAM 1.0
 
 		// list of neighbors
 		const int start_edge = midpoint_idx[DP_ID].first;
@@ -959,7 +972,71 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 		vals[TF_VAL_DENS]   /= weightsum;
 		vals[TF_VAL_UTHERM] /= weightsum;
 			
-#else
+#endif // NATURAL_NEIGHBOR_IDW
+
+#ifdef NATURAL_NEIGHBOR_SPHKERNEL
+
+#define HSML_FAC 0.8
+
+		// list of neighbors
+		const int start_edge = midpoint_idx[DP_ID].first;
+		const int n_edges    = midpoint_idx[DP_ID].second;
+		
+		// add parent to list
+		int dp_neighbor, sphp_neighbor;
+		float weight,weightsum,distsq;
+		
+            // 1. smoothing length parameter: calculate over neighbor distances
+            float hsml2 = 0.0;
+            for (int k=0; k < n_edges; k++) {
+	      if(dp_neighbor < 0)
+                continue;
+
+		  distsq = (DP[dp_neighbor].x - pt.x) * (DP[dp_neighbor].x - pt.x) + 
+			         (DP[dp_neighbor].y - pt.y) * (DP[dp_neighbor].y - pt.y) + 
+							 (DP[dp_neighbor].z - pt.z) * (DP[dp_neighbor].z - pt.z);
+                                           
+              if(distsq > hsml2)
+                hsml2 = distsq;
+            }
+           
+            //if(hsml2 < 0.1)
+	//	hsml2 = 0.1;
+ 
+            float hinv = HSML_FAC / sqrtf(hsml2);
+            
+		// 2. loop over each neighbor and add contribution
+		for (int k=0; k < n_edges; k++) {
+			dp_neighbor = opposite_points[start_edge + k];
+			sphp_neighbor = getSphPID(dp_neighbor);
+			
+			// calculate weight as sphkernel(distsq/h) (cubic spline kernel)
+		  distsq = (DP[dp_neighbor].x - pt.x) * (DP[dp_neighbor].x - pt.x) + 
+			         (DP[dp_neighbor].y - pt.y) * (DP[dp_neighbor].y - pt.y) + 
+							 (DP[dp_neighbor].z - pt.z) * (DP[dp_neighbor].z - pt.z);
+			weight = sph_kernel(sqrtf(distsq),hinv);
+			weightsum += weight; // * SphP[SphP_ID].Volume;
+			
+			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
+			vals[TF_VAL_UTHERM] += SphP[sphp_neighbor].Utherm * weight;
+		}
+		
+		// add in primary parent
+		distsq = (DP[DP_ID].x - pt.x) * (DP[DP_ID].x - pt.x) + 
+			       (DP[DP_ID].y - pt.y) * (DP[DP_ID].y - pt.y) + 
+						 (DP[DP_ID].z - pt.z) * (DP[DP_ID].z - pt.z);
+						 
+		weight = sph_kernel(sqrtf(distsq),hinv);
+		weightsum += weight; // * SphP[SphP_ID].Volume;
+		
+		vals[TF_VAL_DENS]   += SphP[SphP_ID].Density * weight;
+		vals[TF_VAL_UTHERM] += SphP[SphP_ID].Utherm * weight;
+		
+		// 3. normalize by weight totals
+		vals[TF_VAL_DENS]   /= weightsum;
+		vals[TF_VAL_UTHERM] /= weightsum;
+
+#endif // NATURAL_NEIGHBOR_SPHKERNEL
 
 #ifdef NATURAL_NEIGHBOR_INTERP
 		int tlast = 0;
@@ -1059,9 +1136,9 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 		vals[TF_VAL_DENS]   /= dp_new_vol[AuxMeshes[taskNum].Ndp-1];
 		vals[TF_VAL_UTHERM] /= dp_new_vol[AuxMeshes[taskNum].Ndp-1];
 
-#endif //NNI
+#endif // NATURAL_NEIGHBOR_INTERP
 
-#ifndef NATURAL_NEIGHBOR_INTERP
+#ifdef CELL_GRADIENTS_ONLY
 		// old:
 		Vector sphCen(     SphP[SphP_ID].Center[0],   SphP[SphP_ID].Center[1],   SphP[SphP_ID].Center[2]);
 		Vector sphDensGrad(SphP[SphP_ID].Grad.drho[0],SphP[SphP_ID].Grad.drho[1],SphP[SphP_ID].Grad.drho[2]);
@@ -1070,9 +1147,7 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 		vals[TF_VAL_DENS]   = SphP[SphP_ID].Density + Dot(sphDensGrad,pt);
 		vals[TF_VAL_UTHERM] = SphP[SphP_ID].Utherm; // no utherm gradient unless MATERIALS
 		
-#endif
-
-#endif // NATURAL_NEIGHBOR_IDW
+#endif // CELL_GRADIENTS_ONLY
 
 		return 1;
 }

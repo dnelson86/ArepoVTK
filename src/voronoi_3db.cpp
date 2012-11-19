@@ -346,10 +346,10 @@ int insert_point_new(tessellation * T, int pp, int ttstart)	/* returns a tetra t
 	  int qq = DT[tt].t[tip_index];	/* tetrahedron that's opposite of ours and shares the facet */
 	  int ppp = DT[qq].p[DT[tt].s[tip_index]];	/* point that's opposite of the facet in the other tetrahedron */
 
-	  int ret, ret_exact;
+	  int ret, ret_exact=0;
 
+#ifndef NNI_DISABLE_EXACT
 	  ret = InSphere_Errorbound(&DP[DT[qq].p[0]], &DP[DT[qq].p[1]], &DP[DT[qq].p[2]], &DP[DT[qq].p[3]], &DP[pp]);
-	  //CountInSphereTests++;
 
 	  if(ret != 0)
 	    ret_exact = ret;
@@ -359,6 +359,7 @@ int insert_point_new(tessellation * T, int pp, int ttstart)	/* returns a tetra t
 	      ret_exact = InSphere_Exact(&DP[DT[qq].p[0]], &DP[DT[qq].p[1]], &DP[DT[qq].p[2]], &DP[DT[qq].p[3]], &DP[pp]);
 	      //CountInSphereTestsExact++;
 	    }
+#endif
 
 	  if(ret_exact > 0)	/* facet is illegal, because point lies inside */
 	    {

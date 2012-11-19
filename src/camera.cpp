@@ -428,6 +428,7 @@ void Film::WriteImage(float splatScale)
     int nPix = xPixelCount * yPixelCount;
     float *rgb = new float[3*nPix];
     int offset = 0;
+    float maxInv = 0.0;
 		
     for (int y = 0; y < yPixelCount; ++y) {
         for (int x = 0; x < xPixelCount; ++x) {
@@ -443,6 +444,11 @@ void Film::WriteImage(float splatScale)
                 rgb[3*offset+2] = max(0.0f, rgb[3*offset+2] * invWt);
             }
 
+            // save maximum
+            if(rgb[3*offset  ] > maxInv) maxInv = rgb[3*offset];
+            if(rgb[3*offset+1] > maxInv) maxInv = rgb[3*offset+1];
+            if(rgb[3*offset+2] > maxInv) maxInv = rgb[3*offset+2];
+
             // Add splat value at pixel
             float splatRGB[3];
             XYZToRGB((*pixels)(x, y).splatXYZ, splatRGB);
@@ -450,6 +456,19 @@ void Film::WriteImage(float splatScale)
             rgb[3*offset+1] += splatScale * splatRGB[1];
             rgb[3*offset+2] += splatScale * splatRGB[2];
             ++offset;
+        }
+    }
+
+    // testing: scale the maximum intensity up to 1.0
+    offset = 0;
+    maxInv = 1.0 / maxInv;
+
+    for (int y = 0; y < yPixelCount; ++y) {
+        for (int x = 0; x < xPixelCount; ++x) {
+            rgb[3*offset  ] = rgb[3*offset  ]*maxInv;
+            rgb[3*offset+1] = rgb[3*offset+1]*maxInv;
+            rgb[3*offset+2] = rgb[3*offset+2]*maxInv;
+            offset++;
         }
     }
 

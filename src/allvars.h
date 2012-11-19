@@ -51,6 +51,16 @@
 
 typedef int integertime;
 
+/* sph kernel interpolation */
+#define  NUMDIMS 3              /**< For 3D-normalized kernel */
+#define  KERNEL_COEFF_1  2.546479089470 /**< Coefficients for SPH spline kernel and its derivative */
+#define  KERNEL_COEFF_2  15.278874536822
+#define  KERNEL_COEFF_3  45.836623610466
+#define  KERNEL_COEFF_4  30.557749073644
+#define  KERNEL_COEFF_5  5.092958178941
+#define  KERNEL_COEFF_6  (-15.278874536822)
+#define  NORM_COEFF      4.188790204786 /**< Coefficient for kernel normalization. Note:  4.0/3 * PI = 4.188790204786 */
+
 /* box and periodic */
 
 extern MyDouble boxSize, boxHalf; // NOTE: this is maybe not the boxSize global used by Arepo functions since this is
