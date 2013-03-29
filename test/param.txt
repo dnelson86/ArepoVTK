@@ -29,6 +29,7 @@ ResubmitCommand           my-scriptfile
 
 MaxMemSize        500         % sets maximum memory use in MByte
 BufferSize        200          % in MByte
+BufferSizeGravity 100
 
 %----- New
 

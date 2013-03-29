@@ -42,6 +42,10 @@ void RendererTask::Run() {
     // Get samples from _Sampler_ and update image
     int sampleCount;
 		
+		// accelerate entry point location by using the entry point of the previous ray from this task
+		int prevEntryCell  = -1;
+		int prevEntryTetra = 0;
+		
     while ((sampleCount = sampler->GetMoreSamples(samples, rng)) > 0)
 		{
 				IF_DEBUG(cout << " [Task=" << setw(2) << taskNum << "] RendererTask::Run() maxSamples = " << maxSamples 
@@ -60,7 +64,8 @@ void RendererTask::Run() {
 				// Evaluate radiance along camera rays
 				for (int i=0; i < sampleCount; i++)
 				{
-						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], &prevEntryCell, taskNum);
+						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], 
+						                                     &prevEntryCell, &prevEntryTetra, taskNum);
 
 						// error check on value of Ls[i]
         }
@@ -230,9 +235,9 @@ void Renderer::RasterizeStage(const Scene *scene)
 		cout << endl << " [Task=00] Rasterization phase: [" << time << "] seconds." << endl;
 }
 
-Spectrum Renderer::Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, int taskNum) const
+Spectrum Renderer::Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, int *prevEntryTetra, int taskNum) const
 {
-    Spectrum Lvi = volumeIntegrator->Li(scene, this, ray, sample, rng, T, prevEntryCell, taskNum);
+    Spectrum Lvi = volumeIntegrator->Li(scene, this, ray, sample, rng, T, prevEntryCell, prevEntryTetra, taskNum);
 		
     return Lvi;
 }

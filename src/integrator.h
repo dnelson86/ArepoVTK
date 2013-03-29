@@ -8,8 +8,6 @@
 
 #include "ArepoRT.h"
 
-
-
 class VolumeIntegrator {
 public:
 		// pure virtual
@@ -22,7 +20,7 @@ public:
 		
     virtual Spectrum Li(const Scene *scene, const Renderer *renderer, const Ray &ray, 
 		                    const Sample *sample, RNG &rng, Spectrum *transmittance, 
-												int *prevEntryCell, int taskNum) const = 0;
+												int *prevEntryCell, int *prevEntryTetra, int taskNum) const = 0;
     virtual Spectrum Transmittance(const Scene *scene, const Renderer *renderer, const Ray &ray,
 																	 const Sample *sample, RNG &rng) const = 0;
 };
@@ -40,7 +38,7 @@ public:
 		void Preprocess(const Scene *scene, const Camera *camera, const Renderer *renderer) { }
     void RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene);
     Spectrum Li(const Scene *scene, const Renderer *renderer, const Ray &ray, 
-		            const Sample *sample, RNG &rng, Spectrum *transmittance, int *prevEntryCell, int taskNum) const;
+		            const Sample *sample, RNG &rng, Spectrum *transmittance, int *prevEntryCell, int *prevEntryTetra, int taskNum) const;
     Spectrum Transmittance(const Scene *scene, const Renderer *,
             const Ray &ray, const Sample *sample, RNG &rng) const;
 private:
@@ -61,7 +59,7 @@ public:
 		void Preprocess(const Scene *scene, const Camera *camera, const Renderer *renderer);
     void RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene);
     Spectrum Li(const Scene *scene, const Renderer *renderer, const Ray &ray, 
-		            const Sample *sample, RNG &rng, Spectrum *transmittance, int *prevEntryCell, int taskNum) const;
+		            const Sample *sample, RNG &rng, Spectrum *transmittance, int *prevEntryCell, int *prevEntryTetra, int taskNum) const;
     Spectrum Transmittance(const Scene *scene, const Renderer *,
             const Ray &ray, const Sample *sample, RNG &rng) const;
 private:

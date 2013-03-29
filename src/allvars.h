@@ -46,7 +46,7 @@
 #define NUMBER_OF_MEASUREMENTS_TO_RECORD  6
 
 #define FACT1                0.366025403785    /* FACT1 = 0.5 * (sqrt(3)-1) */
-#define SUNRISE              4711
+#define SUNRISE_CODE              4711
 #define MAXLEN_PATH          256
 
 typedef int integertime;
@@ -128,7 +128,9 @@ extern struct global_data_all_processes
 #endif
 
 #if defined(REFINEMENT_SPLIT_CELLS) || defined(REFINEMENT_MERGE_CELLS) 
+  double ReferenceGasPartMass;
   double TargetGasMass;
+	double TargetGasMassFactor;
   int RefinementCriterion;
   int DerefinementCriterion;
 #endif
@@ -142,6 +144,7 @@ extern struct global_data_all_processes
   int NumFilesPerSnapshot;
   int NumFilesWrittenInParallel;
   int BufferSize;
+	int BufferSizeGravity;
   int BunchSize;
   double TreeAllocFactor;
   double TopNodeAllocFactor;
@@ -169,15 +172,17 @@ extern struct global_data_all_processes
   long long TotNumOfForces;	/**< counts total number of force computations  */
 
 #ifdef SUBBOX_SNAPSHOTS
-  double SubboxXmin, SubboxXmax, SubboxYmin, SubboxYmax, SubboxZmin, SubboxZmax;
-  double SubboxMinTime, SubboxMaxTime; 
+  char SubboxCoordinatesPath[255];
+  double SubboxMinTime, SubboxMaxTime;
   int SubboxSyncCounter;
   int SubboxSyncModulo;
-  int SubboxNumFilesPerSnapshot;      
+  int SubboxNumFilesPerSnapshot;
   int SubboxNumFilesWrittenInParallel;
+  int SubboxNumber;
 #endif
 
-  double cf_atime, cf_a2inv, cf_a3inv, cf_afac1, cf_afac2, cf_afac3, cf_hubble_a;
+  double cf_atime, cf_a2inv, cf_a3inv, cf_afac1, cf_afac2, cf_afac3, cf_hubble_a, cf_time_hubble_a, cf_redshift;
+	double cf_H;
 
   /* system of units  */
   double UnitTime_in_s,		/**< factor to convert internal time unit to seconds/h */
@@ -491,6 +496,12 @@ void dump_memory_table(void);
 
 void open_logfiles(void);
 void close_logfiles(void);
+void write_voronoi_mesh(tessellation * T, char *fname, int writeTask, int lastTask);
+
+int image_get_next_tetra(tessellation * T, int tt, point * ppstart, point * ppend, int *nexttetra,
+                         point * ppexit, int *previous_tetra);
+
+
 }
  
 #endif //AREPO_RT_ALLVARS_H

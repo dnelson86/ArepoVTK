@@ -25,9 +25,11 @@
 
 /* interpolation methods (choose one) */
 
-#define NATURAL_NEIGHBOR_INTERP
-//#define NATURAL_NEIGHBOR_IDW
+//#define NATURAL_NEIGHBOR_INTERP
+#define NATURAL_NEIGHBOR_IDW
 //#define NATURAL_NEIGHBOR_SPHKERNEL
+//#define NATURAL_NEIGHBOR_WATSON
+//#define DTFE_INTERP
 //#define CELL_GRADIENTS_ONLY
 
 //#define NNI_DISABLE_EXACT
@@ -37,6 +39,9 @@
 //#define DEBUG_VERIFY_ENTRY_CELLS
 //#define USE_AREPO_TREEFIND_FUNC
 //#define DISABLE_MEMORY_MANAGER
+
+//#define DUMP_VORONOI_MESH
+//#define DUMP_MESH_TEXT
 
 #ifdef DEBUG
 #define IF_DEBUG(expr) (expr)

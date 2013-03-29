@@ -15,7 +15,13 @@ Installation/Compilation:
  (4) Build ArepoVTK:        cd ~/ArepoVTK && make clean && make
  (5) Run ArepoRT Test:      ./ArepoRT test/config.txt
 
-Design:
+Notes:
+
+ * To build libarepo.a, delete main() from main.c and compile Arepo (ignore
+ * missing main error), then build libarepo.a.
+ * All structure is copied into local allvars.h and must match compile options
+ * and current revision in Arepo allvars.h, otherwise All.BoxSize likely zero
+ * and rays likely all terminated at their start.
 
 -------
 ArepoRT
@@ -71,12 +77,18 @@ Version Roadmap:
    - handle local ghosts
    - 128^3 cosmo rendering
   - parallel (threads) on shared memory node
-	
+
+ +v0.39
+  - voronoi cell algorithm
+  - SPH kernel and IDW of natural neighbors interp methods
+  - tetra mesh walking
+   - DTFE and Watsonian (Liang-Hale) NNI methods
+  - external colortables
+
  +v0.4
   - 2D transfer functions, e.g. f(rho,T)	 
   - derived fields for TFs (e.g. temp, coolingrate)
   - johnston convolved planck BB temp emission TF
-  - voronoi cell edge algorithm
 
  +v0.45
   - parallel (MPI) on distributed memory cluster
