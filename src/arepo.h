@@ -38,6 +38,10 @@ public:
 		// construction
 		ArepoMesh(const TransferFunction *tf);
     ~ArepoMesh();
+		
+		// init for particular interp methods
+		void setupAuxMeshes();
+		void precomputeTetraGrads();
 
 		// preprocessing
 		int ComputeVoronoiEdges();
@@ -47,6 +51,7 @@ public:
 		
 		// methods
 		void DumpMesh();
+		void OutputMesh();
 		BBox WorldBound() const { return extent; }
     BBox VolumeBound() const { return extent; }
 
@@ -64,14 +69,18 @@ public:
 		void LocateEntryCellBrute(const Ray &ray);
 		void VerifyPointInCell(int dp, Point &pos);
 		
+		void LocateEntryTetra(const Ray &ray, int *prevEntryTetra);
+		
 		int FindNearestGasParticle(Point &pt, int guess, double *mindist);
 		bool AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, int previous_cell, 
 															Spectrum &Lv, Spectrum &Tr, int taskNum);
 		
 		inline int getSphPID(int dp_id);
+		void locateCurrentTetra(const Ray& ray, Vector &pt);
+		void checkCurCellTF(bool *addFlag, int SphP_ID, float *vals);
 		
 		// fluid data introspection
-		int subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, int taskNum);
+		int subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *vals, int taskNum);
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
 		// data
@@ -98,7 +107,10 @@ private:
 		
 		// mesh
 		tessellation *T;
+		
+		// for particular interpolation methods
 		tessellation *AuxMeshes;
+		float *DT_grad;
 		
 		// for drawing voronoi faces and edges
 		vector<int> vertexList;

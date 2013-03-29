@@ -20,7 +20,8 @@ public:
     void Render(const Scene *scene);
 		void RasterizeStage(const Scene *scene);
 		
-    Spectrum Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T = NULL, int *prevEntryCell = NULL, int taskNum = -1) const;
+    Spectrum Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T = NULL, 
+			int *prevEntryCell = NULL, int *prevEntryTetra = NULL, int taskNum = -1) const;
     Spectrum Transmittance(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng) const;
 		
 private:
@@ -40,7 +41,6 @@ public:
 
         scene = sc; renderer = ren; camera = c; mainSampler = ms;
         origSample = sam; taskNum = tn; taskCount = tc;
-				prevEntryCell = -1;
     }
     void Run();
 		
@@ -52,8 +52,6 @@ private:
     Sampler *mainSampler;
     Sample *origSample;
     int taskNum, taskCount;
-		
-		int prevEntryCell;
 };
 
 

@@ -12,11 +12,9 @@
 
 % Arepo HDF5 IC Format Tests
 
- Arepo1  - 2x2x1 (in z) uniform density grid, with one point at 2x density
- Arepo2  - 2^3 uniform rho grid, with one point at 2x density
- Arepo3  - 4^3 uniform rho grid, with one point at 2x density
  Arepo2b - 2^3 uniform rho grid with added central point (0.5,0.5,0.5) at 2x density
- Arepo2c - Arepo2b with [0.25,0.25,0.75] point moved to [0.25,0.25,0.95]
-
+ Arepo3  - 4^3 uniform rho grid
+ Arepo3b - 4^3 uniform rho grid with added central point (0.5,0.5,0.5) at 2x density
+ 
  *.hdf5.dump.txt - Output of ArepoMesh::DumpMesh() for the smaller ICs.
 

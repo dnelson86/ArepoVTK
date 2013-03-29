@@ -37,7 +37,7 @@ Spectrum EmissionIntegrator::Transmittance(const Scene *scene, const Renderer *r
 }
 
 Spectrum EmissionIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
-															  const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, int taskNum) const
+															  const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, int *prevEntryTetra, int taskNum) const
 {
 		IF_DEBUG(cout << "EmissionIntegrator::Li()" << endl);
 		
@@ -112,7 +112,8 @@ Spectrum VoronoiIntegrator::Transmittance(const Scene *scene, const Renderer *re
 }
 
 Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
-															  const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, int taskNum) const
+															  const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, 
+																int *prevEntryTetra, int taskNum) const
 {
 		IF_DEBUG(cout << "VoronoiIntegrator::Li()" << endl);
 		
@@ -153,7 +154,11 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 				
 		// find the voronoi cell the ray will enter (or be in) first
 		scene->arepoMesh->LocateEntryCell(ray, prevEntryCell);
-		//scene->arepoMesh->LocateEntryCellBrute(ray);
+		
+#if defined(DTFE_INTERP) || defined(NATURAL_NEIGHBOR_WATSON)
+		// find the delaunay tetra the ray will enter (or be in) first
+		scene->arepoMesh->LocateEntryTetra(ray, prevEntryTetra);
+#endif
 
 		// TODO: exchange?
 		

@@ -106,14 +106,6 @@ void rtTestRenderScene(string filename)
 	for (unsigned int i=0; i < Config.tfSet.size(); i++)
 		tf->AddParseString(Config.tfSet[i]);
 	
-	// debugging:
-	//Spectrum s1 = Spectrum::FromNamed("red");
-	//Spectrum s2 = Spectrum::FromNamed("green");
-	//Spectrum s3 = Spectrum::FromNamed("blue");
-	//tf->AddConstant(TF_VAL_DENS,s3);
-	//tf->AddGaussian(TF_VAL_DENS,2.8,0.1,s1);
-	//tf->AddGaussian(TF_VAL_DENS,5.0,0.5,s2);
-	
 	// create volume/density/scene geometry (debugging only)
 	//VolumeRegion *vr     = CreateGridVolumeRegion(volume2world, filename);
 	VolumeRegion *vr      = NULL;
@@ -121,10 +113,22 @@ void rtTestRenderScene(string filename)
 	// voronoi mesh
 	ArepoMesh *arepoMesh  = new ArepoMesh(tf);
 
+#ifdef DUMP_VORONOI_MESH
+	// dump mesh in VORONOI_MESHOUTPUT format
+	arepoMesh->OutputMesh();
+	return;
+#endif
+
+#ifdef DUMP_MESH_TEXT
+  // dump all mesh related structures in text format
+	arepoMesh->DumpMesh();
+	return;
+#endif
+	
 	// scene
 	Scene *scene          = new Scene(vr, arepoMesh);
 			
-	// debugging only (Arepo2b overrides)
+	// debugging only (Arepo2b/3b overrides)
 	for (int i=0; i < NumGas; i++) {
 		SphP[i].Density      = 0.01;
 		SphP[i].Grad.drho[0] = 0.0;
@@ -132,14 +136,15 @@ void rtTestRenderScene(string filename)
 		SphP[i].Grad.drho[2] = 0.0;
 	}
 	
-	// Arepo2b overrides
-	SphP[6].Density      = 20.0;  // center point //3.0
-	SphP[6].Grad.drho[0] = 10.0;
-	SphP[6].Grad.drho[1] = 10.0;
-	SphP[6].Grad.drho[2] = 2.0;
+	// Arepo2b/3b overrides (central point)
+	int dpInd;
+  if ( Config.filename == "Arepo2b" ) dpInd = 6;
+	if ( Config.filename == "Arepo3b" ) dpInd = 10;
 	
-	//SphP[2].Density      = 20.0; // upper right near corner
-	//SphP[5].Density      = 2.8; // upper right far corner
+	SphP[dpInd].Density      = 20.0;
+	SphP[dpInd].Grad.drho[0] = 10.0;
+	SphP[dpInd].Grad.drho[1] = 10.0;
+	SphP[dpInd].Grad.drho[2] = 2.0;
 	
 #ifdef DEBUG
 	for (int i=0; i < NumGas; i++) {

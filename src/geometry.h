@@ -160,6 +160,7 @@ public:
     mutable float min_t, max_t; // parametric distance along ray
 		mutable int index, task;    // index and task of the primary voronoi cell in which this ray is located
     mutable int depth; // counter of ViStepSize steps
+		mutable int tetra; // DT index of the Delaunay tetra this ray is in (or was in last)
     float time;
 };
 

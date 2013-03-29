@@ -49,7 +49,7 @@ bool Arepo::LoadSnapshot()
 		// set startup options
 		WriteMiscFiles = 0;
 		RestartSnapNum = -1;
-		RestartFlag    = SUNRISE;
+		RestartFlag    = SUNRISE_CODE;
 
 		strcpy(ParameterFile,paramFilename.c_str());
 
@@ -61,7 +61,7 @@ bool Arepo::LoadSnapshot()
 		if (ifstream(snapFilename.c_str())) {
 				freopen("/dev/tty","w",stdout);
 				cout << "Arepo::LoadSnapshot() ERROR! Exact snapshot [" << snapFilename << "] found (don't include extension)." << endl;
-				endrun(1121);
+				terminate("1121");
 		}
 		
 		string f1 = snapFilename + ".hdf5";
@@ -69,7 +69,7 @@ bool Arepo::LoadSnapshot()
 		if (!ifstream(f1.c_str()) && !ifstream(f2.c_str())) {
 				freopen("/dev/tty","w",stdout);
 				cout << "Arepo::LoadSnapshot() ERROR! Neither [" << f1 << "] nor [" << f2 << "] found!" << endl;
-				endrun(1140);
+				terminate("1140");
 		}
 		
 		// load snapshot (GAS ONLY)
@@ -77,7 +77,7 @@ bool Arepo::LoadSnapshot()
 		
 		// call arepo: read snapshot, allocate storage for tree, 
 		//             initialize particle data, domain decomposition, initial HSML
-  	if (init() != SUNRISE) {
+  	if (init() != SUNRISE_CODE) {
 				cout << "Arepo::LoadSnapshot() ERROR: Arepo did not return successfully." << endl;
 				return false;
 		}
@@ -139,6 +139,46 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		ArepoMesh::CalculateMidpoints();
 		//ArepoMesh::LimitCellDensities();
 		
+		ArepoMesh::setupAuxMeshes();
+		ArepoMesh::precomputeTetraGrads();
+		
+		// TODO: temp units
+		unitConversions[TF_VAL_DENS]   = All.UnitDensity_in_cgs / MSUN_PER_PC3_IN_CGS;
+		unitConversions[TF_VAL_UTHERM] = All.UnitEnergy_in_cgs;
+		
+		IF_DEBUG(cout << "unitConv[dens]   = " << unitConversions[TF_VAL_DENS] << endl);
+		IF_DEBUG(cout << "unitConv[utherm] = " << unitConversions[TF_VAL_UTHERM] << endl);
+		
+		// debugging
+		//ArepoMesh::DumpMesh();
+}
+
+ArepoMesh::~ArepoMesh()
+{				
+#ifdef NATURAL_NEIGHBOR_INTERP
+		// free aux meshes
+		int numMeshes = Config.nTasks;
+		
+		for(int k = numMeshes-1; k == 0; k--)
+		{
+			myfree(AuxMeshes[k].DTF);
+			myfree(AuxMeshes[k].DTC);
+			AuxMeshes[k].DTC = NULL;
+			myfree(AuxMeshes[k].DT);
+			myfree(AuxMeshes[k].DP - 5);
+			myfree(AuxMeshes[k].VF);
+		}
+		
+		delete AuxMeshes;
+#endif
+#ifdef DTFE_INTERP
+		// free delaunay tetra gradients
+		delete DT_grad;
+#endif
+}
+
+void ArepoMesh::setupAuxMeshes(void)
+{
 #ifdef NATURAL_NEIGHBOR_INTERP
 		// allocate auxiliary meshes
 		int numMeshes = Config.nTasks;
@@ -228,35 +268,73 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 			
 		}
 #endif
-		
-		// TODO: temp units
-		unitConversions[TF_VAL_DENS]   = All.UnitDensity_in_cgs / MSUN_PER_PC3_IN_CGS;
-		unitConversions[TF_VAL_UTHERM] = All.UnitEnergy_in_cgs;
-		
-		IF_DEBUG(cout << "unitConv[dens]   = " << unitConversions[TF_VAL_DENS] << endl);
-		IF_DEBUG(cout << "unitConv[utherm] = " << unitConversions[TF_VAL_UTHERM] << endl);
-		
-		// debugging
-		//ArepoMesh::DumpMesh();
 }
 
-ArepoMesh::~ArepoMesh()
-{				
-#ifdef NATURAL_NEIGHBOR_INTERP
-		// free aux meshes
-		int numMeshes = Config.nTasks;
+void ArepoMesh::precomputeTetraGrads()
+{
+#ifdef DTFE_INTERP
+		int i;
+		double det_A;
+		double A[3][3]; // row,col
+		double A_inv[3][3];
+		float delta_f[3];
+		float field_0;
 		
-		for(int k = numMeshes-1; k == 0; k--)
-		{
-			myfree(AuxMeshes[k].DTF);
-			myfree(AuxMeshes[k].DTC);
-			AuxMeshes[k].DTC = NULL;
-			myfree(AuxMeshes[k].DT);
-			myfree(AuxMeshes[k].DP - 5);
-			myfree(AuxMeshes[k].VF);
+		// allocate for grad[3] per tetra (one field only)
+		DT_grad = new float[3 * Ndt];
+		
+		for (i = 0; i < Ndt; i++) {
+				// if this tetra is connected to the bounding tetra then skip it
+				if ( DT[i].p[0] < 0 || DT[i].p[1] < 0 || DT[i].p[2] < 0 || DT[i].p[3] < 0 )
+				  continue;
+					
+				// fill A
+				A[0][0] = DP[DT[i].p[1]].x - DP[DT[i].p[0]].x;
+				A[1][0] = DP[DT[i].p[2]].x - DP[DT[i].p[0]].x;
+				A[2][0] = DP[DT[i].p[3]].x - DP[DT[i].p[0]].x;
+				A[0][1] = DP[DT[i].p[1]].y - DP[DT[i].p[0]].y;
+				A[1][1] = DP[DT[i].p[2]].y - DP[DT[i].p[0]].y;
+				A[2][1] = DP[DT[i].p[3]].y - DP[DT[i].p[0]].y;
+				A[0][2] = DP[DT[i].p[1]].z - DP[DT[i].p[0]].z;
+				A[1][2] = DP[DT[i].p[2]].z - DP[DT[i].p[0]].z;
+				A[2][2] = DP[DT[i].p[3]].z - DP[DT[i].p[0]].z;
+				
+				// compute determinant(A)
+				det_A = A[0][0]*A[1][1]*A[2][2] + A[1][0]*A[2][1]*A[0][2] +
+                A[2][0]*A[0][1]*A[1][2] - A[0][0]*A[2][1]*A[1][2] - 
+								A[2][0]*A[1][1]*A[0][2] - A[1][0]*A[0][1]*A[2][2];
+								
+				if (det_A < INSIDE_EPS && det_A > -INSIDE_EPS) { // debugging
+				  cout << "ERROR: det_A is zero! " << det_A << " [" << i << "]" << endl;
+					exit(12509);
+				}
+				
+				// reciprocal of determinant
+				det_A = 1.0 / det_A;
+				
+				// compute A_inv
+				A_inv[0][0] = det_A * ( A[1][1]*A[2][2] - A[1][2]*A[2][1] );
+				A_inv[1][0] = det_A * ( A[1][2]*A[2][0] - A[1][0]*A[2][2] );
+				A_inv[2][0] = det_A * ( A[1][0]*A[2][1] - A[1][1]*A[2][0] );
+				A_inv[0][1] = det_A * ( A[0][2]*A[2][1] - A[0][1]*A[2][2] );
+				A_inv[1][1] = det_A * ( A[0][0]*A[2][2] - A[0][2]*A[2][0] );
+				A_inv[2][1] = det_A * ( A[0][1]*A[2][0] - A[0][0]*A[2][1] );
+				A_inv[0][2] = det_A * ( A[0][1]*A[1][2] - A[0][2]*A[1][1] );
+				A_inv[1][2] = det_A * ( A[0][2]*A[1][0] - A[0][0]*A[1][2] );
+				A_inv[2][2] = det_A * ( A[0][0]*A[1][1] - A[0][1]*A[1][0] );
+				
+				// compute delta_f (field specific)
+				field_0 = SphP[ getSphPID(DP[DT[i].p[0]].index) ].Density;
+				
+				delta_f[0] = SphP[ getSphPID(DP[DT[i].p[1]].index) ].Density - field_0;
+				delta_f[1] = SphP[ getSphPID(DP[DT[i].p[2]].index) ].Density - field_0;
+				delta_f[2] = SphP[ getSphPID(DP[DT[i].p[3]].index) ].Density - field_0;
+				
+				// compute the gradient (A_inv * delta_f) and store x,y,z components in DT_grad
+				DT_grad[3*i+0] = A_inv[0][0]*delta_f[0] + A_inv[0][1]*delta_f[1] + A_inv[0][2]*delta_f[2];
+				DT_grad[3*i+1] = A_inv[1][0]*delta_f[0] + A_inv[1][1]*delta_f[1] + A_inv[1][2]*delta_f[2];
+				DT_grad[3*i+2] = A_inv[2][0]*delta_f[0] + A_inv[2][1]*delta_f[1] + A_inv[2][2]*delta_f[2];
 		}
-		
-		delete AuxMeshes;
 #endif
 }
 
@@ -293,7 +371,7 @@ void ArepoMesh::LocateEntryCellBrute(const Ray &ray)
 		// verify task assignment
 		if (ray.task < 0 || ray.task >= NTask) {
 				cout << "ERROR! ray has bad task=" << ray.task << endl;
-				endrun(1115);
+				terminate("1115");
 		}
 		
 }
@@ -327,7 +405,7 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 #endif
 		
 #ifdef USE_AREPO_TREEFIND_FUNC
-		endrun(6233);
+		terminate("6233");
 		mindist = -1;
 		double pos[3];
 		pos[0] = hitbox.x;
@@ -418,7 +496,7 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 						        DP[dp_new].y << " z = " << DP[dp_new].z << endl;
 						cout << " ray (hunting for, hitbox) at x = " << hitbox.x << " y = " << hitbox.y <<
 						        " z = " << hitbox.z << endl;
-						endrun(1139);
+						terminate("1139");
 				}
 		}
 		
@@ -435,7 +513,7 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 		// if we did not finish in a primary cell, check that we iterated over at least one neighbor
 		if (dp_new >= NumGas && !count) {
 				cout << "ERROR: Refined entry tree search ended in ghost but count=0" << endl;
-				endrun(1107);
+				terminate("1107");
 		}
 		
 		ray.index = dp_new;
@@ -444,7 +522,7 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 		// verify task assignment
 		if (ray.task < 0 || ray.task >= NTask) {
 				cout << "ERROR! ray has bad task=" << ray.task << endl;
-				endrun(1115);
+				terminate("1115");
 		}
 		
 }
@@ -465,8 +543,6 @@ void ArepoMesh::VerifyPointInCell(int dp, Point &pos)
 		const int start_edge = midpoint_idx[dp].first;
 		const int n_edges    = midpoint_idx[dp].second;
 		
-		//int c = -1;
-		
 		for (int i=0; i < n_edges; i++)
 		{
 				const int dp_neighbor = opposite_points[start_edge + i];
@@ -479,18 +555,55 @@ void ArepoMesh::VerifyPointInCell(int dp, Point &pos)
 				
 				if (dist2point < dist2point_min) {
 						dist2point_min = dist2point;
-						//c = dp_neighbor;
 				}
 		}
 	
 		// check
 		if (dist2point/dist2point_min > 1+INSIDE_EPS) {
 				cout << "VerifyPointInCell FAILED! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y << " pos.z = " << pos.z << endl;
-				endrun(1129);
+				terminate("1129");
 		}
 		
 		IF_DEBUG(cout << "VerifyPointInCell Passed! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y << " pos.z = " << pos.z << endl);
 
+}
+
+void ArepoMesh::LocateEntryTetra(const Ray &ray, int *prevEntryTetra)
+{
+		point p;
+		int tt = 0, ret, moves;
+		
+		Point hitbox = ray(ray.min_t);
+		
+		// use get_tetra function with guess
+		p.x = hitbox.x;
+		p.y = hitbox.y;
+		p.z = hitbox.z;
+		set_integers_for_pointer(&p);
+		
+		tt = get_tetra(T, &p, &moves, *prevEntryTetra, &ret, &ret);
+	 
+#ifdef DEBUG
+		int next_tetra = -1;
+		cout << " TETRA tt = " << tt	<< " moves = " << moves << " ret = " << ret << endl;
+		
+		ret = -1;
+		int check = InTetra(T, tt, &p, &ret, &next_tetra);
+		cout << " check = " << check << " edgeface_nr = " << ret << " next_tetra = " << next_tetra << endl;
+		if (check < 1) { // 2 or 3 ok (on face or edge)
+			cout << "ERROR: Entry tetra failed." << endl;
+			terminate("1164");
+		}
+#endif
+
+		// sanity check
+		if (tt < 0 || tt >= Ndt) {
+				cout << "ERROR: Entry tetra search ended at tt = " << tt << endl;
+				terminate("1107");
+		}
+		
+		ray.tetra = tt;
+		*prevEntryTetra = tt;
 }
 
 int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
@@ -606,7 +719,7 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 
 	if (nearest < 0 || nearest > NumGas) {
 		cout << "ERROR: FindNearestGasParticle nearest=" << nearest << " out of bounds." << endl;
-		endrun(1118);
+		terminate("1118");
 	}
 	
 #ifdef DEBUG
@@ -635,9 +748,89 @@ inline int ArepoMesh::getSphPID(int dp_id)
 				SphP_ID = dp_id - NumGas;
 		
 		if (SphP_ID < 0)
-				endrun(1135);
+				terminate("1135");
 				
 		return SphP_ID;
+}
+
+void ArepoMesh::checkCurCellTF(bool *addFlag, int SphP_ID, float *vals)
+{	
+	// check if TF evaluates to zero at this cell midpoint
+/*
+	if (!transferFunction->InRange(vals)) {
+			// if next cell in our path also evaluates TF to zero, skip this current cell, otherwise sample this
+			// current cell to make sure we don't miss the ramp up of our TF
+			// TODO: this is maybe still a good idea, but we need to check all neighboring
+			//       cells, not just the one in the ray direction
+			if (qmin != -1) {
+					float vals_next[TF_NUM_VALS];
+					vals_next[TF_VAL_DENS]        = (float) SphP[qmin].Density;
+					vals_next[TF_VAL_UTHERM]      = (float) SphP[qmin].Utherm;
+					
+					if (!transferFunction->InRange(vals_next))
+							addFlag = false;
+			}
+	}
+*/		
+}
+
+void ArepoMesh::locateCurrentTetra(const Ray &ray, Vector &pt)
+{
+	// check degenerate point in R3, immediate return, otherwise we will terminate get_tetra
+	// with "strange zero count" since we are on a vertex (3 faces simultaneously)
+	if (fabs(pt.x - DP[ray.index].x) <= INSIDE_EPS && 
+	    fabs(pt.y - DP[ray.index].y) <= INSIDE_EPS &&
+			fabs(pt.z - DP[ray.index].z) <= INSIDE_EPS)
+		return;
+			
+	// in making this substep, did we cross a delaunay tetra?
+	point pp;
+	pp.x = pt.x;
+	pp.y = pt.y;
+	pp.z = pt.z;
+	set_integers_for_pointer(&pp);
+			
+	int next_tetra = 0,flag,edgeface_nr,moves;
+			
+	// check intersections of line defined by (pp,pend) with the faces of DT[ray.tetra]
+	next_tetra = get_tetra(T, &pp, &moves, ray.tetra, &flag, &edgeface_nr);
+	//if(image_get_next_tetra(T, ray.tetra, &pp, &pend, &next_tetra, &pnew, &previous_tetra))
+	if ( next_tetra != ray.tetra )
+	{
+#ifdef DEBUG
+		cout << "  TETRA ADVANCE old = " << ray.tetra << " new = " << next_tetra << endl;
+				
+		int ret,next_tetra2 = -1;
+		int test = InTetra(T, next_tetra, &pp, &ret, &next_tetra2);
+		if(test == 0)
+		{
+			cout << "  TETRA: ERROR, NOT INSIDE [" << test << "], wanted: " << next_tetra2 << endl;
+			
+			// just brute force figure out which tetra it really is in then
+			int j = 0;
+			for ( j = 0; j < Ndt; j++ )
+			{
+				if ( DT[j].p[0] == -5 || DT[j].p[1] == -5 || DT[j].p[2] == -5 || DT[j].p[3] == -5)
+					continue;
+							
+				test = InTetra(T, j, &pp, &ret, &next_tetra2);
+						
+				if(test >= 1)
+					cout << "    IN: [" << j << "] code: " << test << endl;
+			}
+							
+			exit(20598);
+		}
+		
+		if(test > 1)
+			cout << "  TETRA: WARNING: on face or edge [" << test << "]" << endl;
+#endif
+		//previous_tetra = ray.tetra;
+		ray.tetra = next_tetra;
+	}
+			
+	// update pp (pstart of the line) to this midpt
+	//pp = pend;
 }
 
 bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, 
@@ -649,7 +842,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		// verify task
 		if (ray.task != ThisTask) {
 				cout << "[" << ThisTask << "] ERROR! ray.task = " << ray.task << " differs from ThisTask!" << endl;
-				endrun(1138);
+				terminate("1138");
 		}
 	
 #ifdef DEBUG_VERIFY_INCELL_EACH_STEP
@@ -680,73 +873,73 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		
 		for (int i=edge.second-1; i >= 0; i--)
 		{
-				// skip face we arrived through, if any
-				if (opposite_points[edge.first + i] == previous_cell && previous_cell != -1)
-						continue;
+			// skip face we arrived through, if any
+			if (opposite_points[edge.first + i] == previous_cell && previous_cell != -1)
+				continue;
+			
+			IF_DEBUG(cout << " checking face[" << i << "] midpoints.x = " << midpoints[edge.first + i].x
+										<< " midpoints.y = " << midpoints[edge.first + i].y << " midpoints.z = " 
+										<< midpoints[edge.first + i].z << " opposite_point = " 
+										<< opposite_points[edge.first + i] << endl);
+	
+			// midpoint (c)
+			const Vector midp(midpoints[edge.first + i].x - hitbox.x,
+												midpoints[edge.first + i].y - hitbox.y,
+												midpoints[edge.first + i].z - hitbox.z); //TODO: verify hitbox not hitcell
+			
+			// vector pointing to the outside, normal to a voronoi face of the cell (q)
+			const Vector norm = midpoints[edge.first + i] - cellp;
+	
+			IF_DEBUG(midp.print("  midp (midpoints-hitbox) "));
+			IF_DEBUG(norm.print("  norm (midpoints-cellp) "));
+	
+			// find intersection of ray with this face
+			double dotprod1 = Dot( ray.d, norm ); //ddotq
+			double dotprod2 = Dot( midp,  norm ); //cdotq
+			
+			// check if ray is aligned on face (e.g. backgroundgrid)
+			if (dotprod1 == 0 && dotprod2 == 0)
+				continue;
+			
+			if (dotprod1 > 0)
+			{
+				double t = dotprod2 / dotprod1; // infinite line/plane intersection test
 				
-				IF_DEBUG(cout << " checking face[" << i << "] midpoints.x = " << midpoints[edge.first + i].x
-				              << " midpoints.y = " << midpoints[edge.first + i].y << " midpoints.z = " 
-											<< midpoints[edge.first + i].z << " opposite_point = " 
-											<< opposite_points[edge.first + i] << endl);
-		
-				// midpoint (c)
-				const Vector midp(midpoints[edge.first + i].x - hitbox.x,
-													midpoints[edge.first + i].y - hitbox.y,
-													midpoints[edge.first + i].z - hitbox.z); //TODO: verify hitbox not hitcell
+				IF_DEBUG(cout << "  i[" << i << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
 				
-				// vector pointing to the outside, normal to a voronoi face of the cell (q)
-				const Vector norm = midpoints[edge.first + i] - cellp;
-		
-				IF_DEBUG(midp.print(" midp (midpoints-hitbox) "));
-				IF_DEBUG(norm.print(" norm (midpoints-cellp) "));
-		
-				// find intersection of ray with this face
-				double dotprod1 = Dot( ray.d, norm ); //ddotq
-				double dotprod2 = Dot( midp,  norm ); //cdotq
-				
-				// check if ray is aligned on face (e.g. backgroundgrid)
-				if (dotprod1 == 0 && dotprod2 == 0)
-						continue;
-				
-				if (dotprod1 > 0) {
-						double t = dotprod2 / dotprod1; // infinite line/plane intersection test
-						
-						IF_DEBUG(cout << " i[" << i << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
-						
-						if (t > (ray.min_t-*t0) && t < min_t) {
-								min_t = t;
-								qmin = opposite_points[edge.first + i];
-								IF_DEBUG(cout << " intersection t = " << t << " setting new min_t, qmin (next DP) = " << qmin << endl);
-						}
-				} else {
-						//cout << "Warning: Point on wrong side of face." << endl;
-						// check if numerical error has put it on the wrong side of the face
-						if (dotprod2 > 0) {
-								//endrun(1137);
-								
-								//TODO: check and allow if we are really close to a face
-						}
+				if (t > (ray.min_t-*t0) && t < min_t) {
+					min_t = t;
+					qmin = opposite_points[edge.first + i];
+					IF_DEBUG(cout << "  intersection t = " << t << " setting new min_t, qmin (next DP) = " << qmin << endl);
 				}
+		} else {
+				//cout << "Warning: Point on wrong side of face." << endl;
+				// check if numerical error has put it on the wrong side of the face
+				if (dotprod2 > 0) {
+					//terminate("1137");
+					//TODO: check and allow if we are really close to a face
+				}
+			}
 		}
 		
 		// check if exiting box and failed to exit a face
 		if (qmin == -1) {
-				Point exitcell = ray(*t0 + min_t);
+			Point exitcell = ray(*t0 + min_t);
+			
+			if (!extent.Inside(exitcell)) { // && ray.index >= NumGas
+				// set intersection with box face to allow for final contribution to ray
+				IF_DEBUG(cout << " failed to intersect face, exitcell outside box, ok!" << endl);
+				min_t = ray.max_t;
 				
-				if (!extent.Inside(exitcell)) { // && ray.index >= NumGas
-						// set intersection with box face to allow for final contribution to ray
-						IF_DEBUG(cout << " failed to intersect face, exitcell outside box, ok!" << endl);
-						min_t = ray.max_t;
-						
-						// fake exit face
-						qmin = 0;
-				}
+				// fake exit face
+				qmin = 0;
+			}
 		}
 		
 		// disable adding any contribution from ghosts to rays
 		bool addFlag = true;
 		if (qmin != -1 && ray.index >= NumGas)
-				addFlag = false;
+			addFlag = false;
 		
 		// pack cell-center values to test TF
 		float vals[TF_NUM_VALS];
@@ -758,142 +951,152 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		
 		vals[TF_VAL_VEL_X]       = (float) P[SphP_ID].Vel[0];
 		vals[TF_VAL_VEL_Y]       = (float) P[SphP_ID].Vel[1];
-		vals[TF_VAL_VEL_Z]       = (float) P[SphP_ID].Vel[2];		
+		vals[TF_VAL_VEL_Z]       = (float) P[SphP_ID].Vel[2];
 		
-		// check if TF evaluates to zero at this cell midpoint
-/*
-		if (!transferFunction->InRange(vals)) {
-				// if next cell in our path also evaluates TF to zero, skip this current cell, otherwise sample this
-				// current cell to make sure we don't miss the ramp up of our TF
-				if (qmin != -1) {
-						float vals_next[TF_NUM_VALS];
-						vals_next[TF_VAL_DENS]        = (float) SphP[qmin].Density;
-						vals_next[TF_VAL_UTHERM]      = (float) SphP[qmin].Utherm;
-						
-						if (!transferFunction->InRange(vals_next))
-								addFlag = false;
-				}
-		}
-*/		
+		// if TF evaluates to zero at this cell midpoint, and at all neighboring cell midpoints, 
+		// then we are guaranteed that nowhere in this cell will be important, so jump onwards
+		checkCurCellTF(&addFlag, SphP_ID, vals);
+
 		// check for proper exit point
 		if (qmin != -1)
 		{
-				// clamp min_t to avoid integrating outside the box
-				IF_DEBUG(cout << " min_t = " << min_t << " (t1=" << *t1 << " t0=" << *t0 << ")" << endl);
-				min_t = Clamp(min_t,0.0,(*t1-*t0));
-				
-				if (addFlag)
-				{
-						// entry and exit points for this cell
-						Point hitcell  = ray(ray.min_t);
-						Point exitcell = ray(*t0 + min_t);
-						
-						IF_DEBUG(hitcell.print(" hcell "));
-						IF_DEBUG(exitcell.print(" ecell "));
-						
-						// cell gradient information
-						Vector sphCen(     SphP[SphP_ID].Center[0],   SphP[SphP_ID].Center[1],   SphP[SphP_ID].Center[2]);
-						Vector sphDensGrad(SphP[SphP_ID].Grad.drho[0],SphP[SphP_ID].Grad.drho[1],SphP[SphP_ID].Grad.drho[2]);
-																 
-						const Vector norm = exitcell - hitcell;
+			// clamp min_t to avoid integrating outside the box
+			IF_DEBUG(cout << " min_t = " << min_t << " (t1=" << *t1 << " t0=" << *t0 << ")" << endl);
+			min_t = Clamp(min_t,0.0,(*t1-*t0));
+			
+			if (addFlag)
+			{
+				// entry and exit points for this cell
+				Point hitcell  = ray(ray.min_t);
+				Point exitcell = ray(*t0 + min_t);
+			
+#if defined(DTFE_INTERP) || defined(NATURAL_NEIGHBOR_WATSON)
+				//int previous_tetra = ray.tetra;
 
-						IF_DEBUG(norm.print(" norm "));
-						IF_DEBUG(sphCen.print(" sphCen "));
-						
-						// compute total path length through cell
-						double len = norm.Length();
-						
-						// find interpolated density at midpoint of line segment through voronoi cell
-						Vector midpt(hitcell[0] + 0.5 * norm[0],hitcell[1] + 0.5 * norm[1],hitcell[2] + 0.5 * norm[2]);
-						midpt -= sphCen;
-						
-						IF_DEBUG(midpt.print(" onestep midp rel sphcen "));
-
-						// optical depth: always use gradient for tau calculation (though apply as one value for whole cell)
-						Spectrum stepTau(0.0);
-						stepTau += transferFunction->sigma_t() * (SphP[SphP_ID].Density + Dot(sphDensGrad,midpt)) * len;
-						//Tr *= Exp(-stepTau); // reduce transmittance for optical depth
-						
-						// TODO: sub-step length should be adaptive based on gradients
-
-						// if not sub-stepping then set default
-						if (!viStepSize)
-							viStepSize = len;
+				//pp.x = hitcell.x;
+				//pp.y = hitcell.y;
+				//pp.z = hitcell.z;
+				//set_integers_for_pointer(&pp);
+					
+				//pend.x = midpt.x;
+				//pend.y = midpt.y;
+				//pend.z = midpt.z;
 							
-						// sub-stepping: variable 
-						//int nSamples = (int)ceilf(len_sample / viStepSize);
-						//double fracstep = 1.0 / nSamples;
-						//double halfstep = 0.5 / nSamples;
-						
-						// setup sub-stepping: strict in world space
-						Vector prev_sample_pt(ray(ray.depth * viStepSize));
-						Vector norm_sample(exitcell - prev_sample_pt);
-
-						int nSamples = (int)floorf(norm_sample.Length() / viStepSize);
-						norm_sample = Normalize(norm_sample);
-						
-						IF_DEBUG(prev_sample_pt.print(" prev_sample_pt "));
-						
-						IF_DEBUG(cout << " sub-stepping len = " << len << " nSamples = " << nSamples 
-													<< " (step = " << len/nSamples << ")" << endl);
-
-						for (int i = 0; i < nSamples; ++i) {
-								// where are we inside the cell?
-								Vector midpt(prev_sample_pt[0] + ((i+1)*viStepSize) * norm_sample[0],
-														 prev_sample_pt[1] + ((i+1)*viStepSize) * norm_sample[1],
-														 prev_sample_pt[2] + ((i+1)*viStepSize) * norm_sample[2]);				 
-								
-								IF_DEBUG(midpt.print(" substep midpt "));
-								
-								// subsample (replace fields in vals by interpolated values)
-								int status = subSampleCell(SphP_ID, ray.index, midpt, &vals[0], taskNum);
-								
-#ifdef DEBUG
-								double fracstep = 1.0 / nSamples;
-								cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
-															<< (i*fracstep)+fracstep << "] rho = " << SphP[SphP_ID].Density
-															<< " rho nni = " << rho << endl;
+				//set_integers_for_pointer(&pend);
+					
+				//point pnew; // image_get_next_tetra return
 #endif
-								
-								// apply TF to integrated (total) quantities (only appropriate for constant?)
-								if (Config.projColDens) {
-										endrun(1299); // best check this
-										vals[TF_VAL_DENS] *= len;
-								}
+
+				IF_DEBUG(hitcell.print(" hcell "));
+				IF_DEBUG(exitcell.print(" ecell "));
+					
+				// cell gradient information
+				Vector sphCen(     SphP[SphP_ID].Center[0],   SphP[SphP_ID].Center[1],   SphP[SphP_ID].Center[2]);
+				Vector sphDensGrad(SphP[SphP_ID].Grad.drho[0],SphP[SphP_ID].Grad.drho[1],SphP[SphP_ID].Grad.drho[2]);
+															 
+				const Vector norm = exitcell - hitcell;
+
+				IF_DEBUG(norm.print(" norm "));
+				IF_DEBUG(sphCen.print(" sphCen "));
+					
+				// compute total path length through cell
+				double len = norm.Length();
+					
+				// find interpolated density at midpoint of line segment through voronoi cell
+				Vector midpt(hitcell[0] + 0.5 * norm[0],hitcell[1] + 0.5 * norm[1],hitcell[2] + 0.5 * norm[2]);
+				midpt -= sphCen;
+
+				// optical depth: always use gradient for tau calculation (though apply as one value for whole cell)
+				Spectrum stepTau(0.0);
+				stepTau += transferFunction->sigma_t() * (SphP[SphP_ID].Density + Dot(sphDensGrad,midpt)) * len;
+				//Tr *= Exp(-stepTau); // reduce transmittance for optical depth
+					
+				// TODO: sub-step length should be adaptive based on gradients
+
+				// if not sub-stepping then set default
+				if (!viStepSize)
+					viStepSize = len;
 						
-								// compute emission-only source term using transfer function
-								Lv += Tr * transferFunction->Lve(vals) * sampleWt;
-								
-							// update previous sample point marker
-							ray.depth++;
-						} // nSamples
-				} //addFlag
-				
-				// update ray: transfer to next voronoi cell (possibly on different task)
-				ray.task  = DP[qmin].task;
-				ray.index = qmin;
-				ray.min_t = Clamp(min_t + *t0,ray.min_t,ray.max_t);
-				
-				IF_DEBUG(cout << " updated ray new task = " << ray.task << " index = " << ray.index 
-											<< " min_t = " << ray.min_t << endl);
-				
-				if (fabs(ray.min_t - ray.max_t) <= INSIDE_EPS) {
-						// apparently this ray is done?
-						IF_DEBUG(cout << " min_t == t1 = " << *t1 << ", ray done." << endl);
-						return false;
-				}
+				// sub-stepping: variable 
+				//int nSamples = (int)ceilf(len_sample / viStepSize);
+				//double fracstep = 1.0 / nSamples;
+				//double halfstep = 0.5 / nSamples;
+					
+				// setup sub-stepping: strict in world space
+				Vector prev_sample_pt(ray(ray.depth * viStepSize));
+				Vector norm_sample(exitcell - prev_sample_pt);
+
+				int nSamples = (int)floorf(norm_sample.Length() / viStepSize);
+				norm_sample = Normalize(norm_sample);
+					
+				IF_DEBUG(prev_sample_pt.print(" prev_sample_pt "));
+					
+				IF_DEBUG(cout << " sub-stepping len = " << len << " nSamples = " << nSamples 
+											<< " (step = " << len/nSamples << ")" << endl);
+												
+				for (int i = 0; i < nSamples; ++i)
+				{
+					// where are we inside the cell?
+					Vector midpt(prev_sample_pt[0] + ((i+1)*viStepSize) * norm_sample[0],
+											 prev_sample_pt[1] + ((i+1)*viStepSize) * norm_sample[1],
+											 prev_sample_pt[2] + ((i+1)*viStepSize) * norm_sample[2]);
+							
+					IF_DEBUG(midpt.print("  substep midpt "));
+					
+#if defined(DTFE_INTERP) || defined(NATURAL_NEIGHBOR_WATSON)
+					locateCurrentTetra(ray, midpt);
+#endif
+																							
+					// subsample (replace fields in vals by interpolated values)
+					int status = subSampleCell(SphP_ID, ray, midpt, &vals[0], taskNum);
+					if(status) status = 0; // kill warning
+							
+#ifdef DEBUG
+					double fracstep = 1.0 / nSamples;
+					cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
+							<< (i*fracstep)+fracstep << "] rho = " << SphP[SphP_ID].Density
+							<< " rho subSample = " << vals[TF_VAL_DENS] << endl;
+#endif
+							
+					// apply TF to integrated (total) quantities (only appropriate for constant?)
+					if (Config.projColDens) {
+						terminate("1299"); // best check this
+						vals[TF_VAL_DENS] *= len;
+					}
+					
+					// compute emission-only source term using transfer function
+					Lv += Tr * transferFunction->Lve(vals) * sampleWt;
+							
+					// update previous sample point marker
+					ray.depth++;
+				} // nSamples
+			} //addFlag
+			
+			// update ray: transfer to next voronoi cell (possibly on different task)
+			ray.task  = DP[qmin].task;
+			ray.index = qmin;
+			ray.min_t = Clamp(min_t + *t0,ray.min_t,ray.max_t);
+			
+			IF_DEBUG(cout << " updated ray new task = " << ray.task << " index = " << ray.index 
+										<< " min_t = " << ray.min_t << endl);
+			
+			if (fabs(ray.min_t - ray.max_t) <= INSIDE_EPS) {
+					// apparently this ray is done?
+					IF_DEBUG(cout << " min_t == t1 = " << *t1 << ", ray done." << endl);
+					return false;
+			}
 		
 		} else {
-				// failed to intersect a face (only should happen if exiting box - no connectivity with big tetra)
+			// failed to intersect a face (only should happen if exiting box - no connectivity with big tetra)
 				
-				if (ray.min_t < ray.max_t - INSIDE_EPS) {
-						// in primary cell or exitpoint inside box, either way this should not happen
-						cout << "ERROR! Ray did not finish. min_t = " << ray.min_t << " max_t = " << ray.max_t << endl;
-						cout << " ray pos: " << hitbox.x << " " << hitbox.y << " " << hitbox.z << endl;
-						cout << " DP[ray.index] pos: " << DP[ray.index].x << " " << DP[ray.index].y 
-								 << " " << DP[ray.index].z << endl << endl;
-						endrun(1130);
-				}
+			if (ray.min_t < ray.max_t - INSIDE_EPS) {
+					// in primary cell or exitpoint inside box, either way this should not happen
+					cout << "ERROR! Ray did not finish. min_t = " << ray.min_t << " max_t = " << ray.max_t << endl;
+					cout << " ray pos: " << hitbox.x << " " << hitbox.y << " " << hitbox.z << endl;
+					cout << " DP[ray.index] pos: " << DP[ray.index].x << " " << DP[ray.index].y 
+							 << " " << DP[ray.index].z << endl << endl;
+					terminate("1130");
+			}
 		} // qmin
 		
 		return true;		
@@ -913,8 +1116,10 @@ inline float sph_kernel(float dist, float hinv)
 #endif
 
 // interpolate scalar fields at position pt inside Voronoi cell SphP_ID (various methods)
-int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, int taskNum)
+int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *vals, int taskNum)
 {
+	int DP_ID = ray.index;
+	
 	// check degenerate point in R3, immediate return
 	if (fabs(pt.x - DP[DP_ID].x) <= INSIDE_EPS &&
 			fabs(pt.y - DP[DP_ID].y) <= INSIDE_EPS &&
@@ -927,11 +1132,20 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 				
 	// zero vals we will override in this function
 	vals[TF_VAL_DENS]   = 0.0;
-	vals[TF_VAL_UTHERM] = 0.0;				
+	vals[TF_VAL_UTHERM] = 0.0;			
+
+  // for periodic distances
+	float dx,dy,dz,xtmp,ytmp,ztmp;	
 				
 #ifdef NATURAL_NEIGHBOR_IDW
 
-#define POWER_PARAM 1.0
+/* exponent of distance, greater values assign more influence to values closest to the 
+ * interpolating point, approaching piecewise constant for large POWER_PARAM.
+ * in N dimensions, if p <= N, the interpolated values are dominated by points far away,
+ * which is rather bizarre.
+ */
+ 
+#define POWER_PARAM 4.0
 
 		// list of neighbors
 		const int start_edge = midpoint_idx[DP_ID].first;
@@ -939,7 +1153,7 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 		
 		// add parent to list
 		int dp_neighbor, sphp_neighbor;
-		float weight,weightsum,distsq;
+		float weight,weightsum=0,distsq;
 		
 		// loop over each neighbor
 		for (int k=0; k < n_edges; k++) {
@@ -947,9 +1161,12 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 			sphp_neighbor = getSphPID(dp_neighbor);
 			
 			// calculate weight as 1.0/dist^power (Shepard's Method)
-		  distsq = (DP[dp_neighbor].x - pt.x) * (DP[dp_neighbor].x - pt.x) + 
-			         (DP[dp_neighbor].y - pt.y) * (DP[dp_neighbor].y - pt.y) + 
-							 (DP[dp_neighbor].z - pt.z) * (DP[dp_neighbor].z - pt.z);
+			dx = NGB_PERIODIC_LONG_X(DP[dp_neighbor].x - pt.x);
+			dy = NGB_PERIODIC_LONG_Y(DP[dp_neighbor].y - pt.y);
+			dz = NGB_PERIODIC_LONG_Z(DP[dp_neighbor].z - pt.z);
+			
+			distsq = dx*dx + dy*dy + dz*dz;
+			
 			weight = 1.0 / pow(distsq,POWER_PARAM);
 			weightsum += weight;
 			
@@ -958,9 +1175,11 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 		}
 		
 		// add in primary parent
-		distsq = (DP[DP_ID].x - pt.x) * (DP[DP_ID].x - pt.x) + 
-			       (DP[DP_ID].y - pt.y) * (DP[DP_ID].y - pt.y) + 
-						 (DP[DP_ID].z - pt.z) * (DP[DP_ID].z - pt.z);
+		dx = NGB_PERIODIC_LONG_X(DP[DP_ID].x - pt.x);
+		dy = NGB_PERIODIC_LONG_Y(DP[DP_ID].y - pt.y);
+		dz = NGB_PERIODIC_LONG_Z(DP[DP_ID].z - pt.z);
+	
+		distsq = dx*dx + dy*dy + dz*dz;
 						 
 		weight = 1.0 / pow(distsq,POWER_PARAM);
 		weightsum += weight;
@@ -976,7 +1195,12 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 
 #ifdef NATURAL_NEIGHBOR_SPHKERNEL
 
-#define HSML_FAC 0.8
+/* use <1 for more smoothing, makes hsml_used bigger than hsml_ngb_max
+ * use >1 for less smoothing, make hsml_used smaller than hsml_ngb_max 
+ *   (at least some some neighbors will not contribute, and if this is too big, the
+ *    containing cell may also not contribute, leading to black holes)
+ */
+#define HSML_FAC 0.95
 
 		// list of neighbors
 		const int start_edge = midpoint_idx[DP_ID].first;
@@ -984,26 +1208,30 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 		
 		// add parent to list
 		int dp_neighbor, sphp_neighbor;
-		float weight,weightsum,distsq;
+		float weight,weightsum=0,distsq;
 		
-            // 1. smoothing length parameter: calculate over neighbor distances
-            float hsml2 = 0.0;
-            for (int k=0; k < n_edges; k++) {
-	      if(dp_neighbor < 0)
-                continue;
+    // 1. smoothing length parameter: calculate over neighbor distances
+    float hsml2 = 0.0;
+    for (int k=0; k < n_edges; k++) {
+		  dp_neighbor = opposite_points[start_edge + k];
+			
+	    if(dp_neighbor < 0)
+        continue;
 
-		  distsq = (DP[dp_neighbor].x - pt.x) * (DP[dp_neighbor].x - pt.x) + 
-			         (DP[dp_neighbor].y - pt.y) * (DP[dp_neighbor].y - pt.y) + 
-							 (DP[dp_neighbor].z - pt.z) * (DP[dp_neighbor].z - pt.z);
+			dx = NGB_PERIODIC_LONG_X(DP[dp_neighbor].x - pt.x);
+			dy = NGB_PERIODIC_LONG_Y(DP[dp_neighbor].y - pt.y);
+			dz = NGB_PERIODIC_LONG_Z(DP[dp_neighbor].z - pt.z);
+			
+			distsq = dx*dx + dy*dy + dz*dz;
                                            
-              if(distsq > hsml2)
-                hsml2 = distsq;
-            }
+      if(distsq > hsml2)
+        hsml2 = distsq;
+    }
            
-            //if(hsml2 < 0.1)
-	//	hsml2 = 0.1;
+    //if(hsml2 < 0.1)
+	  //	hsml2 = 0.1;
  
-            float hinv = HSML_FAC / sqrtf(hsml2);
+    float hinv = HSML_FAC / sqrtf(hsml2);
             
 		// 2. loop over each neighbor and add contribution
 		for (int k=0; k < n_edges; k++) {
@@ -1011,9 +1239,12 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 			sphp_neighbor = getSphPID(dp_neighbor);
 			
 			// calculate weight as sphkernel(distsq/h) (cubic spline kernel)
-		  distsq = (DP[dp_neighbor].x - pt.x) * (DP[dp_neighbor].x - pt.x) + 
-			         (DP[dp_neighbor].y - pt.y) * (DP[dp_neighbor].y - pt.y) + 
-							 (DP[dp_neighbor].z - pt.z) * (DP[dp_neighbor].z - pt.z);
+			dx = NGB_PERIODIC_LONG_X(DP[dp_neighbor].x - pt.x);
+			dy = NGB_PERIODIC_LONG_Y(DP[dp_neighbor].y - pt.y);
+			dz = NGB_PERIODIC_LONG_Z(DP[dp_neighbor].z - pt.z);
+			
+			distsq = dx*dx + dy*dy + dz*dz;
+			
 			weight = sph_kernel(sqrtf(distsq),hinv);
 			weightsum += weight; // * SphP[SphP_ID].Volume;
 			
@@ -1022,10 +1253,12 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 		}
 		
 		// add in primary parent
-		distsq = (DP[DP_ID].x - pt.x) * (DP[DP_ID].x - pt.x) + 
-			       (DP[DP_ID].y - pt.y) * (DP[DP_ID].y - pt.y) + 
-						 (DP[DP_ID].z - pt.z) * (DP[DP_ID].z - pt.z);
-						 
+		dx = NGB_PERIODIC_LONG_X(DP[DP_ID].x - pt.x);
+		dy = NGB_PERIODIC_LONG_Y(DP[DP_ID].y - pt.y);
+		dz = NGB_PERIODIC_LONG_Z(DP[DP_ID].z - pt.z);
+		
+		distsq = dx*dx + dy*dy + dz*dz;
+		
 		weight = sph_kernel(sqrtf(distsq),hinv);
 		weightsum += weight; // * SphP[SphP_ID].Volume;
 		
@@ -1060,7 +1293,7 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 				int q = opposite_points[start_edge + k];
 		
 				if(AuxMeshes[taskNum].Ndp + 2 >= AuxMeshes[taskNum].MaxNdp)
-					endrun(1157);
+					terminate("1157");
 				
 				// insert point
 				AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[q];
@@ -1137,6 +1370,37 @@ int ArepoMesh::subSampleCell(int SphP_ID, int DP_ID, Vector &pt, float *vals, in
 		vals[TF_VAL_UTHERM] /= dp_new_vol[AuxMeshes[taskNum].Ndp-1];
 
 #endif // NATURAL_NEIGHBOR_INTERP
+
+#ifdef DTFE_INTERP
+		// use DT[tt].p[0] as the x_i sample point
+		int tt0_DPID   = DT[ray.tetra].p[0];
+		
+		// if p[0] is part of the bounding tetra (we are on the edge), cannot do DTFE
+		// note: the delaunay triangulation is not periodic, otherwise this would be ok
+		if (tt0_DPID < 0) {
+			IF_DEBUG(cout << "  dtfe: p[0] = " << tt0_DPID << ", skipping!" << endl);
+		  return 0;
+		}
+		
+		int tt0_SphPID = getSphPID(tt0_DPID);
+		
+		Vector p0cen( DP[tt0_DPID].x, DP[tt0_DPID].y, DP[tt0_DPID].z );
+		Vector tetraGrad( DT_grad[3*ray.tetra+0], DT_grad[3*ray.tetra+1], DT_grad[3*ray.tetra+2] );
+		
+		pt -= p0cen; // make relative to p[0] position (not Voronoi center)
+
+		// apply the (linear) gradient to the sampling point
+		vals[TF_VAL_DENS]   = SphP[tt0_SphPID].Density + Dot(tetraGrad,pt);
+		
+		vals[TF_VAL_UTHERM] = SphP[SphP_ID].Utherm; // TODO
+		
+#ifdef DEBUG
+		cout << "  dtfe: tt = " << ray.tetra << " p0 = " << tt0_DPID << " sph0 = " << tt0_SphPID << endl;
+		pt.print("  dtfe: relative point ");
+		cout << "  dtfe: dens = " << vals[TF_VAL_DENS] << " sphDens = " << SphP[tt0_SphPID].Density << endl;
+#endif
+		
+#endif
 
 #ifdef CELL_GRADIENTS_ONLY
 		// old:
@@ -1225,7 +1489,7 @@ void ArepoMesh::CalculateMidpoints()
 						SphP_ID = DP[i].index - NumGas;
 				
 				if (SphP_ID < 0)
-						endrun(1133);
+						terminate("1133");
 				
 				mm.insert(make_pair(SphP_ID, i));
 		}
@@ -1241,7 +1505,7 @@ void ArepoMesh::CalculateMidpoints()
 						SphP_ID = DP[i].index - NumGas;
 		
 				if (SphP_ID < 0)
-						endrun(1134);
+						terminate("1134");
 		
 				// cell has no hydro quantities -> map to -1
 				if (SphP_ID < 0) {
@@ -1253,7 +1517,7 @@ void ArepoMesh::CalculateMidpoints()
 				pair<mmi,mmi> dp_indices(mm.equal_range(SphP_ID));
 				
 				if (dp_indices.second == dp_indices.first)
-						endrun(1131);
+						terminate("1131");
 						
 				// search for primary cell and record to map
 				while (dp_indices.first != dp_indices.second)
@@ -1268,7 +1532,7 @@ void ArepoMesh::CalculateMidpoints()
 		
 		// verify size
 		if (primary_cells.size() != (unsigned int)Ndp)
-				endrun(1132);
+				terminate("1132");
 				
 		// use VF array to generate connnections (reorganize it to index by point)
 		multimap<int,int> conn;
@@ -1297,7 +1561,7 @@ void ArepoMesh::CalculateMidpoints()
 				pair<mmi,mmi> dp_neighbors(conn.equal_range(i));
 				
 				if (dp_neighbors.first == dp_neighbors.second)
-						endrun(1133);
+						terminate("1133");
 						
 				for (; dp_neighbors.first != dp_neighbors.second; dp_neighbors.first++)
 				{
@@ -1581,6 +1845,16 @@ int ArepoMesh::ComputeVoronoiEdges()
 		return numVertices.size();
 		
 }
+
+#ifdef DUMP_VORONOI_MESH
+void ArepoMesh::OutputMesh()
+{
+	char buf[500];
+	sprintf(buf,"voronoi_mesh_0");
+	write_voronoi_mesh(&Mesh,buf,0,0);
+	cout << "MESH WRITTEN." << endl;
+}
+#endif
 
 void ArepoMesh::DumpMesh()
 {
