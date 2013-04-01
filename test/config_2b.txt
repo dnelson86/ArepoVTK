@@ -12,8 +12,8 @@ paramFilename  = test/param.txt
 % General
 % -------
 
-nCores         = 24                     % number of cores to use (0=all)
-nTasks         = 64                     % number of tasks/threads to run (0=auto)
+nCores         = 1                     % number of cores to use (0=all)
+nTasks         = 1                     % number of tasks/threads to run (0=auto)
 quickRender    = false                 % unused
 openWindow     = false                 % unused
 verbose        = true                  % report more information

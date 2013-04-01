@@ -148,9 +148,6 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		
 		IF_DEBUG(cout << "unitConv[dens]   = " << unitConversions[TF_VAL_DENS] << endl);
 		IF_DEBUG(cout << "unitConv[utherm] = " << unitConversions[TF_VAL_UTHERM] << endl);
-		
-		// debugging
-		//ArepoMesh::DumpMesh();
 }
 
 ArepoMesh::~ArepoMesh()
@@ -303,7 +300,10 @@ void ArepoMesh::precomputeTetraGrads()
 				det_A = A[0][0]*A[1][1]*A[2][2] + A[1][0]*A[2][1]*A[0][2] +
                 A[2][0]*A[0][1]*A[1][2] - A[0][0]*A[2][1]*A[1][2] - 
 								A[2][0]*A[1][1]*A[0][2] - A[1][0]*A[0][1]*A[2][2];
-								
+						
+				//cout << "[" << i << "] p0 = " << DT[i].p[0] << " p1 = " << DT[i].p[2] << 
+				//	" p2 = " << DT[i].p[2] << " p3 = " << DT[i].p[3] << " det_A = " << det_A << endl;
+		
 				if (det_A < INSIDE_EPS && det_A > -INSIDE_EPS) { // debugging
 				  cout << "ERROR: det_A is zero! " << det_A << " [" << i << "]" << endl;
 					exit(12509);
@@ -532,12 +532,7 @@ void ArepoMesh::VerifyPointInCell(int dp, Point &pos)
 		Vector celldist(pos.x - DP[dp].x, pos.y - DP[dp].y, pos.z - DP[dp].z);
 		
 		double dist2point = celldist.LengthSquared();
-		
-		// exactly on DP point, avoid divide by zero
-		if (dist2point == 0.0)
-				return;
-				
-		double dist2point_min = dist2point;
+		int dpid_min = dp;
 		
 		// check neighbors for a closer tetra midpoint
 		const int start_edge = midpoint_idx[dp].first;
@@ -551,16 +546,19 @@ void ArepoMesh::VerifyPointInCell(int dp, Point &pos)
 				                  pos.y - DP[dp_neighbor].y,
 													pos.z - DP[dp_neighbor].z);
 				
-				dist2point = celldist.LengthSquared();
-				
-				if (dist2point < dist2point_min) {
-						dist2point_min = dist2point;
+				if (celldist.LengthSquared() < dist2point - INSIDE_EPS) {
+						dpid_min = dp_neighbor;
 				}
 		}
 	
 		// check
-		if (dist2point/dist2point_min > 1+INSIDE_EPS) {
-				cout << "VerifyPointInCell FAILED! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y << " pos.z = " << pos.z << endl;
+		if (dpid_min != dp) {
+				cout << "VerifyPointInCell FAILED! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y << " pos.z = " << pos.z << " (dist2point = " << dist2point << " DP.x = " << DP[dp].x << " DP.y = " << DP[dp].y << " DP.z = " << DP[dp].z << ")" << endl;
+				
+				Vector celldist(pos.x - DP[dpid_min].x, pos.y - DP[dpid_min].y, pos.z - DP[dpid_min].z);
+				double dist2point = celldist.LengthSquared();
+				
+				cout << " dpid_min = " << dpid_min << " DP.x = " << DP[dpid_min].x << " DP.y = " << DP[dpid_min].y << " DP.z = " << DP[dpid_min].z << "(dist2point = " << dist2point << ")" << endl;
 				terminate("1129");
 		}
 		
@@ -794,11 +792,11 @@ void ArepoMesh::locateCurrentTetra(const Ray &ray, Vector &pt)
 			
 	// check intersections of line defined by (pp,pend) with the faces of DT[ray.tetra]
 	next_tetra = get_tetra(T, &pp, &moves, ray.tetra, &flag, &edgeface_nr);
-	//if(image_get_next_tetra(T, ray.tetra, &pp, &pend, &next_tetra, &pnew, &previous_tetra))
+	
+//#ifdef DEBUG
 	if ( next_tetra != ray.tetra )
 	{
-#ifdef DEBUG
-		cout << "  TETRA ADVANCE old = " << ray.tetra << " new = " << next_tetra << endl;
+		//cout << "  TETRA ADVANCE old = " << ray.tetra << " new = " << next_tetra << endl;
 				
 		int ret,next_tetra2 = -1;
 		int test = InTetra(T, next_tetra, &pp, &ret, &next_tetra2);
@@ -822,15 +820,12 @@ void ArepoMesh::locateCurrentTetra(const Ray &ray, Vector &pt)
 			exit(20598);
 		}
 		
-		if(test > 1)
-			cout << "  TETRA: WARNING: on face or edge [" << test << "]" << endl;
-#endif
-		//previous_tetra = ray.tetra;
-		ray.tetra = next_tetra;
+		//if(test > 1)
+		//	cout << "  TETRA: WARNING: on face or edge [" << test << "]" << endl;
 	}
-			
-	// update pp (pstart of the line) to this midpt
-	//pp = pend;
+//#endif
+
+	ray.tetra = next_tetra;
 }
 
 bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, 
@@ -847,12 +842,11 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 	
 #ifdef DEBUG_VERIFY_INCELL_EACH_STEP
 		// verify ray is where we expect it
-		int dp = ray.index;
 		Point pos = ray(ray.min_t);
-		ArepoMesh::VerifyPointInCell(dp,pos);
+		ArepoMesh::VerifyPointInCell(ray.index,pos);
 #endif
 		
-		int SphP_ID = getSphPID(ray.index);
+		int SphP_ID = getSphPID(DP[ray.index].index);
 
 		// tetra position
 		const Vector cellp(DP[ray.index].x,DP[ray.index].y,DP[ray.index].z);
@@ -969,23 +963,6 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 				// entry and exit points for this cell
 				Point hitcell  = ray(ray.min_t);
 				Point exitcell = ray(*t0 + min_t);
-			
-#if defined(DTFE_INTERP) || defined(NATURAL_NEIGHBOR_WATSON)
-				//int previous_tetra = ray.tetra;
-
-				//pp.x = hitcell.x;
-				//pp.y = hitcell.y;
-				//pp.z = hitcell.z;
-				//set_integers_for_pointer(&pp);
-					
-				//pend.x = midpt.x;
-				//pend.y = midpt.y;
-				//pend.z = midpt.z;
-							
-				//set_integers_for_pointer(&pend);
-					
-				//point pnew; // image_get_next_tetra return
-#endif
 
 				IF_DEBUG(hitcell.print(" hcell "));
 				IF_DEBUG(exitcell.print(" ecell "));
@@ -1133,9 +1110,6 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 	// zero vals we will override in this function
 	vals[TF_VAL_DENS]   = 0.0;
 	vals[TF_VAL_UTHERM] = 0.0;			
-
-  // for periodic distances
-	float dx,dy,dz,xtmp,ytmp,ztmp;	
 				
 #ifdef NATURAL_NEIGHBOR_IDW
 
@@ -1144,7 +1118,6 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
  * in N dimensions, if p <= N, the interpolated values are dominated by points far away,
  * which is rather bizarre.
  */
- 
 #define POWER_PARAM 4.0
 
 		// list of neighbors
@@ -1153,12 +1126,13 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 		
 		// add parent to list
 		int dp_neighbor, sphp_neighbor;
+		float dx,dy,dz,xtmp,ytmp,ztmp;	
 		float weight,weightsum=0,distsq;
 		
 		// loop over each neighbor
 		for (int k=0; k < n_edges; k++) {
 			dp_neighbor = opposite_points[start_edge + k];
-			sphp_neighbor = getSphPID(dp_neighbor);
+			sphp_neighbor = getSphPID(DP[dp_neighbor].index);
 			
 			// calculate weight as 1.0/dist^power (Shepard's Method)
 			dx = NGB_PERIODIC_LONG_X(DP[dp_neighbor].x - pt.x);
@@ -1208,14 +1182,15 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 		
 		// add parent to list
 		int dp_neighbor, sphp_neighbor;
+		float dx,dy,dz,xtmp,ytmp,ztmp;	
 		float weight,weightsum=0,distsq;
+		float hsml2 = 0.0;
 		
     // 1. smoothing length parameter: calculate over neighbor distances
-    float hsml2 = 0.0;
     for (int k=0; k < n_edges; k++) {
 		  dp_neighbor = opposite_points[start_edge + k];
 			
-	    if(dp_neighbor < 0)
+	    if(dp_neighbor < 0) // -1 in sunrise connectivity
         continue;
 
 			dx = NGB_PERIODIC_LONG_X(DP[dp_neighbor].x - pt.x);
@@ -1227,17 +1202,14 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
       if(distsq > hsml2)
         hsml2 = distsq;
     }
-           
-    //if(hsml2 < 0.1)
-	  //	hsml2 = 0.1;
- 
+		
     float hinv = HSML_FAC / sqrtf(hsml2);
             
 		// 2. loop over each neighbor and add contribution
 		for (int k=0; k < n_edges; k++) {
 			dp_neighbor = opposite_points[start_edge + k];
-			sphp_neighbor = getSphPID(dp_neighbor);
-			
+			sphp_neighbor = getSphPID(DP[dp_neighbor].index);
+	
 			// calculate weight as sphkernel(distsq/h) (cubic spline kernel)
 			dx = NGB_PERIODIC_LONG_X(DP[dp_neighbor].x - pt.x);
 			dy = NGB_PERIODIC_LONG_Y(DP[dp_neighbor].y - pt.y);
@@ -1250,6 +1222,8 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 			
 			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
 			vals[TF_VAL_UTHERM] += SphP[sphp_neighbor].Utherm * weight;
+
+			//cout << "   [" << sphp_neighbor << "] Density = " << SphP[sphp_neighbor].Density << " wt = " << weight << endl;
 		}
 		
 		// add in primary parent
@@ -1264,7 +1238,7 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 		
 		vals[TF_VAL_DENS]   += SphP[SphP_ID].Density * weight;
 		vals[TF_VAL_UTHERM] += SphP[SphP_ID].Utherm * weight;
-		
+
 		// 3. normalize by weight totals
 		vals[TF_VAL_DENS]   /= weightsum;
 		vals[TF_VAL_UTHERM] /= weightsum;
@@ -1352,7 +1326,7 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 		// calculate scalar value based on neighbor values and area fraction weights
 		for (int k=0; k < n_edges; k++) {
 			dp_neighbor = opposite_points[start_edge + k];
-			sphp_neighbor = getSphPID(dp_neighbor);
+			sphp_neighbor = getSphPID(DP[dp_neighbor].index);
 			
 			weight = dp_old_vol[k] - dp_new_vol[k];
 			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
@@ -1382,7 +1356,7 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 		  return 0;
 		}
 		
-		int tt0_SphPID = getSphPID(tt0_DPID);
+		int tt0_SphPID = getSphPID(DP[tt0_DPID].index);
 		
 		Vector p0cen( DP[tt0_DPID].x, DP[tt0_DPID].y, DP[tt0_DPID].z );
 		Vector tetraGrad( DT_grad[3*ray.tetra+0], DT_grad[3*ray.tetra+1], DT_grad[3*ray.tetra+2] );
@@ -1436,12 +1410,7 @@ void ArepoMesh::LimitCellDensities()
 						// find the cell opposite this vertex
 						const int dp = DT[i].p[j];
 				
-						int SphP_ID = -1;
-						
-						if (DP[dp].index >= 0 && DP[dp].index < NumGas)
-								SphP_ID = DP[dp].index;
-						else if (dp >= NumGas)
-								SphP_ID = DP[dp].index - NumGas;
+						int SphP_ID = getSphPID(DP[dp].index);
 								
 						// valid cell?
 						if (DP[dp].index < NumGas && SphP_ID >= 0) {
@@ -1481,15 +1450,7 @@ void ArepoMesh::CalculateMidpoints()
 		
 		for (int i=0; i < Ndp; i++)
 		{
-				int SphP_ID = -1;
-				
-				if (DP[i].index >= 0 && DP[i].index < NumGas)
-						SphP_ID = DP[i].index;
-				else if (i >= NumGas)
-						SphP_ID = DP[i].index - NumGas;
-				
-				if (SphP_ID < 0)
-						terminate("1133");
+				int SphP_ID = getSphPID(DP[i].index);
 				
 				mm.insert(make_pair(SphP_ID, i));
 		}
@@ -1497,15 +1458,7 @@ void ArepoMesh::CalculateMidpoints()
 		// set up mapping of DP id -> DP primary id
 		for (int i=0; i < Ndp; i++)
 		{
-				int SphP_ID = -1;
-				
-				if (DP[i].index >= 0 && DP[i].index < NumGas)
-						SphP_ID = DP[i].index;
-				else if (i >= NumGas)
-						SphP_ID = DP[i].index - NumGas;
-		
-				if (SphP_ID < 0)
-						terminate("1134");
+				int SphP_ID = getSphPID(DP[i].index);
 		
 				// cell has no hydro quantities -> map to -1
 				if (SphP_ID < 0) {
@@ -1545,15 +1498,7 @@ void ArepoMesh::CalculateMidpoints()
 		// associate connections with cells
 		for (int i=0; i < Ndp; i++)
 		{
-				int SphP_ID = -1;
-				
-				if (DP[i].index >= 0 && DP[i].index < NumGas)
-						SphP_ID = DP[i].index;
-				else if (i >= NumGas)
-						SphP_ID = DP[i].index - NumGas;
-						
-				if (SphP_ID < 0)
-						continue;
+				//int SphP_ID = getSphPID(DP[i].index);
 						
 				const Vector cellp(DP[i].x,DP[i].y,DP[i].z);
 				
@@ -1567,17 +1512,13 @@ void ArepoMesh::CalculateMidpoints()
 				{
 						const int dp_neighbor = dp_neighbors.first->second;
 				
-						int SphP_ID_n = -1;
+						int SphP_ID_n = -1; // don't use getSphPID()
 						
 						if (DP[dp_neighbor].index >= 0 && DP[dp_neighbor].index < NumGas)
 								SphP_ID_n = DP[dp_neighbor].index;
-						else if (dp_neighbor >= NumGas) {
-								//cout << " NumGas=" << NumGas << " dp_neighbor=" << dp_neighbor << " DP[dp_neighbor].index="
-								//     << DP[dp_neighbor].index << endl;
+						else if (DP[dp_neighbor].index >= NumGas) {
 								SphP_ID_n = DP[dp_neighbor].index - NumGas;
 						}
-								
-						//cout << "pri=" << setw(2) << i << " dp_neighbor=" << dp_neighbor << " SphID=" << SphP_ID_n << endl;
 								
 						// skip invalid neighbors
 						if (SphP_ID_n < 0)
