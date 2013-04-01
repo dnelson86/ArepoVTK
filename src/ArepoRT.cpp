@@ -70,6 +70,41 @@ void rtIsoDiskCosmoCutoutRender()
 	delete scene;
 }
 
+void arepoTestOverrides()
+{
+	// debugging only (Arepo2b/3b overrides)
+	for (int i=0; i < NumGas; i++) {
+		SphP[i].Density      = 0.0;
+		SphP[i].Grad.drho[0] = 0.0;
+		SphP[i].Grad.drho[1] = 0.0;
+		SphP[i].Grad.drho[2] = 0.0;
+	}
+	
+	// Arepo3b zero outer boundary
+	if ( Config.filename == "test/Arepo3b" ) {
+	  for(int i=0; i < NumGas; i++) {
+		  if( (P[i].Pos[0] < 0.2 || P[i].Pos[0] > 0.8) ||
+			    (P[i].Pos[1] < 0.2 || P[i].Pos[1] > 0.8) ||
+					(P[i].Pos[2] < 0.2 || P[i].Pos[2] > 0.8) )
+				SphP[i].Density = 0.0;
+		}
+	}
+	
+	// Arepo2b/3b overrides (central point)
+	int dpInd;
+  if ( Config.filename == "test/Arepo2b" )
+		dpInd = 6;
+	else if ( Config.filename == "test/Arepo3b" )
+		dpInd = 45;
+	else
+		terminate("probably don't want these overrides");
+	
+	SphP[dpInd].Density      = 20.0;
+	SphP[dpInd].Grad.drho[0] = 10.0;
+	SphP[dpInd].Grad.drho[1] = 10.0;
+	SphP[dpInd].Grad.drho[2] = 2.0;	
+}
+
 void rtTestRenderScene(string filename)
 {
 	// config - camera
@@ -91,13 +126,11 @@ void rtTestRenderScene(string filename)
 		
 	Sampler *sampler     = CreateStratifiedSampler(film, camera);
 
-	// Integrator
-	//VolumeIntegrator *vi = CreateEmissionVolumeIntegrator(Config.viStepSize);
+	// make primary classes
 	VolumeIntegrator *vi  = CreateVoronoiVolumeIntegrator();
-
-	// renderer
-	Renderer *re         = new Renderer(sampler, camera, vi);
-
+	Renderer *re          = new Renderer(sampler, camera, vi);
+	VolumeRegion *vr      = NULL;
+	
 	// transfer function
 	const Spectrum sig_a = Spectrum::FromRGB(Config.rgbAbsorb);
 	TransferFunction *tf = new TransferFunction(sig_a);
@@ -106,13 +139,14 @@ void rtTestRenderScene(string filename)
 	for (unsigned int i=0; i < Config.tfSet.size(); i++)
 		tf->AddParseString(Config.tfSet[i]);
 	
-	// create volume/density/scene geometry (debugging only)
-	//VolumeRegion *vr     = CreateGridVolumeRegion(volume2world, filename);
-	VolumeRegion *vr      = NULL;
-	
+	arepoTestOverrides(); // before mesh to set Density for DTFE grads
+
 	// voronoi mesh
 	ArepoMesh *arepoMesh  = new ArepoMesh(tf);
-
+	Scene *scene          = new Scene(vr, arepoMesh);
+	
+	arepoTestOverrides(); // after mesh to override Voronoi gradients for cellgrad
+	
 #ifdef DUMP_VORONOI_MESH
 	// dump mesh in VORONOI_MESHOUTPUT format
 	arepoMesh->OutputMesh();
@@ -124,27 +158,6 @@ void rtTestRenderScene(string filename)
 	arepoMesh->DumpMesh();
 	return;
 #endif
-	
-	// scene
-	Scene *scene          = new Scene(vr, arepoMesh);
-			
-	// debugging only (Arepo2b/3b overrides)
-	for (int i=0; i < NumGas; i++) {
-		SphP[i].Density      = 0.01;
-		SphP[i].Grad.drho[0] = 0.0;
-		SphP[i].Grad.drho[1] = 0.0;
-		SphP[i].Grad.drho[2] = 0.0;
-	}
-	
-	// Arepo2b/3b overrides (central point)
-	int dpInd;
-  if ( Config.filename == "Arepo2b" ) dpInd = 6;
-	if ( Config.filename == "Arepo3b" ) dpInd = 10;
-	
-	SphP[dpInd].Density      = 20.0;
-	SphP[dpInd].Grad.drho[0] = 10.0;
-	SphP[dpInd].Grad.drho[1] = 10.0;
-	SphP[dpInd].Grad.drho[2] = 2.0;
 	
 #ifdef DEBUG
 	for (int i=0; i < NumGas; i++) {

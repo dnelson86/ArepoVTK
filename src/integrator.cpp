@@ -133,12 +133,12 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		// debug: verify treefind vs brute
 		scene->arepoMesh->LocateEntryCellBrute(ray);
 		int oldi = ray.index;
-		scene->arepoMesh->LocateEntryCell(ray);
+		scene->arepoMesh->LocateEntryCell(ray, prevEntryCell);
 		if (ray.index != oldi) {
 				cout << "MISMATCH brute = " << oldi << " tree = " << ray.index << endl;
-				exit(1119);
+				terminate("1119");
 		}
-		return 0.0f;
+		//return 0.0f;
 #endif
 		
 		// propagate ray to arepo box, set exit point

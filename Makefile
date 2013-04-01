@@ -18,7 +18,7 @@ OPT  += -DENABLE_AREPO
 
 ARCH = $(shell uname)
 
-OPTIMIZE = -Wall -g -m64 -O3 -pg #-pg enable profiler
+OPTIMIZE = -Wall -g -m64 -O3 #-pg enable profiler
 INCL     = -I ./Arepo/
 
 CC       = mpic++
