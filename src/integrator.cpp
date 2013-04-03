@@ -155,16 +155,12 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		// find the voronoi cell the ray will enter (or be in) first
 		scene->arepoMesh->LocateEntryCell(ray, prevEntryCell);
 		
-#if defined(DTFE_INTERP) || defined(NATURAL_NEIGHBOR_WATSON)
+#if defined(DTFE_INTERP) || defined(NNI_WATSON_SAMBRIDGE) || defined(NNI_LIANG_HALE)
 		// find the delaunay tetra the ray will enter (or be in) first
 		scene->arepoMesh->LocateEntryTetra(ray, prevEntryTetra);
 #endif
 
 		// TODO: exchange?
-		
-		// init tracker of previous cell the ray marched through
-		int temp_previous = -1;
-		int previous_cell;
 		
 		// advance ray through voronoi cells
 #ifdef DEBUG
@@ -189,10 +185,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 						break;
 				}
 #endif
-				previous_cell = temp_previous;
-				temp_previous = ray.index;
-				
-				if (!scene->arepoMesh->AdvanceRayOneCellNew(ray, &t0, &t1, previous_cell, Lv, Tr, taskNum) )
+				if (!scene->arepoMesh->AdvanceRayOneCellNew(ray, &t0, &t1, Lv, Tr, taskNum) )
 						break;
 				
         // roulette terminate ray marching if transmittance is small

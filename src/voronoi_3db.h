@@ -38,5 +38,8 @@ void make_an_edge_split_new(tessellation * T, int tt0, int edge_nr, int count, i
 void compute_auxmesh_volumes(tessellation *T, double *vol);
 void derefine_refine_process_edge_new(tessellation * T, double *vol, int tt, int nr, unsigned char *visited_edges);
 
+// for delaunay based NNI
+void calc_circumcenter(tessellation *T, point *p0, int dp1, int dp2, int dp3, double *cp);
+
 #endif // ENABLE_AREPO
 #endif // VORONOI_3DB_H
