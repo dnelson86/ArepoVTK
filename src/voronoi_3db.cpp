@@ -757,4 +757,64 @@ void derefine_refine_process_edge_new(tessellation * T, double *vol, int tt, int
     vol[p2] += dvol;
 }
 
+void calc_circumcenter(tessellation *T, point *p0, int dp1, int dp2, int dp3, double *cp)
+{
+  point *DP = T->DP;
+
+	//point p0;
+	point *p1 = &DP[dp1];
+	point *p2 = &DP[dp2];
+	point *p3 = &DP[dp3];
+	
+	if(dp1 == -5 || dp2 == -5 || dp3 == -5)
+	  terminate("dp index is infinity point");
+		
+	// set non-DT point
+	//p0.x = pp[0];
+	//p0.y = pp[1];
+	//p0.z = pp[2];
+	//set_integers_for_pointer(&p0);
+	
+	// solve for circumcenter
+  double ax = p1->xx - p0->xx;
+  double ay = p1->yy - p0->yy;
+  double az = p1->zz - p0->zz;
+
+  double bx = p2->xx - p0->xx;
+  double by = p2->yy - p0->yy;
+  double bz = p2->zz - p0->zz;
+
+  double cx = p3->xx - p0->xx;
+  double cy = p3->yy - p0->yy;
+  double cz = p3->zz - p0->zz;
+
+  double aa = 0.5 * (ax * ax + ay * ay + az * az);
+  double bb = 0.5 * (bx * bx + by * by + bz * bz);
+  double cc = 0.5 * (cx * cx + cy * cy + cz * cz);
+
+  double mv_data[] = { ax, ay, az, aa, bx, by, bz, bb, cx, cy, cz, cc };
+  double x[3];
+
+  int status = solve_linear_equations(mv_data, x);
+
+	// can we get away with non-exact?
+  if(status < 0)
+    {
+      terminate("resort to exact circum-sphere calculation");
+      //get_circumcircle_exact(T, tt, &xc, &yc, &zc);
+    }
+  else
+    {
+			// shift back to box frame and return
+      x[0] += p0->xx;
+      x[1] += p0->yy;
+      x[2] += p0->zz;
+
+      cp[0] = (x[0] - 1.0) / ConversionFac + CentralOffsetX;
+      cp[1] = (x[1] - 1.0) / ConversionFac + CentralOffsetY;
+      cp[2] = (x[2] - 1.0) / ConversionFac + CentralOffsetZ;
+    }
+
+}
+
 #endif // ENABLE_AREPO

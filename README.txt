@@ -19,18 +19,21 @@ Notes:
 
  * To build libarepo.a, delete main() from main.c and compile Arepo (ignore
  * missing main error), then build libarepo.a.
+
  * All structure is copied into local allvars.h and must match compile options
  * and current revision in Arepo allvars.h, otherwise All.BoxSize likely zero
  * and rays likely all terminated at their start.
+
+ * To compile: module load hpc/openmpi-1.6_gcc-4.7.0thread
 
 -------
 ArepoRT
 -------
 Goal:     Produce high quality, presentation-ready visualizations of hydrodynamic simulations run 
           with Arepo. Ray cast through linearly reconstructed scalar and vector fields defined on an 
-			    unstructured Voronoi tessellation of space. Support multi-dimensional transfer functions to 
-			    investigate fluid quantities, and explore novel visualization techniques for combining such 
-			    a volume rendering approach with coincident point particle sets (both luminous and dark).
+          unstructured Voronoi tessellation of space. Support multi-dimensional transfer functions to 
+          investigate fluid quantities, and explore novel visualization techniques for combining such 
+          a volume rendering approach with coincident point particle sets (both luminous and dark).
 
 Approach: A high level renderering framework is implemented in c++ following the design methodology 
           in the book "Physically Based Rendering" (2ed) by M. Pharr and G. Humphreys. Integration 
@@ -48,27 +51,27 @@ Version Roadmap:
  + v0.1
   - program shell and commandline functionality
   - radiative transfer framework:
-	 - pts, vector, matrices, rays, bboxes
-	 - camera: ortho projection, LookAt
-	 - stratified (no jitter or MC) sampler
-	 - volume emission (no scattering) integrator
-	 - renderer, task/image plane subdivision
-	- image output: raw text floats / TGA
-	- volumegrid input: "debug" scene descriptor format
+   - pts, vector, matrices, rays, bboxes
+   - camera: ortho projection, LookAt
+   - stratified (no jitter or MC) sampler
+   - volume emission (no scattering) integrator
+   - renderer, task/image plane subdivision
+ - image output: raw text floats / TGA
+ - volumegrid input: "debug" scene descriptor format
 	
  +v0.2
   - interface with Arepo
    - init and snapshot loading
    - acquire mesh construction and connectivity
-	- wireframe tetra/bounding box rendering
+    - wireframe tetra/bounding box rendering
    - wu's line algorithm
 	
  +v0.3
   - voronoi ray casting
-	 - cell averaged constant
-	 - gradients
+   - cell averaged constant
+   - gradients
   - attenuation via optical depth along LOS
-	- transfer function on a single quantity
+   - transfer function on a single quantity
   - configuration file
 
  +v0.35
@@ -82,46 +85,64 @@ Version Roadmap:
   - voronoi cell algorithm
   - SPH kernel and IDW of natural neighbors interp methods
   - tetra mesh walking
-   - DTFE and Watsonian (Liang-Hale) NNI methods
+   - DTFE 
+   - Watson-Sambridge NNI
+   - Liang-Hale NNI
   - external colortables
 
  +v0.4
+  - use internal DC connectivity instead of alternative Sunrise
+
+ +v0.41
+  - camera path splining in space (AnimatedTransform?)
+  - keyframe transfer function settings
+
+ +v0.42
+  - time navigation (multiple snapshots, time interpolation)
+  - movie pipeline
+   - frame metadata (XML/MKV container?)
+
+ +v0.43
+  - load group catalogs, merger trees
+   - track halos in time
+
+ +v0.44
+  - tetrahedra decomposition: exporter (SILO/visit)
+
+ +v0.45
   - 2D transfer functions, e.g. f(rho,T)	 
   - derived fields for TFs (e.g. temp, coolingrate)
   - johnston convolved planck BB temp emission TF
 
- +v0.45
+ +v0.50
+  - custom memory downsizing (minimize P,SphP)
+  - load additional particle types
+   - multiple meshes (e.g. allow DM NNI and gas NNI in TF) 
+
+ +v0.55
   - parallel (MPI) on distributed memory cluster
    - handle foreign ghosts
    - exchange_rays() type approach
-  - custom memory downsizing (minimize P,SphP)
 
- +v0.5
- - camera path splining in space (AnimatedTransform?)
- - keyframe transfer function settings
- - movie pipeline
-  - frame metadata (XML/MKV container?)
- - time navigation (multiple snapshots, interpolation?)	 
-	 
  +v0.6
   - interactive component (OpenGL)
-	 - alternative/quick rendering modes (splatting)
-	 - navigation
-	 - movie setup
-	 - (single node only)
+   - alternative/quick rendering modes (splatting)
+   - navigation
+   - movie setup
+   - (single node only)
   - GUI on node=0 as client (openWindow=true)
 
- +v0.7
+ +v0.61
   - GPU acceleration (ray tracing)?
-	- intersection acceleration? (BVH / kdTree)
-	- memory optimizations (wipe out / rearrange some Arepo stuff)
-	- speed optimizations?
+   - intersection acceleration? (BVH / kdTree)
+   - memory optimizations (wipe out / rearrange some Arepo stuff)
+   - speed optimizations?
+  - discrete NNI on GPU (sub-blocks to meeting sampling requirement)
 	
- +v0.8
-  - tetrahedra decomposition: exporter
-	- light sources (star particles)?
-	 - single scattering volume integrator (MC)?
-	- DOF/motion blur?
+ other
+  - light sources (star particles)?
+  - single scattering volume integrator (MC)?
+  - DOF/motion blur?
 
 --------------------------
 Arepo Interactive/Explorer
