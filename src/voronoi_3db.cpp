@@ -4,6 +4,7 @@
  */
  
 #include <alloca.h>
+
 #include "voronoi_3db.h"
 
 #ifdef ENABLE_AREPO
@@ -757,7 +758,170 @@ void derefine_refine_process_edge_new(tessellation * T, double *vol, int tt, int
     vol[p2] += dvol;
 }
 
-void calc_circumcenter(tessellation *T, point *p0, int dp1, int dp2, int dp3, double *cp)
+/** If pos is more than a half-box away from ref, wrap it so that they
+    are in the same octant. */
+void periodic_wrap_point(double pos[3], double ref[3])
+{
+  double dx, dy, dz;
+
+  dx = pos[0] - ref[0];
+  dy = pos[1] - ref[1];
+  dz = pos[2] - ref[2];
+#ifdef PERIODIC
+  if(dx > boxHalf_X)
+    pos[0] -= boxSize_X;
+  if(dx < -boxHalf_X)
+    pos[0] += boxSize_X;
+  if(dy > boxHalf_Y)
+    pos[1] -= boxSize_Y;
+  if(dy < -boxHalf_Y)
+    pos[1] += boxSize_Y;
+  if(dz > boxHalf_Z)
+    pos[2] -= boxSize_Z;
+  if(dz < -boxHalf_Z)
+    pos[2] += boxSize_Z;
+#endif
+}
+
+
+int find_next_cell_DC(tessellation * T, int cell, double p0[3], double dir[3], int previous, double *length)
+{
+  point *DP = T->DP;
+	
+  double cell_p[3];
+  cell_p[0] = P[cell].Pos[0];
+  cell_p[1] = P[cell].Pos[1];
+  cell_p[2] = P[cell].Pos[2];
+
+  // if mesh point is across the boundary, wrap it
+  periodic_wrap_point(cell_p, p0);
+
+  double nb_p[3];
+  double m[3];
+  double c[3];
+  double q[3];
+  double s;
+
+  // init next to -1, which means it didn't cross the face
+  int next = -1;
+  // initialize length to huge
+  *length = HUGE_VAL;
+
+  int edge = SphP[cell].first_connection;
+  int last_edge = SphP[cell].last_connection;
+  int iter = 0;
+
+  while(1)
+    {
+      ++iter;
+      const int neighbor = DC[edge].dp_index;
+			//myassert((DC[edge].task != ThisTask) || (DC[edge].index != cell));
+      if ( (DC[edge].task == ThisTask) && (DC[edge].index == cell) )
+				terminate("Bad DC we reached our parent cell in the neighbors.");
+
+      //printf(" CHECK: dp_neighbor = %d sphp_neighbor = %d\n",neighbor,DC[edge].index);
+
+      // ignore the edge we entered through
+      if((DC[edge].index == previous) && (DC[edge].task == ThisTask))
+        {
+          if(edge == last_edge)
+            break;
+          edge = DC[edge].next;
+          continue;
+        }
+
+      nb_p[0] = DP[neighbor].x;
+      nb_p[1] = DP[neighbor].y;
+      nb_p[2] = DP[neighbor].z;
+      // if neighbor is across the boundary, wrap it
+      periodic_wrap_point(nb_p, p0);
+
+      int i;
+      for(i = 0; i < 3; ++i)
+        {
+          // m is the edge midpoint, which is a point on the face plane
+          m[i] = 0.5 * (nb_p[i] + cell_p[i]);
+          // c is the vector from point p0 to m.
+          c[i] = m[i] - p0[i];
+          /* q is the edge vector to the neighboring cell, which is a
+             normal vector of the plane */
+          q[i] = nb_p[i] - cell_p[i];
+        }
+
+      // sanity check: by construction we know that the point is inside
+      // the cell, which means that c.q>0. If this is not true, it's
+      // because some numerical error has put the point on the other
+      // side of the face. In this case we short-circuit the process and
+      // say it is on the face, the propagation distance is zero (if
+      // it's heading towards the face, ie d.q>0). We must also guard
+      // against the case where the ray is perfectly on the face, in
+      // which case we will get NaN. In that case we simply ignore the
+      // face.
+      double cdotq = c[0] * q[0] + c[1] * q[1] + c[2] * q[2];
+      double ddotq = dir[0] * q[0] + dir[1] * q[1] + dir[2] * q[2];
+			
+      if(cdotq > 0)
+        {
+          // s = c.nq / d.q
+          // This is the standard formula for the intersection between a
+          // ray and a plane. s is the point where the ray p0+s*dir
+          // intersects the plane which is perpendicular to q and goes
+          // through c, i.e. the Voronoi face corresponding to the j-k
+          // edge.
+          s = cdotq / ddotq;
+        }
+      else
+        {
+          // point on wrong (outside) side of face. Something's up.
+          // If this is due to numerical truncation, distance to face
+          // should be small. If it's large, it's likely we aren't in
+          // the cell we think we are in.
+
+          // double dist_to_face = cdotq / sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2]);
+          //myassert(dist_to_face > -1e-6);
+
+          if(ddotq > 0)
+            {
+              // it's heading away from the cell, so it must have been
+              // supposed to intersect this face
+              // set s=0.
+              s = 0;
+            }
+          else
+            // it's heading into the cell, so it must have come in on
+            // this face. ignore the face
+            s = HUGE_VAL;
+        }
+
+      if(s >= 0 && s < *length)
+        {
+          /* The ray intersects the Voronoi face closer to the
+             starting point than any previous points. This is our
+             current candidate exit face. */
+          //printf("  cand dp_neighbor = %d s = %g\n",neighbor,s);
+          next = edge;
+          *length = s;
+        }
+
+      if(edge == last_edge)
+        break;
+
+			if ( edge == DC[edge].next )
+				terminate("Error: DC going in circles.");
+				
+      edge = DC[edge].next;
+    }
+
+  //printf("Tested %d voronoi faces\n", i);
+
+  // set length to the physical length instead of the fractional length (NO)
+  //*length *= sqrt(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+	
+  return next;
+
+}			
+			
+bool calc_circumcenter(tessellation *T, point *p0, int dp1, int dp2, int dp3, double *cp)
 {
   point *DP = T->DP;
 
@@ -769,12 +933,6 @@ void calc_circumcenter(tessellation *T, point *p0, int dp1, int dp2, int dp3, do
 	if(dp1 == -5 || dp2 == -5 || dp3 == -5)
 	  terminate("dp index is infinity point");
 		
-	// set non-DT point
-	//p0.x = pp[0];
-	//p0.y = pp[1];
-	//p0.z = pp[2];
-	//set_integers_for_pointer(&p0);
-	
 	// solve for circumcenter
   double ax = p1->xx - p0->xx;
   double ay = p1->yy - p0->yy;
@@ -800,8 +958,170 @@ void calc_circumcenter(tessellation *T, point *p0, int dp1, int dp2, int dp3, do
 	// can we get away with non-exact?
   if(status < 0)
     {
-      terminate("resort to exact circum-sphere calculation");
-      //get_circumcircle_exact(T, tt, &xc, &yc, &zc);
+      IF_DEBUG(cout << "   WARNING: should resort to exact circum-sphere (but not)" << endl);
+			//IF_DEBUG(cout << "    p0.x " << p0->x << " p0.y " << p0->y << " p0.z " << p0->z << endl);
+			//IF_DEBUG(cout << "    p1.x " << p1->x << " p1.y " << p1->y << " p1.z " << p1->z << endl);
+			//IF_DEBUG(cout << "    p2.x " << p2->x << " p2.y " << p2->y << " p2.z " << p2->z << endl);
+			//IF_DEBUG(cout << "    p3.x " << p3->x << " p3.y " << p3->y << " p3.z " << p3->z << endl);
+			
+			return false; // skip the entire sampling at this point
+			
+      //get_circumcircle_exact(T, tt, &cp[0], &cp[1], &cp[2]);
+
+			mpz_t det, detA, detB, detC;
+			mpz_t qx, qy, qz;
+			mpz_t a2, b2, c2, tmp, AA, BB, CC;
+			mpz_t ax, ay, az, bx, by, bz, cx, cy, cz;
+
+			mpz_init(det);
+			mpz_init(detA);
+			mpz_init(detB);
+			mpz_init(detC);
+			mpz_init(qx);
+			mpz_init(qy);
+			mpz_init(qz);
+
+			mpz_init(a2);
+			mpz_init(b2);
+			mpz_init(c2);
+			mpz_init(tmp);
+			mpz_init(AA);
+			mpz_init(BB);
+			mpz_init(CC);
+
+			mpz_init(ax);
+			mpz_init(ay);
+			mpz_init(az);
+			mpz_init(bx);
+			mpz_init(by);
+			mpz_init(bz);
+			mpz_init(cx);
+			mpz_init(cy);
+			mpz_init(cz);
+					
+			MY_mpz_set_si(tmp, p1->ix);
+			MY_mpz_sub_ui(ax, tmp, p0->ix);
+			MY_mpz_set_si(tmp, p1->iy);
+			MY_mpz_sub_ui(ay, tmp, p0->iy);
+			MY_mpz_set_si(tmp, p1->iz);
+			MY_mpz_sub_ui(az, tmp, p0->iz);
+
+			MY_mpz_set_si(tmp, p2->ix);
+			MY_mpz_sub_ui(bx, tmp, p0->ix);
+			MY_mpz_set_si(tmp, p2->iy);
+			MY_mpz_sub_ui(by, tmp, p0->iy);
+			MY_mpz_set_si(tmp, p2->iz);
+			MY_mpz_sub_ui(bz, tmp, p0->iz);
+
+			MY_mpz_set_si(tmp, p3->ix);
+			MY_mpz_sub_ui(cx, tmp, p0->ix);
+			MY_mpz_set_si(tmp, p3->iy);
+			MY_mpz_sub_ui(cy, tmp, p0->iy);
+			MY_mpz_set_si(tmp, p3->iz);
+			MY_mpz_sub_ui(cz, tmp, p0->iz);
+
+			mpz_set(tmp, ax);
+			mpz_mul(AA, tmp, ax);
+			mpz_set(tmp, ay);
+			mpz_mul(BB, tmp, ay);
+			mpz_set(tmp, az);
+			mpz_mul(CC, tmp, az);
+			mpz_add(tmp, AA, BB);
+			mpz_add(a2, tmp, CC);
+
+			mpz_set(tmp, bx);
+			mpz_mul(AA, tmp, bx);
+			mpz_set(tmp, by);
+			mpz_mul(BB, tmp, by);
+			mpz_set(tmp, bz);
+			mpz_mul(CC, tmp, bz);
+			mpz_add(tmp, AA, BB);
+			mpz_add(b2, tmp, CC);
+
+			mpz_set(tmp, cx);
+			mpz_mul(AA, tmp, cx);
+			mpz_set(tmp, cy);
+			mpz_mul(BB, tmp, cy);
+			mpz_set(tmp, cz);
+			mpz_mul(CC, tmp, cz);
+			mpz_add(tmp, AA, BB);
+			mpz_add(c2, tmp, CC);
+
+			calc_mpz_determinant(det, ax, ay, az, bx, by, bz, cx, cy, cz);
+			calc_mpz_determinant(detA, a2, ay, az, b2, by, bz, c2, cy, cz);
+			calc_mpz_determinant(detB, ax, a2, az, bx, b2, bz, cx, c2, cz);
+			calc_mpz_determinant(detC, ax, ay, a2, bx, by, b2, cx, cy, c2);
+
+			mpz_cdiv_q(tmp, detA, det);
+			mpz_tdiv_q_2exp(qx, tmp, 1);
+
+			mpz_cdiv_q(tmp, detB, det);
+			mpz_tdiv_q_2exp(qy, tmp, 1);
+
+			mpz_cdiv_q(tmp, detC, det);
+			mpz_tdiv_q_2exp(qz, tmp, 1);
+
+			MY_mpz_set_si(tmp, p0->ix);
+			mpz_add(AA, qx, tmp);
+
+			MY_mpz_set_si(tmp, p0->iy);
+			mpz_add(BB, qy, tmp);
+
+			MY_mpz_set_si(tmp, p0->iz);
+			mpz_add(CC, qz, tmp);
+
+			cp[0] = mpz_get_d(AA);
+			cp[1] = mpz_get_d(BB);
+			cp[2] = mpz_get_d(CC);
+
+			cp[0] /= (1LLu << USEDBITS);
+			cp[1] /= (1LLu << USEDBITS);
+			cp[2] /= (1LLu << USEDBITS);
+
+			cp[0] = cp[0] / ConversionFac + CentralOffsetX;
+			cp[1] = cp[1] / ConversionFac + CentralOffsetY;
+			cp[2] = cp[2] / ConversionFac + CentralOffsetZ;
+
+			mpz_clear(det);
+			mpz_clear(detA);
+			mpz_clear(detB);
+			mpz_clear(detC);
+			mpz_clear(qx);
+			mpz_clear(qy);
+			mpz_clear(qz);
+
+			mpz_clear(a2);
+			mpz_clear(b2);
+			mpz_clear(c2);
+			mpz_clear(tmp);
+			mpz_clear(AA);
+			mpz_clear(BB);
+			mpz_clear(CC);
+
+			mpz_clear(ax);
+			mpz_clear(ay);
+			mpz_clear(az);
+			mpz_clear(bx);
+			mpz_clear(by);
+			mpz_clear(bz);
+			mpz_clear(cx);
+			mpz_clear(cy);
+			mpz_clear(cz);
+			
+			// check with approximate
+#ifdef DEBUG
+      x[0] += p0->xx;
+      x[1] += p0->yy;
+      x[2] += p0->zz;
+			
+			double cpp[3];
+      cpp[0] = (x[0] - 1.0) / ConversionFac + CentralOffsetX;
+      cpp[1] = (x[1] - 1.0) / ConversionFac + CentralOffsetY;
+      cpp[2] = (x[2] - 1.0) / ConversionFac + CentralOffsetZ;
+			
+			cout << "   cp " << cp[0] << " " << cp[1] << " " << cp[2]
+					 << " cpp " << cpp[0] << " " << cpp[1] << " " << cpp[2] << endl;
+#endif
     }
   else
     {
@@ -813,8 +1133,9 @@ void calc_circumcenter(tessellation *T, point *p0, int dp1, int dp2, int dp3, do
       cp[0] = (x[0] - 1.0) / ConversionFac + CentralOffsetX;
       cp[1] = (x[1] - 1.0) / ConversionFac + CentralOffsetY;
       cp[2] = (x[2] - 1.0) / ConversionFac + CentralOffsetZ;
-    }
-
+   }
+	 
+	return true;
 }
 
 #endif // ENABLE_AREPO

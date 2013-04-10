@@ -4,7 +4,7 @@
  */
  
 #include <alloca.h>
- 
+
 #include "transform.h"
 #include "spectrum.h"
 #include "arepo.h"
@@ -12,6 +12,14 @@
 #include "transfer.h"
 
 #ifdef ENABLE_AREPO
+
+// NNI_WATSON_SAMBRIDGE
+#define MAX_NUM_TETS 100
+#define MAX_NUM_NODES 400
+#define NODE_A 3
+#define NODE_B 0
+#define NODE_C 1
+#define NODE_D 2
 
 // get primary hydro ID - handle local ghosts
 inline int ArepoMesh::getSphPID(int dp_id)
@@ -204,49 +212,183 @@ inline float sph_kernel(float dist, float hinv)
     return KERNEL_COEFF_5 * (1.0 - u) * (1.0 - u) * (1.0 - u);
   return 0;
 }
+
+float ArepoMesh::calcNeighborHSML(int sphInd, Vector &pt, int dpInd)
+{
+		float dx,dy,dz,xtmp,ytmp,ztmp;
+		float distsq, hsml2 = 0.0;
+		
+#ifdef USE_DC_CONNECTIVITY
+		
+		int edge = SphP[sphInd].first_connection;
+		int last_edge = SphP[sphInd].last_connection;
+		
+		while(edge >= 0) {
+		  int sphp_neighbor = DC[edge].index;
+			
+			// could connect to bounding tetra if we don't have a ghost across this boundary
+			if ( sphp_neighbor < 0 ) {
+				if ( edge == last_edge )
+					break;
+					
+				edge = DC[edge].next;
+				continue;
+			}
+			
+			dx = NGB_PERIODIC_LONG_X(P[sphp_neighbor].Pos[0] - pt.x);
+			dy = NGB_PERIODIC_LONG_Y(P[sphp_neighbor].Pos[1] - pt.y);
+			dz = NGB_PERIODIC_LONG_Z(P[sphp_neighbor].Pos[2] - pt.z);
+			distsq = dx*dx + dy*dy + dz*dz;
+			  
+      if(distsq > hsml2)
+        hsml2 = distsq;
+				
+			// move to next neighbor
+			if(edge == last_edge)
+				break;
+				
+#ifdef DEBUG
+			if (DC[edge].next == edge || DC[edge].next < 0)
+			  terminate(" what is going on (%d %d %d %d)",DC[edge].next,edge,DC[edge].dp_index,sphp_neighbor);
+#endif				
+
+			edge = DC[edge].next;
+		}
+		
+#else // USE_ALTERNATIVE_CONNECTIVITY
+		
+		const int start_edge = midpoint_idx[dpInd].first;
+		const int n_edges    = midpoint_idx[dpInd].second;
+		
+		for ( int k=0; k < n_edges; k++ ) {
+			int sphp_neighbor = getSphPID( opposite_points[start_edge+k] );
+			
+			dx = NGB_PERIODIC_LONG_X(P[sphp_neighbor].Pos[0] - pt.x);
+			dy = NGB_PERIODIC_LONG_Y(P[sphp_neighbor].Pos[1] - pt.y);
+			dz = NGB_PERIODIC_LONG_Z(P[sphp_neighbor].Pos[2] - pt.z);
+			distsq = dx*dx + dy*dy + dz*dz;
+			  
+      if(distsq > hsml2)
+        hsml2 = distsq;
+		}
+
+#endif // CONNECTIVITY
+
+    float hinv = 1.0 / sqrtf(hsml2);
+		
+		return hinv;
+
+}
+#endif
+
+#ifdef NATURAL_NEIGHBOR_INTERP
+void inline periodic_wrap_DP_point(point &dp_pt, Vector &ref)
+{
+#ifdef PERIODIC
+  double dx, dy, dz;
+
+  dx = dp_pt.x - ref.x;
+  dy = dp_pt.y - ref.y;
+  dz = dp_pt.z - ref.z;
+
+  if(dx > boxHalf_X)
+    dp_pt.x -= boxSize_X;
+  if(dx < -boxHalf_X)
+    dp_pt.x += boxSize_X;
+  if(dy > boxHalf_Y)
+    dp_pt.y -= boxSize_Y;
+  if(dy < -boxHalf_Y)
+    dp_pt.y += boxSize_Y;
+  if(dz > boxHalf_Z)
+    dp_pt.z -= boxSize_Z;
+  if(dz < -boxHalf_Z)
+    dp_pt.z += boxSize_Z;
+#endif
+}
 #endif
 
 #ifdef NNI_WATSON_SAMBRIDGE
-bool ArepoMesh::needTet(int tt, point *pp)
+inline bool ArepoMesh::needTet(int tt, point *pp, int *tet_inds, int *nTet)
 {
+	// check if this tetra is already in tet_inds, if so skip
+	// we do this instead of a "mark" (could use DT[tt].s[0]) to make this thread safe
+	for (int i=0; i < *nTet; i++)
+	  if ( tet_inds[i] == tt )
+		  return false;
+
 	// check if pp is inside tetra tt, use non-exact if possible
 	int ret;
 	
 	ret = InSphere_Errorbound( &DP[DT[tt].p[0]], &DP[DT[tt].p[1]], &DP[DT[tt].p[2]],
-														 &DP[DT[tt].p[3]], pp );
-														 
-	if ( ret == 0 )
-		terminate(" add exact ");
-		
-	return ret;
+														 &DP[DT[tt].p[3]], pp ); // -1 outside, +1 inside, 0 need exact
+
+	//IF_DEBUG(cout << "   needTet [" << tt << "] ret = " << ret << " pp.x = " << pp->x << endl);
+	
+	if ( ret == 0 ) {
+		terminate(" handle the request for exact insphere ");
+	}
+	else if ( ret > 0 ) {
+		return true; // add
+	}
+	
+	return false; // skip
 }
 
 void ArepoMesh::addTet(int tt, point *pp, int *node_inds, int *tet_inds, int *nNode, int *nTet)
 {
+	if ( *nNode+3 >= MAX_NUM_TETS || *nTet >= MAX_NUM_NODES )
+	  terminate(" addTet reached maximum buffer ");
+		
+	// determine if any of the nodes are already in the node_inds
+	// TODO: could use a set or other STL stuff here instead
+	bool flags[4] = { false, false, false, false };
+	
+	for (int i=0; i < *nNode; i++) {
+		if ( node_inds[i] == DT[tt].p[NODE_A] ) flags[0] = true;
+		if ( node_inds[i] == DT[tt].p[NODE_B] ) flags[1] = true;
+		if ( node_inds[i] == DT[tt].p[NODE_C] ) flags[2] = true;
+		if ( node_inds[i] == DT[tt].p[NODE_D] ) flags[3] = true;
+	}
+		
 	// add nodes and tetra to processing lists
-	node_inds[*nNode+0] = DT[tt].p[0];
-	node_inds[*nNode+1] = DT[tt].p[1];
-	node_inds[*nNode+2] = DT[tt].p[2];
-	node_inds[*nNode+3] = DT[tt].p[3];
-	*nNode += 4;
+	if (!flags[0]) {
+		node_inds[*nNode] = DT[tt].p[NODE_A];
+		*nNode += 1;
+	}
+	if (!flags[1]) {
+		node_inds[*nNode] = DT[tt].p[NODE_B];
+		*nNode += 1;
+	}
+	if (!flags[2]) {
+		node_inds[*nNode] = DT[tt].p[NODE_C];
+		*nNode += 1;
+	}
+	if (!flags[3]) {
+		node_inds[*nNode] = DT[tt].p[NODE_D];
+		*nNode += 1;
+	}
 	
 	tet_inds[*nTet] = tt;
 	*nTet += 1;
 	
-#ifdef DEBUG
-	cout << " addTet [" << tt << "] new nTet = " << nTet << " nNode = " << nNode << " (" << DT[tt].p[0] << " " << DT[tt].p[1] << " " << DT[tt].p[2] << " " << DT[tt].p[3] << ")" << endl;
-#endif
+	IF_DEBUG(cout << "   addTet [" << tt << "] new nTet = " << *nTet << " nNode = " << *nNode 
+								<< " (" << DT[tt].p[NODE_A] << " " << DT[tt].p[NODE_B] << " " << DT[tt].p[NODE_C] 
+								<< " " << DT[tt].p[NODE_D] << ")" << endl);
 	
 	// recursively add neighbors of this tetra if needed
-	if ( needTet(DT[tt].t[0], pp) ) addTet( DT[tt].t[0], pp, node_inds, tet_inds, nNode, nTet );
-	if ( needTet(DT[tt].t[1], pp) ) addTet( DT[tt].t[1], pp, node_inds, tet_inds, nNode, nTet );
-	if ( needTet(DT[tt].t[2], pp) ) addTet( DT[tt].t[2], pp, node_inds, tet_inds, nNode, nTet );
-	if ( needTet(DT[tt].t[3], pp) ) addTet( DT[tt].t[3], pp, node_inds, tet_inds, nNode, nTet );
+	if ( needTet(DT[tt].t[0], pp, tet_inds, nTet) ) 
+		addTet( DT[tt].t[0], pp, node_inds, tet_inds, nNode, nTet );
+	if ( needTet(DT[tt].t[1], pp, tet_inds, nTet) )
+		addTet( DT[tt].t[1], pp, node_inds, tet_inds, nNode, nTet );
+	if ( needTet(DT[tt].t[2], pp, tet_inds, nTet) )
+		addTet( DT[tt].t[2], pp, node_inds, tet_inds, nNode, nTet );
+	if ( needTet(DT[tt].t[3], pp, tet_inds, nTet) )
+		addTet( DT[tt].t[3], pp, node_inds, tet_inds, nNode, nTet );
 }
 
 double ArepoMesh::ccVolume(double *ci, double *cj, double *ck, double *ct)
 {
-	double xt = ct[0], yt = ct[1], zt = ct[2];
+	double xt = ct[0],    yt = ct[1],    zt = ct[2];
 	double xi = ci[0]-xt, yi = ci[1]-yt, zi = ci[2]-zt;
 	double xj = cj[0]-xt, yj = cj[1]-yt, zj = cj[2]-zt;
 	double xk = ck[0]-xt, yk = ck[1]-yt, zk = ck[2]-zt;
@@ -256,17 +398,23 @@ double ArepoMesh::ccVolume(double *ci, double *cj, double *ck, double *ct)
 #endif
 
 // interpolate scalar fields at position pt inside Voronoi cell SphP_ID (various methods)
-int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *vals, int taskNum)
+int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNum)
 {
-	int DP_ID = ray.index;
+#ifdef USE_DC_CONNECTIVITY
+	int dpInd = -1;
+	int sphInd = ray.index;
+#else // USE_ALTERNATIVE_CONNECTIVITY
+	int dpInd = ray.index;
+	int sphInd = getSphPID(DP[ray.index].index);
+#endif
 	
 	// check degenerate point in R3, immediate return
-	if (fabs(pt.x - DP[DP_ID].x) <= INSIDE_EPS &&
-			fabs(pt.y - DP[DP_ID].y) <= INSIDE_EPS &&
-			fabs(pt.z - DP[DP_ID].z) <= INSIDE_EPS)
+	if (fabs(pt.x - P[sphInd].Pos[0]) <= INSIDE_EPS &&
+			fabs(pt.y - P[sphInd].Pos[1]) <= INSIDE_EPS &&
+			fabs(pt.z - P[sphInd].Pos[2]) <= INSIDE_EPS)
 	{
-			vals[TF_VAL_DENS]   = SphP[SphP_ID].Density;
-			vals[TF_VAL_UTHERM] = SphP[SphP_ID].Utherm;
+			vals[TF_VAL_DENS]   = SphP[sphInd].Density;
+			vals[TF_VAL_UTHERM] = SphP[sphInd].Utherm;
 			return 1;
 	}
 				
@@ -274,63 +422,14 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 	vals[TF_VAL_DENS]   = 0.0;
 	vals[TF_VAL_UTHERM] = 0.0;			
 				
-#ifdef NATURAL_NEIGHBOR_IDW
+#if defined(NATURAL_NEIGHBOR_IDW) || defined(NATURAL_NEIGHBOR_SPHKERNEL)
 
 /* exponent of distance, greater values assign more influence to values closest to the 
  * interpolating point, approaching piecewise constant for large POWER_PARAM.
  * in N dimensions, if p <= N, the interpolated values are dominated by points far away,
- * which is rather bizarre.
+ * which is rather bizarre. note: p is actually 2p since we skip the sqrt.
  */
-#define POWER_PARAM 4.0
-
-		// list of neighbors
-		const int start_edge = midpoint_idx[DP_ID].first;
-		const int n_edges    = midpoint_idx[DP_ID].second;
-		
-		// add parent to list
-		int dp_neighbor, sphp_neighbor;
-		float dx,dy,dz,xtmp,ytmp,ztmp;	
-		float weight,weightsum=0,distsq;
-		
-		// loop over each neighbor
-		for (int k=0; k < n_edges; k++) {
-			dp_neighbor = opposite_points[start_edge + k];
-			sphp_neighbor = getSphPID(DP[dp_neighbor].index);
-			
-			// calculate weight as 1.0/dist^power (Shepard's Method)
-			dx = NGB_PERIODIC_LONG_X(DP[dp_neighbor].x - pt.x);
-			dy = NGB_PERIODIC_LONG_Y(DP[dp_neighbor].y - pt.y);
-			dz = NGB_PERIODIC_LONG_Z(DP[dp_neighbor].z - pt.z);
-			
-			distsq = dx*dx + dy*dy + dz*dz;
-			
-			weight = 1.0 / pow(distsq,POWER_PARAM);
-			weightsum += weight;
-			
-			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
-			vals[TF_VAL_UTHERM] += SphP[sphp_neighbor].Utherm * weight;
-		}
-		
-		// add in primary parent
-		dx = NGB_PERIODIC_LONG_X(DP[DP_ID].x - pt.x);
-		dy = NGB_PERIODIC_LONG_Y(DP[DP_ID].y - pt.y);
-		dz = NGB_PERIODIC_LONG_Z(DP[DP_ID].z - pt.z);
-	
-		distsq = dx*dx + dy*dy + dz*dz;
-						 
-		weight = 1.0 / pow(distsq,POWER_PARAM);
-		weightsum += weight;
-		
-		vals[TF_VAL_DENS]   += SphP[SphP_ID].Density * weight;
-		vals[TF_VAL_UTHERM] += SphP[SphP_ID].Utherm * weight;
-		
-		// normalize weights
-		vals[TF_VAL_DENS]   /= weightsum;
-		vals[TF_VAL_UTHERM] /= weightsum;
-			
-#endif // NATURAL_NEIGHBOR_IDW
-
-#ifdef NATURAL_NEIGHBOR_SPHKERNEL
+#define POWER_PARAM 2.0
 
 /* use <1 for more smoothing, makes hsml_used bigger than hsml_ngb_max
  * use >1 for less smoothing, make hsml_used smaller than hsml_ngb_max 
@@ -339,129 +438,240 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
  */
 #define HSML_FAC 0.95
 
-		// list of neighbors
-		int edge, last_edge;
-		
-		// add parent to list
-		int dp_neighbor, sphp_neighbor;
-		float dx,dy,dz,xtmp,ytmp,ztmp;	
-		float weight,weightsum=0,distsq;
-		float hsml2 = 0.0;
-		
-		// 1. smoothing length parameter: calculate over neighbor distances
-		edge = SphP[SphP_ID].first_connection;
-		last_edge = SphP[SphP_ID].last_connection;
-		
-		while(edge >= 0) {
-		  dp_neighbor = DC[edge].dp_index;
-			
-			dx = NGB_PERIODIC_LONG_X(DP[dp_neighbor].x - pt.x);
-			dy = NGB_PERIODIC_LONG_Y(DP[dp_neighbor].y - pt.y);
-			dz = NGB_PERIODIC_LONG_Z(DP[dp_neighbor].z - pt.z);
-			
-			distsq = dx*dx + dy*dy + dz*dz;
-                                           
-      if(distsq > hsml2)
-        hsml2 = distsq;
-				
-			// move to next neighbor
-			if(edge == last_edge)
-				break;
-				
-			if (DC[edge].next == edge || DC[edge].next < 0 || dp_neighbor < 0)
-			  terminate(" what is going on ");
-				
-			edge = DC[edge].next;
-		}
-		
-    float hinv = HSML_FAC / sqrtf(hsml2);
-         
-		// 2. loop over each neighbor and add contribution
-		edge = SphP[SphP_ID].first_connection;
-		
-		while(edge >= 0) {
-		  dp_neighbor = DC[edge].dp_index;
-			sphp_neighbor = getSphPID(DP[dp_neighbor].index);
-			
-			// calculate weight as sphkernel(distsq/h) (cubic spline kernel)
-			dx = NGB_PERIODIC_LONG_X(DP[dp_neighbor].x - pt.x);
-			dy = NGB_PERIODIC_LONG_Y(DP[dp_neighbor].y - pt.y);
-			dz = NGB_PERIODIC_LONG_Z(DP[dp_neighbor].z - pt.z);
-			
-			distsq = dx*dx + dy*dy + dz*dz;
-			
-			weight = sph_kernel(sqrtf(distsq),hinv);
-			weightsum += weight; // * SphP[SphP_ID].Volume;
-			
-			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
-			vals[TF_VAL_UTHERM] += SphP[sphp_neighbor].Utherm * weight;
-				
-			// move to next neighbor
-			if(edge == last_edge)
-				break;
-				
-			if (DC[edge].next == edge || DC[edge].next < 0 || dp_neighbor < 0 || sphp_neighbor < 0)
-			  terminate(" what is going on ");
-				
-			edge = DC[edge].next;
-		}
-		
-		// add in primary parent
-		dx = NGB_PERIODIC_LONG_X(DP[DP_ID].x - pt.x);
-		dy = NGB_PERIODIC_LONG_Y(DP[DP_ID].y - pt.y);
-		dz = NGB_PERIODIC_LONG_Z(DP[DP_ID].z - pt.z);
-		
-		distsq = dx*dx + dy*dy + dz*dz;
-		
-		weight = sph_kernel(sqrtf(distsq),hinv);
-		weightsum += weight; // * SphP[SphP_ID].Volume;
-		
-		vals[TF_VAL_DENS]   += SphP[SphP_ID].Density * weight;
-		vals[TF_VAL_UTHERM] += SphP[SphP_ID].Utherm * weight;
+		float dx,dy,dz,xtmp,ytmp,ztmp;
+		float weight, weightsum=0, distsq;
 
-		// 3. normalize by weight totals
+#ifdef NATURAL_NEIGHBOR_SPHKERNEL
+		// for SPHKERNEL first need to pick smoothing length
+		float hinv = HSML_FAC * calcNeighborHSML(sphInd,pt,dpInd);
+#endif
+		
+#ifndef BRUTE_FORCE
+
+#ifdef USE_DC_CONNECTIVITY
+
+		int edge = SphP[sphInd].first_connection;
+		int last_edge = SphP[sphInd].last_connection;
+		
+		int pri_neighbor_inds[20];
+		int k=0;
+		
+		edge = SphP[sphInd].first_connection;
+		
+		while(edge >= 0) {
+			int sphp_neighbor = DC[edge].index;
+			pri_neighbor_inds[k++] = sphp_neighbor;
+		
+#ifdef NATURAL_NEIGHBOR_INNER
+			// loop over neighbors of neighbors
+			int inner_edge = SphP[sphp_neighbor].first_connection;
+			int inner_last_edge = SphP[sphp_neighbor].last_connection;
+			
+			while(inner_edge >= 0) {
+				// skip any neighbors we've already done
+				for( int i=0; i < k; i++ ) {
+				  if ( DC[inner_edge].index == pri_neighbor_inds[i] ) {
+						if(inner_edge == inner_last_edge)
+							break;
+
+						inner_edge = DC[inner_edge].next;
+						continue;
+					}
+				}
+				
+				// neighbor of neighbor IDW
+				dx = NGB_PERIODIC_LONG_X(P[ DC[inner_edge].index ].Pos[0] - pt.x);
+				dy = NGB_PERIODIC_LONG_Y(P[ DC[inner_edge].index ].Pos[1] - pt.y);
+				dz = NGB_PERIODIC_LONG_Z(P[ DC[inner_edge].index ].Pos[2] - pt.z);
+				distsq = dx*dx + dy*dy + dz*dz;
+			  
+#ifdef NATURAL_NEIGHBOR_IDW
+				weight = 1.0 / pow( sqrtf(distsq),POWER_PARAM );
+#else // NATURAL_NEIGHBOR_SPHKERNEL
+				weight = sph_kernel( sqrtf(distsq),hinv );
+#endif
+				weightsum += weight;
+				
+				vals[TF_VAL_DENS]   += SphP[ DC[inner_edge].index ].Density * weight;
+				vals[TF_VAL_UTHERM] += SphP[ DC[inner_edge].index ].Utherm * weight;
+			
+			  if(inner_edge == inner_last_edge)
+					break;
+
+				inner_edge = DC[inner_edge].next;
+			}
+#endif // NATURAL_NEIGHBOR_INNER	
+		
+			dx = NGB_PERIODIC_LONG_X(P[sphp_neighbor].Pos[0] - pt.x);
+			dy = NGB_PERIODIC_LONG_Y(P[sphp_neighbor].Pos[1] - pt.y);
+			dz = NGB_PERIODIC_LONG_Z(P[sphp_neighbor].Pos[2] - pt.z);
+			distsq = dx*dx + dy*dy + dz*dz;
+			  
+#ifdef NATURAL_NEIGHBOR_IDW
+			weight = 1.0 / pow( sqrtf(distsq),POWER_PARAM );
+#else // NATURAL_NEIGHBOR_SPHKERNEL
+			weight = sph_kernel( sqrtf(distsq),hinv );
+#endif
+			weightsum += weight;
+				
+			vals[TF_VAL_DENS]   += SphP[ sphp_neighbor ].Density * weight;
+			vals[TF_VAL_UTHERM] += SphP[ sphp_neighbor ].Utherm * weight;
+				
+			// move to next neighbor
+			if(edge == last_edge)
+				break;
+				
+#ifdef DEBUG
+			if (DC[edge].next == edge || DC[edge].next < 0 || sphp_neighbor < 0)
+			  terminate(" what is going on ");
+#endif				
+
+			edge = DC[edge].next;
+		}
+		
+#else // USE_ALTERNATIVE_CONNECTIVITY
+
+#ifdef NATURAL_NEIGHBOR_INNER
+		terminate("Error: INNER for alt connectivity not implemented.");
+#endif
+
+		const int start_edge = midpoint_idx[dpInd].first;
+		const int n_edges    = midpoint_idx[dpInd].second;
+		
+		for ( int k=0; k < n_edges; k++ ) {
+			int sphp_neighbor = getSphPID( opposite_points[start_edge+k] );
+			
+			dx = NGB_PERIODIC_LONG_X(P[sphp_neighbor].Pos[0] - pt.x);
+			dy = NGB_PERIODIC_LONG_Y(P[sphp_neighbor].Pos[1] - pt.y);
+			dz = NGB_PERIODIC_LONG_Z(P[sphp_neighbor].Pos[2] - pt.z);
+			distsq = dx*dx + dy*dy + dz*dz;
+			  
+#ifdef NATURAL_NEIGHBOR_IDW
+			weight = 1.0 / pow( sqrtf(distsq),POWER_PARAM );
+#else // NATURAL_NEIGHBOR_SPHKERNEL
+			weight = sph_kernel( sqrtf(distsq),hinv );
+#endif
+			weightsum += weight;
+				
+			vals[TF_VAL_DENS]   += SphP[ sphp_neighbor ].Density * weight;
+			vals[TF_VAL_UTHERM] += SphP[ sphp_neighbor ].Utherm * weight;
+		}
+		
+#endif // CONNECTIVITY
+
+		// add in primary parent
+		dx = NGB_PERIODIC_LONG_X(P[sphInd].Pos[0] - pt.x);
+		dy = NGB_PERIODIC_LONG_Y(P[sphInd].Pos[1] - pt.y);
+		dz = NGB_PERIODIC_LONG_Z(P[sphInd].Pos[2] - pt.z);
+		distsq = dx*dx + dy*dy + dz*dz;
+			  
+#ifdef NATURAL_NEIGHBOR_IDW
+		weight = 1.0 / pow( sqrtf(distsq),POWER_PARAM );
+#else // NATURAL_NEIGHBOR_SPHKERNEL
+		weight = sph_kernel( sqrtf(distsq),hinv );
+#endif
+		weightsum += weight;
+		
+		vals[TF_VAL_DENS]   += SphP[sphInd].Density * weight;
+		vals[TF_VAL_UTHERM] += SphP[sphInd].Utherm * weight;
+		
+#else // BRUTE_FORCE
+
+		// brute force loop over NumGas
+		for( int sphp_neighbor = 0; sphp_neighbor < NumGas; sphp_neighbor++ ) {			
+			dx = NGB_PERIODIC_LONG_X(P[sphp_neighbor].Pos[0] - pt.x);
+			dy = NGB_PERIODIC_LONG_Y(P[sphp_neighbor].Pos[1] - pt.y);
+			dz = NGB_PERIODIC_LONG_Z(P[sphp_neighbor].Pos[2] - pt.z);
+			distsq = dx*dx + dy*dy + dz*dz;
+			  
+#ifdef NATURAL_NEIGHBOR_IDW
+			weight = 1.0 / pow( sqrtf(distsq),POWER_PARAM );
+#else // NATURAL_NEIGHBOR_SPHKERNEL
+			hinv = 4.0;
+			weight = sph_kernel( sqrtf(distsq),hinv );
+#endif
+			weightsum += weight;
+				
+			vals[TF_VAL_DENS]   += SphP[ sphp_neighbor ].Density * weight;
+			vals[TF_VAL_UTHERM] += SphP[ sphp_neighbor ].Utherm * weight;
+		}
+			
+#endif // BRUTE_FORCE
+
+		// normalize weights
 		vals[TF_VAL_DENS]   /= weightsum;
 		vals[TF_VAL_UTHERM] /= weightsum;
+			
+#endif // NATURAL_NEIGHBOR_IDW or NATURAL_NEIGHBOR_SPHKERNEL
 
-#endif // NATURAL_NEIGHBOR_SPHKERNEL
+/* -------------------------------------------------------------------------------------- */
 
 #ifdef NATURAL_NEIGHBOR_INTERP
-		int tlast = 0;
-		int dp_neighbor, sphp_neighbor;
-
+		int tlast = 0, sphp_neighbor;
+		int edge, last_edge;
 		float weight;	
 		
 		double dp_old_vol[AUXMESH_ALLOC_SIZE/2];
 		double dp_new_vol[AUXMESH_ALLOC_SIZE/2];
-		
-		// list of neighbors
-		const int start_edge = midpoint_idx[DP_ID].first;
-		const int n_edges    = midpoint_idx[DP_ID].second;
 
+		const int start_edge = midpoint_idx[sphInd].first;
+		const int n_edges    = midpoint_idx[sphInd].second;
+		
 		// recreate the voronoi cell of the parent's neighbors (auxiliary mesh approach):
 		init_clear_auxmesh(&AuxMeshes[taskNum]);
 			
 		// construct new auxiliary mesh around pt
-		for(int k = 0; k < n_edges; k++)
-		{
-				int q = opposite_points[start_edge + k];
+		edge = SphP[sphInd].first_connection;
+		last_edge = SphP[sphInd].last_connection;
 		
-				if(AuxMeshes[taskNum].Ndp + 2 >= AuxMeshes[taskNum].MaxNdp)
-					terminate("1157");
+		//while(edge >= 0) {
+		for( int k = 0; k < n_edges; k++ ) {
+			if(AuxMeshes[taskNum].Ndp + 2 >= AuxMeshes[taskNum].MaxNdp)
+				terminate("AuxMesh for NNI exceeds maximum size.");
 				
-				// insert point
-				AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[q];
+			// insert point
+			//AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[ DC[edge].dp_index ];
+			AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[ opposite_points[start_edge+k] ];
+			
+			// wrap this DP point to near our sample point if necessary
+			periodic_wrap_DP_point( AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp], pt );
 				
-		    set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
-		    tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
-		    AuxMeshes[taskNum].Ndp++;
+			IF_DEBUG(cout << "   insertN (orig x=" << Mesh.DP[ DC[edge].dp_index ].x << " y=" << Mesh.DP[ DC[edge].dp_index ].y
+			              << " z=" << Mesh.DP[ DC[edge].dp_index ].z << ") (wrapped x=" 
+										<< AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].x 
+										<< " y=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].y 
+										<< " z=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].z 
+										<< ") tlast=" << setw(3) << tlast << " totnum=" << setw(2) << AuxMeshes[taskNum].Ndp+1 << endl);				
 				
-				IF_DEBUG(cout << " inserted neighbor k=" << k << " new tlast=" << tlast << " totnum=" << 
-								 AuxMeshes[taskNum].Ndp << endl);
+		  //set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
+			set_integers_for_pointer( &AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] );
+		  tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
+		  AuxMeshes[taskNum].Ndp++;
+				
+			// move to next neighbor
+			if(edge == last_edge)
+				break;
+				
+#ifdef DEBUG		 
+			if (DC[edge].next == edge || DC[edge].next < 0)
+			  terminate(" what is going on ");
+#endif
+				
+			edge = DC[edge].next;
 		}
-		
 		// add primary parent as well
-		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[DP_ID];
+		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[sphInd];
+		
+		// wrap
+		periodic_wrap_DP_point( AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp], pt);
+		
+		IF_DEBUG(cout << "   insertP (orig x=" << Mesh.DP[ sphInd ].x << " y=" << Mesh.DP[ sphInd ].y
+		              << " z=" << Mesh.DP[ sphInd ].z << ") (wrapped x=" 
+									<< AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].x 
+									<< " y=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].y 
+									<< " z=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].z 
+									<< ") tlast=" << setw(3) << tlast << " totnum=" << setw(2) << AuxMeshes[taskNum].Ndp+1 << endl);		
+		
 		set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
 		tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
 		AuxMeshes[taskNum].Ndp++;
@@ -471,9 +681,9 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 		compute_auxmesh_volumes(&AuxMeshes[taskNum], dp_old_vol);
 		
 #ifdef DEBUG
-		cout << " old volumes:";
+		cout << "   old volumes:";
 		for (int k = 0; k < AuxMeshes[taskNum].Ndp; k++) {
-				cout << " [k=" << k << "] " << dp_old_vol[k];
+				cout << " [" << k << "] " << dp_old_vol[k];
 		}
 		cout << endl;
 #endif		
@@ -482,42 +692,69 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].x = pt.x;
 		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].y = pt.y;
 		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].z = pt.z;
-		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].ID = -1; //unused
 		
 		set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
 
 		tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
 		AuxMeshes[taskNum].Ndp++;
 		
-		IF_DEBUG(cout << " inserted interpolate new tlast=" << tlast << " totnum=" << AuxMeshes[taskNum].Ndp << endl);
+		IF_DEBUG(cout << "   inserted interpolate new tlast=" << tlast << " totnum=" << AuxMeshes[taskNum].Ndp << endl);
 	
 		// compute new circumcircles and volumes
 		compute_circumcircles(&AuxMeshes[taskNum]);
 		compute_auxmesh_volumes(&AuxMeshes[taskNum], dp_new_vol);
 
 #ifdef DEBUG
-		cout << " new volumes:";
+		cout << "   new volumes:";
 		for (int k = 0; k < AuxMeshes[taskNum].Ndp; k++) {
-				cout << " [k=" << k << "] " << dp_new_vol[k];
+				cout << " [" << k << "] " << dp_new_vol[k];
 		}
 		cout << endl;
 #endif
 
 		// calculate scalar value based on neighbor values and area fraction weights
-		for (int k=0; k < n_edges; k++) {
-			dp_neighbor = opposite_points[start_edge + k];
-			sphp_neighbor = getSphPID(DP[dp_neighbor].index);
+		edge = SphP[sphInd].first_connection;
+		
+		float weightsum = 0.0;
+		int k = 0;
+		
+		//while(edge >= 0) {
+		//for( sphp_neighbor = 0; sphp_neighbor < NumGas; sphp_neighbor++ ) {
+		for ( int k=0; k < n_edges; k++ ) {
+			sphp_neighbor = getSphPID( DP[opposite_points[start_edge+k]].index );
+			//sphp_neighbor = DC[edge].index;
 			
 			weight = dp_old_vol[k] - dp_new_vol[k];
+			weightsum += weight;
+			
 			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
 			vals[TF_VAL_UTHERM] += SphP[sphp_neighbor].Utherm * weight;
+			//k++;
+			
+			// move to next neighbor
+			if(edge == last_edge)
+				break;
+				
+#ifdef DEBUG		 
+			if (DC[edge].next == edge || DC[edge].next < 0)
+			  terminate(" what is going on ");
+#endif
+
+			edge = DC[edge].next;			
 		}
 		
 		// add primary parent
-		weight = dp_old_vol[n_edges] - dp_new_vol[n_edges];
+		weight = dp_old_vol[AuxMeshes[taskNum].Ndp-2] - dp_new_vol[AuxMeshes[taskNum].Ndp-2];
+		weightsum += weight;
 		
-		vals[TF_VAL_DENS]   += SphP[SphP_ID].Density * weight;
-		vals[TF_VAL_UTHERM] += SphP[SphP_ID].Utherm * weight;
+		vals[TF_VAL_DENS]   += SphP[sphInd].Density * weight;
+		vals[TF_VAL_UTHERM] += SphP[sphInd].Utherm * weight;
+
+		IF_DEBUG(cout << "   weightsum = " << weightsum << " inserted vol = " << dp_new_vol[AuxMeshes[taskNum].Ndp-1] << endl);
+		
+		// do the volumes lost by all the natural neighbors add up to the sample pt cell volume?
+		//if ( fabs(weightsum - dp_new_vol[AuxMeshes[taskNum].Ndp-1]) / dp_new_vol[AuxMeshes[taskNum].Ndp-1] > 1e-1 )
+		//  terminate("NNI weight error is large.");
 		
 		// normalize by volume of last added cell (around interp point)
 		vals[TF_VAL_DENS]   /= dp_new_vol[AuxMeshes[taskNum].Ndp-1];
@@ -525,12 +762,13 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 
 #endif // NATURAL_NEIGHBOR_INTERP
 
+/* -------------------------------------------------------------------------------------- */
+
 #ifdef DTFE_INTERP
 		// use DT[tt].p[0] as the x_i sample point
 		int tt0_DPID   = DT[ray.tetra].p[0];
 		
 		// if p[0] is part of the bounding tetra (we are on the edge), cannot do DTFE
-		// note: the delaunay triangulation is not periodic, otherwise this would be ok
 		if (tt0_DPID < 0) {
 			IF_DEBUG(cout << "  dtfe: p[0] = " << tt0_DPID << ", skipping!" << endl);
 		  return 0;
@@ -545,8 +783,7 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 
 		// apply the (linear) gradient to the sampling point
 		vals[TF_VAL_DENS]   = SphP[tt0_SphPID].Density + Dot(tetraGrad,pt);
-		
-		vals[TF_VAL_UTHERM] = SphP[SphP_ID].Utherm; // TODO
+		vals[TF_VAL_UTHERM] = SphP[sphInd].Utherm; // TODO
 		
 #ifdef DEBUG
 		cout << "  dtfe: tt = " << ray.tetra << " p0 = " << tt0_DPID << " sph0 = " << tt0_SphPID << endl;
@@ -554,15 +791,13 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 		cout << "  dtfe: dens = " << vals[TF_VAL_DENS] << " sphDens = " << SphP[tt0_SphPID].Density << endl;
 #endif
 		
-#endif
+#endif // DTFE
+
+/* -------------------------------------------------------------------------------------- */
 
 #ifdef NNI_WATSON_SAMBRIDGE
-	/* const int access_tri_ws[4][3] = {
-		{1, 2, 3},
-		{2, 3, 0},
-		{3, 0, 1},
-		{0, 1, 2}
-	}; */
+	// const int access_tri_ws[4][3] = { {1, 2, 3}, {2, 3, 0},	{3, 0, 1}, {0, 1, 2} };
+	// const int access_nodes_ws[4] = {3,0,1,2}; // used via NODE_X
 	
 	// circumcenters of five new tetras composed of 3 original vertices and the pt
 	double cca[3]; // pbcd
@@ -580,40 +815,46 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 	// double triplet for our interp point
 	point pp;
 	pp.x = pt.x;
-	pp.x = pt.y;
-	pp.x = pt.z;
+	pp.y = pt.y;
+	pp.z = pt.z;
 	set_integers_for_pointer(&pp);
 	
 	// compute the tetra/node lists corresponding to natural neighbors
 	int nNode = 0;
 	int nTet = 0;
 	
-	int MAX_NUM_TETS = 100;
-	int MAX_NUM_NODES = 100;
-	
 	int tet_inds[MAX_NUM_TETS];
 	int node_inds[MAX_NUM_NODES];
 	
 	// start the recursive search with the current parent tetra
 	ArepoMesh::addTet(ray.tetra, &pp, &node_inds[0], &tet_inds[0], &nNode, &nTet);
-		
-	// zero volumes we will accumulate into
+	
+	// zero volumes we will accumulate into and make nodeIndex -> DP_vols_index map
+	float DP_vols[MAX_NUM_NODES];
+	multimap<int,int> mm;
+	
 	for ( int i=0; i < nNode; i++ ) {
-		DP_vols[node_inds[i]] = 0.0;
+		DP_vols[ i ] = 0.0;
+		mm.insert( std::pair<int,int>( node_inds[i], i ) );
 	}
 		
 	// loop over natural neighbor tetras
+	bool okFlag = true;
+	
 	for ( int i=0; i < nTet; i++ )
 	{
 		int tet = tet_inds[i];
 		
 		// compute five new circumcenters
-		// cyclic ordering correct? (0=a, 1=b, 2=c, 3=d)
-		calc_circumcenter(T, &pp, DT[tet].p[1], DT[tet].p[2], DT[tet].p[3], &cca[0]);
-		calc_circumcenter(T, &pp, DT[tet].p[0], DT[tet].p[3], DT[tet].p[2], &ccb[0]);
-		calc_circumcenter(T, &pp, DT[tet].p[0], DT[tet].p[1], DT[tet].p[3], &ccc[0]);
-		calc_circumcenter(T, &pp, DT[tet].p[0], DT[tet].p[2], DT[tet].p[1], &ccd[0]);
-		calc_circumcenter(T, &(DP[DT[tet].p[0]]), DT[tet].p[1], DT[tet].p[2], DT[tet].p[3], &cct[0]);
+		// cyclic ordering correct? (0=a, 1=b, 2=c, 3=d is incorrect)
+		// (Arepo orientation: 3 lies above the oriented triangle formed by 0,1,2)
+		// --> (3=a, 0=b, 1=c, 2=d if tri is CCW) (3=a, 0=b, 2=c, 1=d if tri is CW)
+		okFlag &= calc_circumcenter(T, &pp, DT[tet].p[NODE_B], DT[tet].p[NODE_C], DT[tet].p[NODE_D], &cca[0]);
+		okFlag &= calc_circumcenter(T, &pp, DT[tet].p[NODE_A], DT[tet].p[NODE_D], DT[tet].p[NODE_C], &ccb[0]);
+		okFlag &= calc_circumcenter(T, &pp, DT[tet].p[NODE_A], DT[tet].p[NODE_B], DT[tet].p[NODE_D], &ccc[0]);
+		okFlag &= calc_circumcenter(T, &pp, DT[tet].p[NODE_A], DT[tet].p[NODE_C], DT[tet].p[NODE_B], &ccd[0]);
+		okFlag &= calc_circumcenter(T, &(DP[DT[tet].p[NODE_A]]), 
+		                          DT[tet].p[NODE_B], DT[tet].p[NODE_C], DT[tet].p[NODE_D], &cct[0]);
 		
 		// compute four volumes
 		va = ArepoMesh::ccVolume(&ccb[0],&ccc[0],&ccd[0],&cct[0]);
@@ -622,39 +863,71 @@ int ArepoMesh::subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *val
 		vd = ArepoMesh::ccVolume(&cca[0],&ccc[0],&ccb[0],&cct[0]);
 		
 		// accumulate volumes onto vertices (nodes)
-		DP_vols[ DT[tet].p[0] ] += va;
-		DP_vols[ DT[tet].p[1] ] += vb;
-		DP_vols[ DT[tet].p[2] ] += vc;
-		DP_vols[ DT[tet].p[3] ] += vd;
+		DP_vols[ mm.find( DT[tet].p[NODE_A] )->second ] += va;
+		DP_vols[ mm.find( DT[tet].p[NODE_B] )->second ] += vb;
+		DP_vols[ mm.find( DT[tet].p[NODE_C] )->second ] += vc;
+		DP_vols[ mm.find( DT[tet].p[NODE_D] )->second ] += vd;
 		
 		vol_sum += va + vb + vc + vd;
+		
+		IF_DEBUG(cout << "   tet [" << setw(2) << i << "] [" << setw(4) << tet << "] va = " 
+									<< va << " vb = " << vb << " vc = " 
+									<< vc << " vd = " << vd << " vol_sum = " << vol_sum << endl);
+	}
+	
+	IF_DEBUG(cout << "   final vol_sum = " << vol_sum << endl);
+	
+	if ( !okFlag ) {
+		IF_DEBUG(cout << "  errFlag = 1, poor circumcenters, skipping point!" << endl);
+		return 0;
 	}
 	
 	// we have the final volumes and the normalization, loop once more over the contributing tetras
+	double wt_total = 0.0; // debugging
+
 	for ( int i=0; i < nNode; i++ )
 	{
-	  int SphPID = getSphPID(DP[node_inds[i]].index);
-		vals[TF_VAL_DENS]   += SphP[SphPID].Density * DP_vols[ node_inds[i] ];
-		vals[TF_VAL_UTHERM] += SphP[SphPID].Utherm  * DP_vols[ node_inds[i] ];
+	  int sphInd = getSphPID(DP[node_inds[i]].index);
+		vals[TF_VAL_DENS]   += SphP[sphInd].Density * DP_vols[ node_inds[i] ];
+		vals[TF_VAL_UTHERM] += SphP[sphInd].Utherm  * DP_vols[ node_inds[i] ];
+		
+		IF_DEBUG(cout << "   add node [i " << setw(2) << i << "] [sphInd " << setw(3) << sphInd
+									<< "] Dens = " << SphP[sphInd].Density 
+									<< " wt = " << DP_vols[ mm.find( node_inds[i] )->second ]/vol_sum 
+									<< " ( " << SphP[sphInd].Density * DP_vols[ mm.find( node_inds[i] )->second ] << " )" << endl);
+									
+		wt_total += DP_vols[ mm.find( node_inds[i] )->second ];
 	}
+	
+	IF_DEBUG(cout << "   wt_total = " << wt_total << " ( error = " << wt_total - vol_sum << " )" << endl);
+	
+	if ( vol_sum <= 0.0 )
+	  terminate("Watson-Sambridge produced negative volume for inserted Vcell.");
+	//if ( fabs(wt_total - vol_sum)/vol_sum > 1e-1 )
+	//  terminate("Watson-Sambridge weights failed to sum up to total volume (%g %g %g).",pt.x,pt.y,pt.z);
 	
 	vals[TF_VAL_DENS]   /= vol_sum;
 	vals[TF_VAL_UTHERM] /= vol_sum;
 
 #endif
 
+/* -------------------------------------------------------------------------------------- */
+
 #ifdef NNI_LIANG_HALE
 		terminate("TODO");
 #endif
 
+/* -------------------------------------------------------------------------------------- */
+
 #ifdef CELL_GRADIENTS_ONLY
 		// old:
-		Vector sphCen(     SphP[SphP_ID].Center[0],   SphP[SphP_ID].Center[1],   SphP[SphP_ID].Center[2]);
-		Vector sphDensGrad(SphP[SphP_ID].Grad.drho[0],SphP[SphP_ID].Grad.drho[1],SphP[SphP_ID].Grad.drho[2]);
-    pt -= sphCen;	// make relative to cell center	
+    pt -= Vector( P[sphInd].Pos );	// make relative to cell center	
 		
-		vals[TF_VAL_DENS]   = SphP[SphP_ID].Density + Dot(sphDensGrad,pt);
-		vals[TF_VAL_UTHERM] = SphP[SphP_ID].Utherm; // no utherm gradient unless MATERIALS
+		// Voronoi stencil-based linear gradient
+		Vector sphDensGrad( SphP[sphInd].Grad.drho );
+		
+		vals[TF_VAL_DENS]   = SphP[sphInd].Density + Dot(sphDensGrad,pt);
+		vals[TF_VAL_UTHERM] = SphP[sphInd].Utherm; // no utherm gradient unless MATERIALS
 		
 #endif // CELL_GRADIENTS_ONLY
 
