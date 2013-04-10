@@ -16,7 +16,7 @@ public:
 		
 		// pure virtual methods
     virtual BBox WorldBound() const = 0;
-    virtual bool IntersectP(const Ray &ray, float *t0, float *t1) const = 0;
+    virtual bool IntersectP(const Ray &ray, double *t0, double *t1) const = 0;
     virtual Spectrum sigma_a(const Point &, const Vector &, float time) const = 0;
     virtual Spectrum sigma_s(const Point &, const Vector &, float time) const = 0;
     virtual Spectrum Lve(const Point &, const Vector &, float time) const = 0;
@@ -37,7 +37,7 @@ public:
     //    bool hit = volumeRegion->Intersect(ray, isect);
     //    return hit;
     //}
-    bool IntersectP(const Ray &ray, float *t0, float *t1) const {
+    bool IntersectP(const Ray &ray, double *t0, double *t1) const {
         bool hit = volumeRegion->IntersectP(ray, t0, t1);
         return hit;
     }
@@ -98,7 +98,7 @@ public:
 		// methods
     BBox WorldBound() const { return Inverse(WorldToVolume)(extent); }
     BBox VolumeBound() const { return extent; }
-    bool IntersectP(const Ray &r, float *t0, float *t1) const {
+    bool IntersectP(const Ray &r, double *t0, double *t1) const {
 				//IF_DEBUG(*r->printRay("DR IntersectP W "));
         Ray ray = WorldToVolume(r);
         return extent.IntersectP(ray, t0, t1);

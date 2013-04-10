@@ -140,11 +140,6 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		ArepoMesh::setupAuxMeshes();
 		ArepoMesh::precomputeTetraGrads();
 		
-#ifdef NNI_WATSON_SAMBRIDGE
-		// free volume accumulation array
-		DP_vols = new float[Ndp];
-#endif
-		
 		// TODO: temp units
 		unitConversions[TF_VAL_DENS]   = All.UnitDensity_in_cgs / MSUN_PER_PC3_IN_CGS;
 		unitConversions[TF_VAL_UTHERM] = All.UnitEnergy_in_cgs;
@@ -175,10 +170,6 @@ ArepoMesh::~ArepoMesh()
 		// free delaunay tetra gradients
 		delete DT_grad;
 #endif
-#ifdef NNI_WATSON_SAMBRIDGE
-		// free volume accumulation array
-		delete DP_vols;
-#endif
 }
 
 void ArepoMesh::LocateEntryCellBrute(const Ray &ray)
@@ -186,30 +177,34 @@ void ArepoMesh::LocateEntryCellBrute(const Ray &ray)
 		// note: using the brute force search is O(N_rays * NumPart) - not good
 		Point hitbox  = ray(ray.min_t);
 		
-		int DP_ID = -1;
+		int sphInd = -1;
 		double minDist = MAX_REAL_NUMBER;
+		Vector delta;
+		double dist;
 		
-		for (int i=0; i < Ndp; i++) {
-				double dist = sqrt( (hitbox.x-DP[i].x)*(hitbox.x-DP[i].x) + 
-													  (hitbox.y-DP[i].y)*(hitbox.y-DP[i].y) + 
-														(hitbox.z-DP[i].z)*(hitbox.z-DP[i].z) );
+		for (int i=0; i < NumGas; i++) {
+				//double dist = sqrt( (hitbox.x-P[i].Pos[0]) * (hitbox.x-P[i].Pos[0]) + 
+				//									  (hitbox.y-P[i].Pos[1]) * (hitbox.y-P[i].Pos[1]) + 
+				//										(hitbox.z-P[i].Pos[2]) * (hitbox.z-P[i].Pos[2]) );
+														
+				delta.x = hitbox.x - P[i].Pos[0];
+				delta.y = hitbox.y - P[i].Pos[1];
+				delta.z = hitbox.z - P[i].Pos[2];
+				
+				dist = delta.PeriodicLengthSquared();
+				
 				if (dist < minDist) {
 						minDist = dist;
-						DP_ID = i;
+						sphInd = i;
 				}
 		}
-
-#ifdef DEBUG
-		if (DP_ID >= NumGas)
-				cout << " LocateEntryCellBrute is [Local Ghost] DP_ID = " << DP_ID << " (NumGas = " << NumGas << ")" << endl;
-#endif
 		
-		IF_DEBUG(cout << " brute DP_ID = " << DP_ID << " DP[DP_ID].index = " << DP[DP_ID].index 
-									<< " dist = " << minDist << " (DP.x = " << DP[DP_ID].x << " DP.y = " 
-									<< DP[DP_ID].y << " DP.z = " << DP[DP_ID].z << ")" << endl);
+		IF_DEBUG(cout << " brute sphInd = " << sphInd
+									<< " dist = " << minDist << " (P.x = " << P[sphInd].Pos[0] << " P.y = " 
+									<< P[sphInd].Pos[1] << " P.z = " << P[sphInd].Pos[2] << ")" << endl);
 		
-		ray.index = DP_ID;
-		ray.task  = DP[DP_ID].task;
+		ray.index = sphInd;
+		ray.task  = 0;
 		
 		// verify task assignment
 		if (ray.task < 0 || ray.task >= NTask) {
@@ -223,6 +218,8 @@ void ArepoMesh::LocateEntryCellBrute(const Ray &ray)
 
 void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 {
+		double mindist;
+	
 		Point hitbox  = ray(ray.min_t);
 		
 #ifdef DEBUG
@@ -232,41 +229,28 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 		cout << " ray ends at   x = " << exitbox.x << " y = " << exitbox.y << " z = " << exitbox.z << endl;
 #endif		
 		
-		// use peanokey to find domain and task for ray
+		// TODO: use peanokey to find domain and task for ray
 		if (ray.task == -1) {
-				// TODO
 				ray.task = 0;
 		}
 		// TODO: exchange
 		
 		// use tree to find nearest gas particle (local only)
-		double mindist, mindist2;
-		
-#ifndef USE_AREPO_TREEFIND_FUNC
-		const int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, *prevEntryCell, &mindist);
+		int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, *prevEntryCell, &mindist);
 		*prevEntryCell = dp_min;
-#endif
 		
-#ifdef USE_AREPO_TREEFIND_FUNC
-		terminate("6233");
-		mindist = -1;
-		double pos[3];
-		pos[0] = hitbox.x;
-		pos[1] = hitbox.y;
-		pos[2] = hitbox.z;
-		const int dp_min = 0; //= ngb_treefind_nearest_local(pos,-1,&mindist,0,&found_global);
-#endif
+		//IF_DEBUG(cout << " dp_min = " << dp_min
+		//							<< " dist = " << mindist << " (x = " << P[sphp_min].Pos[0] << " y = "
+		//							<< P[sphp_min].Pos[1] << " z = " << P[sphp_min].Pos[2] << ")" << endl); 
 	 
-		IF_DEBUG(cout << " dp_min = " << dp_min
-									<< " dist = " << mindist << " (x = " << P[dp_min].Pos[0] << " y = "
-									<< P[dp_min].Pos[1] << " z = " << P[dp_min].Pos[2] << ")" << endl); 
-	 
+#ifdef USE_ALTERNATIVE_CONNECTIVITY
 		// refine nearest point search to account for local ghosts
 		int count   = 0;      // iterations marching through mesh
 		int dp_old  = dp_min; // where we are
 		int dp_oldi = dp_min; // candidates for closer points
 		int dp_2ago = dp_min; // where we are coming from
 		int dp_new;           // best candidate, where we are headed
+		double mindist2;
 		
 		while (true)
 		{
@@ -287,15 +271,15 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 				{
 						const int dp_neighbor = opposite_points[start_edge + i];
 						
-						IF_DEBUG(cout << " iter i=" << i << " dp_neighbor = " << dp_neighbor << endl);
+						//IF_DEBUG(cout << " iter i=" << i << " dp_neighbor = " << dp_neighbor << endl);
 						
 						// find distance to neighbor across this edge
 						Point pos_neighbor(DP[dp_neighbor].x,DP[dp_neighbor].y,DP[dp_neighbor].z);
 						
 						celldist = hitbox - pos_neighbor;
 						
-						const float dist2 = celldist.LengthSquared();
-						IF_DEBUG(cout << " dist2=" << dist2 << " mindist2=" << mindist2 << endl);
+						const double dist2 = celldist.LengthSquared();
+						//IF_DEBUG(cout << " dist2=" << dist2 << " mindist2=" << mindist2 << endl);
 						
 						if (dist2 < mindist2) {
 								IF_DEBUG(cout << "  new closest DP_id = " << dp_neighbor << endl);
@@ -358,9 +342,13 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 				cout << "ERROR: Refined entry tree search ended in ghost but count=0" << endl;
 				terminate("1107");
 		}
+
+		dp_min = dp_new;
 		
-		ray.index = dp_new;
-		ray.task  = DP[dp_new].task;
+#endif
+		
+		ray.index = dp_min;
+		ray.task  = 0;
 		
 		// verify task assignment
 		if (ray.task < 0 || ray.task >= NTask) {
@@ -370,56 +358,91 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 		
 }
 
-void ArepoMesh::VerifyPointInCell(int dp, Point &pos)
-{
-		Vector celldist(pos.x - DP[dp].x, pos.y - DP[dp].y, pos.z - DP[dp].z);
+void ArepoMesh::VerifyPointInCell(int parInd, Point &pos)
+{		
+#ifdef USE_DC_CONNECTIVITY
+		Vector celldist(pos.x - P[parInd].Pos[0], pos.y - P[parInd].Pos[1], pos.z - P[parInd].Pos[2]);
+		double dist2point = celldist.PeriodicLengthSquared();
 		
-		double dist2point = celldist.LengthSquared();
-		int dpid_min = dp;
-		
-#ifdef OLD_VERIFY
-		// check neighbors for a closer tetra midpoint
-		const int start_edge = midpoint_idx[dp].first;
-		const int n_edges    = midpoint_idx[dp].second;
-		
-		for (int i=0; i < n_edges; i++)
+		if ( dist2point >= INSIDE_EPS )
 		{
-				const int dp_neighbor = opposite_points[start_edge + i];
-				
-				celldist = Vector(pos.x - DP[dp_neighbor].x,
-				                  pos.y - DP[dp_neighbor].y,
-													pos.z - DP[dp_neighbor].z);
-				
-				if (celldist.LengthSquared() < dist2point - INSIDE_EPS)
-					dpid_min = dp_neighbor;
-		}
-#else
-		// check all other DP for a closer tetra midpoint
-
-		for (int i=0; i < Ndt; i++)
-		{
-			if ( DP[i].index >= NumGas )
-			  continue; // skip ghosts
-		
-			celldist = Vector(pos.x - DP[i].x, pos.y - DP[i].y, pos.z - DP[i].z);
+			// check all primary cells using periodic distance
+			for (int i=0; i < NumGas; i++)
+			{		
+				celldist = Vector(pos.x - P[i].Pos[0], pos.y - P[i].Pos[1], pos.z - P[i].Pos[2]);
 			
-			if(celldist.LengthSquared() < dist2point - INSIDE_EPS)
-				dpid_min = i;
+				if(celldist.PeriodicLengthSquared()/dist2point < 1 - INSIDE_EPS)
+				{
+					cout << "VerifyPointInCell FAILED! pt.x = " << setprecision(10) <<  pos.x << " pt.y = " << pos.y << " pt.z = " << pos.z << endl 
+				       << " sphInd_cur = " << setw(3) << parInd << " P.x = " << P[parInd].Pos[0] << " P.y = " << P[parInd].Pos[1] 
+				  		 << " P.z = " << P[parInd].Pos[2] << " (dist2point = " << dist2point << ")" << endl;
+					cout << " sphInd_min = " << setw(3) << i << " P.x = " << P[i].Pos[0] << " P.y = " << P[i].Pos[1] 
+				       << " P.z = " << P[i].Pos[2] << " (dist2point = " << celldist.PeriodicLengthSquared() << ")" << endl;
+					terminate("1129");
+				}
+			}
+		}
+#else // USE_ALTERNATIVE_CONNECTIVITY
+		Vector celldist(pos.x - DP[parInd].x, pos.y - DP[parInd].y, pos.z - DP[parInd].z);
+		double dist2point = celldist.LengthSquared();
+		
+		if ( dist2point >= INSIDE_EPS )
+		{
+			// check all DP points using non-periodic distances
+			for (int i=0; i < Ndp; i++)
+			{
+				celldist = Vector(pos.x - DP[i].x, pos.y - DP[i].y, pos.z - DP[i].z);
+			
+				if(celldist.LengthSquared()/dist2point < 1 - INSIDE_EPS)
+				{
+					cout << "VerifyPointInCell FAILED! pt.x = " << setprecision(10) <<  pos.x << " pt.y = " << pos.y << " pt.z = " << pos.z << endl 
+						   << "  dpInd_cur = " << setw(3) << parInd << " DP.x = " << DP[parInd].x << " DP.y = " << DP[parInd].y
+						   << " DP.z = " << DP[parInd].z << " (dist2point = " << dist2point << ")" << endl;
+					cout << "  dpInd_min = " << setw(3) << i << " DP.x = " << DP[i].x << " DP.y = " << DP[i].y 
+				       << " DP.z = " << DP[i].z << " (dist2point = " << celldist.LengthSquared() << ")" << endl;
+					terminate("1129");
+				}
+			}
 		}
 #endif
-	
-		// check
-		if (dpid_min != dp) {
-				cout << "VerifyPointInCell FAILED! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y << " pos.z = " << pos.z << " (dist2point = " << dist2point << " DP.x = " << DP[dp].x << " DP.y = " << DP[dp].y << " DP.z = " << DP[dp].z << ")" << endl;
-				
-				Vector celldist(pos.x - DP[dpid_min].x, pos.y - DP[dpid_min].y, pos.z - DP[dpid_min].z);
-				double dist2point = celldist.LengthSquared();
-				
-				cout << " dpid_min = " << dpid_min << " DP.x = " << DP[dpid_min].x << " DP.y = " << DP[dpid_min].y << " DP.z = " << DP[dpid_min].z << "(dist2point = " << dist2point << ")" << endl;
-				terminate("1129");
-		}
 		
-		IF_DEBUG(cout << "VerifyPointInCell Passed! dp = " << dp << " pos.x = " << pos.x << " pos.y = " << pos.y << " pos.z = " << pos.z << endl);
+		// METHOD 2. check neighbors for closer DP (use DC connectivity)
+		/*
+		int edge = SphP[sphInd].first_connection;
+		int last_edge = SphP[sphInd].last_connection;
+		int neighbor = -1;
+		
+		while(edge >= 0) {
+		  neighbor = DC[edge].index;
+			
+			celldist = Vector(pos.x - P[neighbor].Pos[0],pos.y - P[neighbor].Pos[1]	pos.z - P[neighbor].Pos[2]);
+                                           
+			if(celldist.PeriodicLengthSquared() < dist2point - INSIDE_EPS)
+				sphInd_min[1] = DC[edge].index;
+				
+			// move to next neighbor
+			if(edge == last_edge)
+				break;
+				
+			if (DC[edge].next == edge || DC[edge].next < 0 || dp_neighbor == -5)
+			  terminate(" what is going on (%d %d %d) ",DC[edge].next,edge,dp_neighbor);
+				
+			edge = DC[edge].next;
+		}
+		*/
+		
+#ifdef DEBUG
+		cout << "VerifyPointInCell PASSED! pt.x = " << pos.x << " pt.y = " << pos.y << " pt.z = " << pos.z << endl;
+		
+#ifdef USE_DC_CONNECTIVITY
+		cout << " [ ]   sphInd_cur = " << parInd << " P.x = " << P[parInd].Pos[0] << " P.y = " << P[parInd].Pos[1] 
+				 << " P.z = " << P[parInd].Pos[2] << " (dist2point = " << dist2point << ")" << endl;
+#else // USE_ALTERNATIVE_CONNECTIVITY
+		cout << " [ ]   dpInd_cur = " << parInd << " P.x = " << DP[parInd].x << " P.y = " << DP[parInd].y
+				 << " P.z = " << DP[parInd].z << " (dist2point = " << dist2point << ")" << endl;
+#endif
+
+#endif // DEBUG
 
 }
 
@@ -438,24 +461,20 @@ void ArepoMesh::LocateEntryTetra(const Ray &ray, int *prevEntryTetra)
 		
 		tt = get_tetra(T, &p, &moves, *prevEntryTetra, &ret, &ret);
 	 
-#ifdef DEBUG
+#ifdef DEBUG_VERIFY_ENTRY_CELLS
 		int next_tetra = -1;
-		cout << " TETRA tt = " << tt	<< " moves = " << moves << " ret = " << ret << endl;
+		IF_DEBUG(cout << " TETRA tt = " << tt	<< " moves = " << moves << " ret = " << ret << endl);
 		
 		ret = -1;
 		int check = InTetra(T, tt, &p, &ret, &next_tetra);
-		cout << " check = " << check << " edgeface_nr = " << ret << " next_tetra = " << next_tetra << endl;
-		if (check < 1) { // 2 or 3 ok (on face or edge)
-			cout << "ERROR: Entry tetra failed." << endl;
-			terminate("1164");
-		}
+		
+		if (check < 1) // 2 or 3 ok (on face or edge)
+			terminate("ERROR: Entry tetra check failed.");
 #endif
 
 		// sanity check
-		if (tt < 0 || tt >= Ndt) {
-				cout << "ERROR: Entry tetra search ended at tt = " << tt << endl;
-				terminate("1107");
-		}
+		if (tt < 0 || tt >= Ndt)
+			terminate("ERROR: Entry tetra search ended at tt = %d",tt);
 		
 		ray.tetra = tt;
 		*prevEntryTetra = tt;
@@ -578,13 +597,8 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 	}
 	
 #ifdef DEBUG
-	cout << "FindNearestGasParticle(): start nearest=" << nearest << " x = " << P[nearest].Pos[0] << " y = " << 
+	cout << "FindNearestGasParticle(): found nearest = " << nearest << " x = " << P[nearest].Pos[0] << " y = " << 
 			P[nearest].Pos[1] << " z = " << P[nearest].Pos[2] << " cur_mindist = " << cur_mindist << endl;
-	cout << " search_min = " << search_min[0] << " " << search_min[1] << " " << search_min[2] << endl;
-	cout << " search_max = " << search_max[0] << " " << search_max[1] << " " << search_max[2] << endl;
-	cout << " search_max_Lsub = " << search_max_Lsub[0] << " " << search_max_Lsub[1] << " " << search_max_Lsub[2] << endl;
-	cout << " search_min_Ladd = " << search_min_Ladd[0] << " " << search_min_Ladd[1] << " " << search_min_Ladd[2] << endl;
-	cout << " count_indpart = " << count_indpart << " count_intnode = " << count_intnode << " count_extnode = " << count_extnode << endl;
 #endif	
 	
 	*mindist = sqrt(cur_mindist_sq);
@@ -592,23 +606,23 @@ int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 	return nearest;
 }
 
-// get primary hydro ID - handle local ghosts
-inline int ArepoMesh::getSphPID(int dp_id)
+// get primary hydro IND - handle local ghosts
+inline int ArepoMesh::getSphPID(int dpInd)
 {
-		int SphP_ID = -1;
+		int sphInd = -1;
 		
-		if (dp_id >= 0 && dp_id < NumGas)
-				SphP_ID = dp_id;
-		else if (dp_id >= NumGas)
-				SphP_ID = dp_id - NumGas;
+		if (dpInd >= 0 && dpInd < NumGas)
+				sphInd = dpInd;
+		else if (dpInd >= NumGas)
+				sphInd = dpInd - NumGas;
 		
-		if (SphP_ID < 0)
-				terminate("1135");
+		if (sphInd < 0)
+				terminate("Negative sphInd in getSphPID().");
 				
-		return SphP_ID;
+		return sphInd;
 }
 
-void ArepoMesh::checkCurCellTF(bool *addFlag, int SphP_ID, float *vals)
+void ArepoMesh::checkCurCellTF(bool *addFlag, int sphInd, float *vals)
 {	
 	// check if TF evaluates to zero at this cell midpoint
 /*
@@ -633,11 +647,11 @@ void ArepoMesh::locateCurrentTetra(const Ray &ray, Vector &pt)
 {
 	// check degenerate point in R3, immediate return, otherwise we will terminate get_tetra
 	// with "strange zero count" since we are on a vertex (3 faces simultaneously)
-	if (fabs(pt.x - DP[ray.index].x) <= INSIDE_EPS && 
-	    fabs(pt.y - DP[ray.index].y) <= INSIDE_EPS &&
-			fabs(pt.z - DP[ray.index].z) <= INSIDE_EPS)
+	if (fabs(pt.x - P[ray.index].Pos[0]) <= INSIDE_EPS && 
+	    fabs(pt.y - P[ray.index].Pos[1]) <= INSIDE_EPS &&
+			fabs(pt.z - P[ray.index].Pos[2]) <= INSIDE_EPS)
 		return;
-			
+		
 	// in making this substep, did we cross a delaunay tetra?
 	point pp;
 	pp.x = pt.x;
@@ -650,10 +664,10 @@ void ArepoMesh::locateCurrentTetra(const Ray &ray, Vector &pt)
 	// check intersections of line defined by (pp,pend) with the faces of DT[ray.tetra]
 	next_tetra = get_tetra(T, &pp, &moves, ray.tetra, &flag, &edgeface_nr);
 	
-//#ifdef DEBUG
+#ifdef DEBUG_VERIFY_INCELL_EACH_STEP
 	if ( next_tetra != ray.tetra )
 	{
-		//cout << "  TETRA ADVANCE old = " << ray.tetra << " new = " << next_tetra << endl;
+		IF_DEBUG(cout << "  TETRA ADVANCE old = " << ray.tetra << " new = " << next_tetra << endl);
 				
 		int ret,next_tetra2 = -1;
 		int test = InTetra(T, next_tetra, &pp, &ret, &next_tetra2);
@@ -680,60 +694,48 @@ void ArepoMesh::locateCurrentTetra(const Ray &ray, Vector &pt)
 		//if(test > 1)
 		//	cout << "  TETRA: WARNING: on face or edge [" << test << "]" << endl;
 	}
-//#endif
+#endif
 
 	ray.tetra = next_tetra;
 }
 
-bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, 
+bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1, 
 																		 Spectrum &Lv, Spectrum &Tr, int taskNum)
 {
 		double min_t = MAX_REAL_NUMBER;
-		int SphP_ID = getSphPID(DP[ray.index].index); // current primary cell index
 		int qmin = -1; // next primary cell index
 		
 		// verify task
-		if (ray.task != ThisTask) {
-				cout << "[" << ThisTask << "] ERROR! ray.task = " << ray.task << " differs from ThisTask!" << endl;
-				terminate("1138");
-		}
+		if (ray.task != ThisTask)
+			terminate("Ray on wrong task.");
 	
 	  Point pos = ray(ray.min_t);
-	
-#ifdef DEBUG_VERIFY_INCELL_EACH_STEP
-		// verify ray is where we expect it
-		ArepoMesh::VerifyPointInCell(ray.index,pos);
-#endif
 
-#ifdef DEBUG
-		ray(*t0).print(" hitbox ");
-		ray(*t1).print(" exitbox ");
-#endif
-
-		// DC connectivity
-
+#ifdef USE_DC_CONNECTIVITY
+		int SphP_ID = ray.index;
+		
 		double length; // find_next_voronoi_cell() return
-		float p0[3];
-		p0[0] = pos.x;
-		p0[1] = pos.y;
-		p0[2] = pos.z;
 		
 		double dir[3];
 		dir[0] = ray.d[0];
 		dir[1] = ray.d[1];
 		dir[2] = ray.d[2];
 		
-		int prev_SphP_ID = getSphPID(DP[ray.prev_index].index);
-		
-		qmin = find_next_voronoi_cell(T, SphP_ID, p0, dir, prev_SphP_ID, &length); //&(pos[0])
-		qmin = DC[qmin].index;
+		qmin = find_next_cell_DC(T, SphP_ID, &(pos[0]), dir, ray.index, &length);
+
+		qmin = DC[qmin].index; // SphP_index (already NumGas subtracted if necessary)
 		min_t = ray.min_t + length;
 		
-		IF_DEBUG(cout << "  NEW intersection t = " << min_t << " setting new min_t, qmin (next DP) = " << qmin << endl);
-		
-		// alternative Sunrise connectivity
-		int qmin_old = -1;
-		int min_t_old = -1;
+#ifdef DEBUG
+		int qmin_DC_dp = DC[qmin].dp_index; // DP_index (in ray.index we store dp_index)
+		cout << "  NEW intersection t = " << min_t << " setting new min_t, qmin_DC = " << qmin 
+		     << " qmin_DC_dp = " << qmin_DC_dp << endl;
+#endif
+
+#endif
+
+#ifdef USE_ALTERNATIVE_CONNECTIVITY
+		int SphP_ID = getSphPID(DP[ray.index].index); // current primary cell index
 		Point hitbox  = ray(*t0);
 		const Vector cellp(DP[ray.index].x,DP[ray.index].y,DP[ray.index].z);
 		
@@ -745,25 +747,22 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 			if (opposite_points[edge.first + i] == ray.prev_index && ray.prev_index != -1)
 				continue;
 			
-			//IF_DEBUG(cout << " OLD checking face[" << i << "] midpoints.x = " << midpoints[edge.first + i].x
-			//							<< " midpoints.y = " << midpoints[edge.first + i].y << " midpoints.z = " 
-			//							<< midpoints[edge.first + i].z << " opposite_point = " 
-			//							<< opposite_points[edge.first + i] << endl);
+			//IF_DEBUG(cout << " OLD checking face[" << i << "] midp.x = " << midpoints[edge.first + i].x
+			//							<< " midp.y = " << midpoints[edge.first + i].y << " midp.z = " 
+			//							<< midpoints[edge.first + i].z << " opposite_dp = " 
+			//							<< opposite_points[edge.first + i] << " opposite_sphp = " << getSphPID(DP[opposite_points[edge.first + i]].index) << endl);
 	
 			// midpoint (c)
-			const Vector midp(midpoints[edge.first + i].x - hitbox.x,
-												midpoints[edge.first + i].y - hitbox.y,
-												midpoints[edge.first + i].z - hitbox.z); //TODO: verify hitbox not hitcell
+			const Vector midp(midpoints[edge.first + i].x - hitbox.x, // hitbox.x or pos
+												midpoints[edge.first + i].y - hitbox.y, // hitbox.y
+												midpoints[edge.first + i].z - hitbox.z); // hitbox.z
 			
 			// vector pointing to the outside, normal to a voronoi face of the cell (q)
 			const Vector norm = midpoints[edge.first + i] - cellp;
 	
-			//IF_DEBUG(midp.print("  midp (midpoints-hitbox) "));
-			//IF_DEBUG(norm.print("  norm (midpoints-cellp) "));
-	
 			// find intersection of ray with this face
-			double dotprod1 = Dot( ray.d, norm ); //ddotq
-			double dotprod2 = Dot( midp,  norm ); //cdotq
+			double dotprod1 = Dot( ray.d, norm );
+			double dotprod2 = Dot( midp,  norm );
 			
 			// check if ray is aligned on face (e.g. backgroundgrid)
 			if (dotprod1 == 0 && dotprod2 == 0)
@@ -775,19 +774,34 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 				
 				//IF_DEBUG(cout << "  OLD i[" << i << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
 				
-				if (t > (ray.min_t-*t0) && t < min_t) {
-					min_t_old = t;
-					qmin_old = opposite_points[edge.first + i];
-					IF_DEBUG(cout << "  OLD intersection t = " << min_t_old << " setting new min_t, qmin (next DP) = " << qmin_old << endl);
+				if (t > (ray.min_t-*t0) && t < min_t) { // for hitbox instead of pos in midp
+				//if ( t > *t0 && t < min_t ) { // for pos instead of hitbox
+					min_t = t; // for hitbox instead of pos in midp
+					//min_t = ray.min_t + t; // for pos instead of hitbox
+					qmin = opposite_points[edge.first + i];
+					//IF_DEBUG(cout << "  OLD intersection t = " << min_t_old << " setting new min_t, qmin (next DP) = " << qmin_old << endl);
 				}
 			}
 		}
 		
-		IF_DEBUG(cout << "  qmin = " << qmin << " qmin_old = " << qmin_old << " min_t = " << min_t << " min_t_old = " << min_t_old << endl);
+		// DC doesn't handle ghosts in the same way that sunrise connectivity does (only contains links 
+		// between primary cells). DC can only be used to find sphp_index, and not the real dp_index?
 		
-#ifdef USE_SUNRISE_CONNECTIVITY
-		qmin = qmin_old;
-		min_t = min_t_old;
+		// verbose
+		//int qmin_old_sphp = getSphPID(DP[qmin_old].index);
+		
+		//IF_DEBUG(cout << " qmin_DC = " << qmin << " qmin_old_sphp = " << qmin_old_sphp 
+		//              << " min_t = " << min_t << " min_t_old = " << min_t_old << endl);
+		
+		// verify connectivity
+		//if ( qmin != qmin_old_sphp || fabs(min_t - min_t_old) >= INSIDE_EPS )
+		//  terminate("connectivity mismatch");
+		
+#endif
+
+#ifdef DEBUG_VERIFY_INCELL_EACH_STEP
+		// verify ray is where we expect it
+		ArepoMesh::VerifyPointInCell(ray.index,pos);
 #endif
 	
 		// check if exiting box and failed to exit a face
@@ -806,7 +820,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		
 		// disable adding any contribution from ghosts to rays
 		bool addFlag = true;
-		if (qmin != -1 && ray.index >= NumGas)
+		if (qmin != -1 && SphP_ID >= NumGas)
 			addFlag = false;
 		
 		// pack cell-center values to test TF
@@ -829,7 +843,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 		if (qmin != -1)
 		{
 			// clamp min_t to avoid integrating outside the box
-			IF_DEBUG(cout << " min_t = " << min_t << " (t1=" << *t1 << " t0=" << *t0 << ")" << endl);
+			IF_DEBUG(cout << " have exit: min_t = " << min_t << " (t1=" << *t1 << " t0=" << *t0 << ") addFlag = " << addFlag << endl);
 			min_t = Clamp(min_t,0.0,(*t1-*t0));
 			
 			if (addFlag)
@@ -837,23 +851,22 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 				// entry and exit points for this cell
 				Point hitcell  = ray(ray.min_t);
 				Point exitcell = ray(*t0 + min_t);
-
-				IF_DEBUG(hitcell.print(" hcell "));
-				IF_DEBUG(exitcell.print(" ecell "));
 					
 				// cell gradient information
 				Vector sphCen(     SphP[SphP_ID].Center[0],   SphP[SphP_ID].Center[1],   SphP[SphP_ID].Center[2]);
 				Vector sphDensGrad(SphP[SphP_ID].Grad.drho[0],SphP[SphP_ID].Grad.drho[1],SphP[SphP_ID].Grad.drho[2]);
-															 
+									
+				IF_DEBUG(hitcell.print("  hcell "));
+				IF_DEBUG(exitcell.print("  ecell "));
+				IF_DEBUG(sphCen.print("  dpCen "));
+									
 				const Vector norm = exitcell - hitcell;
-
-				IF_DEBUG(norm.print(" norm "));
-				IF_DEBUG(sphCen.print(" sphCen "));
 					
 				// compute total path length through cell
 				double len = norm.Length();
 					
 				// find interpolated density at midpoint of line segment through voronoi cell
+				//Vector midpt = Vector(hitcell) + 0.5 * norm;
 				Vector midpt(hitcell[0] + 0.5 * norm[0],hitcell[1] + 0.5 * norm[1],hitcell[2] + 0.5 * norm[2]);
 				midpt -= sphCen;
 
@@ -880,7 +893,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 				int nSamples = (int)floorf(norm_sample.Length() / viStepSize);
 				norm_sample = Normalize(norm_sample);
 					
-				IF_DEBUG(prev_sample_pt.print(" prev_sample_pt "));
+				IF_DEBUG(prev_sample_pt.print("  prev_sample_pt "));
 					
 				IF_DEBUG(cout << " sub-stepping len = " << len << " nSamples = " << nSamples 
 											<< " (step = " << len/nSamples << ")" << endl);
@@ -899,7 +912,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 #endif
 																							
 					// subsample (replace fields in vals by interpolated values)
-					int status = subSampleCell(SphP_ID, ray, midpt, &vals[0], taskNum);
+					int status = subSampleCell(ray, midpt, &vals[0], taskNum);
 					if(status) status = 0; // kill warning
 							
 #ifdef DEBUG
@@ -944,8 +957,8 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1,
 			if (ray.min_t < ray.max_t - INSIDE_EPS) {
 					// in primary cell or exitpoint inside box, either way this should not happen
 					cout << "ERROR! Ray did not finish. min_t = " << ray.min_t << " max_t = " << ray.max_t << endl;
-					cout << " DP[ray.index] pos: " << DP[ray.index].x << " " << DP[ray.index].y 
-							 << " " << DP[ray.index].z << endl << endl;
+					cout << " P[ray.index] pos: " << P[ray.index].Pos[0] << " " << P[ray.index].Pos[1]
+							 << " " << P[ray.index].Pos[2] << endl << endl;
 					terminate("1130");
 			}
 		} // qmin
@@ -1062,7 +1075,6 @@ void ArepoMesh::CalculateMidpoints()
 		for (int i=0; i < Ndp; i++)
 		{
 				//int SphP_ID = getSphPID(DP[i].index);
-						
 				const Vector cellp(DP[i].x,DP[i].y,DP[i].z);
 				
 				// find connections for this cell

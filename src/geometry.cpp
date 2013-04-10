@@ -28,10 +28,10 @@ bool BBox::Edges(vector<Line> *edges)
 		return true;
 }
 
-bool BBox::IntersectP(const Ray &ray, float *hitt0,
-                      float *hitt1) const
+bool BBox::IntersectP(const Ray &ray, double *hitt0,
+                      double *hitt1) const
 {
-    float t0 = ray.min_t, t1 = ray.max_t;
+    double t0 = ray.min_t, t1 = ray.max_t;
 		
 		IF_DEBUG(cout << "BBox:IntersectP(t0 = " << t0 << " t1 = " << t1 << ") ray o.x=" << ray.o.x
 									<< " o.y=" << ray.o.y << " o.z=" << ray.o.z << " d.x=" << ray.d.x 
@@ -39,9 +39,9 @@ bool BBox::IntersectP(const Ray &ray, float *hitt0,
 		
     for (int i = 0; i < 3; ++i) {
         // Update interval for _i_th bounding box slab
-        float invRayDir = 1.0f / ray.d[i];
-        float tNear = (pMin[i] - ray.o[i]) * invRayDir;
-        float tFar  = (pMax[i] - ray.o[i]) * invRayDir;
+        double invRayDir = 1.0 / ray.d[i];
+        double tNear = (pMin[i] - ray.o[i]) * invRayDir;
+        double tFar  = (pMax[i] - ray.o[i]) * invRayDir;
 
         // Update parametric interval from slab intersection $t$s
         if (tNear > tFar) swap(tNear, tFar);

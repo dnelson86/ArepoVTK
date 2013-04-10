@@ -60,31 +60,32 @@ public:
     bool VoronoiEdges(const int i_face, vector<Line> *edges);
 		
 		// world geometry
-    bool IntersectP(const Ray &r, float *t0, float *t1) const {
+    bool IntersectP(const Ray &r, double *t0, double *t1) const {
         return extent.IntersectP(r, t0, t1);
     }
 		
 		// mesh traversal
 		void LocateEntryCell(const Ray &ray, int *prevEntryCell);
 		void LocateEntryCellBrute(const Ray &ray);
-		void VerifyPointInCell(int dp, Point &pos);
+		void VerifyPointInCell(int sphInd, Point &pos);
 		
 		void LocateEntryTetra(const Ray &ray, int *prevEntryTetra);
 		
 		int FindNearestGasParticle(Point &pt, int guess, double *mindist);
-		bool AdvanceRayOneCellNew(const Ray &ray, float *t0, float *t1, 
+		bool AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1, 
 															Spectrum &Lv, Spectrum &Tr, int taskNum);
 		
-		inline int getSphPID(int dp_id);
+		inline int getSphPID(int dpInd);
 		void locateCurrentTetra(const Ray& ray, Vector &pt);
-		void checkCurCellTF(bool *addFlag, int SphP_ID, float *vals);
+		void checkCurCellTF(bool *addFlag, int sphInd, float *vals);
 		
 		// fluid data introspection
-		int subSampleCell(int SphP_ID, const Ray &ray, Vector &pt, float *vals, int taskNum);
+		float calcNeighborHSML(int sphInd, Vector &pt, int dpInd);
+		int subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNum);
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
 		// NNI_WATSON_SAMBRIDGE
-		bool needTet(int tt, point *pp);
+		inline bool needTet(int tt, point *pp, int *node_inds, int *nTet);
 		void addTet(int tt, point *pp, int *node_inds, int *tet_inds, int *nNode, int *nTet);
 		double ccVolume(double *ci, double *cj, double *ck, double *ct);
 		

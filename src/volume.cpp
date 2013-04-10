@@ -36,7 +36,7 @@ VolumeRegion::~VolumeRegion()
 
 Spectrum DensityRegion::tau(const Ray &r, float stepSize, float u) const
 {
-    float t0, t1;
+    double t0, t1;
     float length = r.d.Length();
     if (length == 0.f) return 0.f;
     Ray rn(r.o, r.d / length, r.min_t * length, r.max_t * length, r.time);

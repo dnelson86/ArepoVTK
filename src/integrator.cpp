@@ -41,7 +41,7 @@ Spectrum EmissionIntegrator::Li(const Scene *scene, const Renderer *renderer, co
 {
 		IF_DEBUG(cout << "EmissionIntegrator::Li()" << endl);
 		
-    float t0, t1;
+    double t0, t1;
     if (!scene->volumeRegion || !scene->volumeRegion->IntersectP(ray, &t0, &t1) || (t1-t0) == 0.0f) {
 				IF_DEBUG(cout << " Returning! IntersectP t0 = " << t0 << " t1 = " << t1 << endl);
         *T = Spectrum(1.0f);
@@ -117,7 +117,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 {
 		IF_DEBUG(cout << "VoronoiIntegrator::Li()" << endl);
 		
-    float t0, t1;
+    double t0, t1;
 		
     if (!scene->arepoMesh || !scene->arepoMesh->IntersectP(ray, &t0, &t1) || (t1-t0) == 0.0f) {
 				IF_DEBUG(cout << " Returning! IntersectP t0 = " << t0 << " t1 = " << t1 << endl);
@@ -129,31 +129,31 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		Spectrum Lv(0.0);
 		Spectrum Tr(1.0f);
 		
-#if defined(DEBUG_VERIFY_ENTRY_CELLS)
-		// debug: verify treefind vs brute
-		scene->arepoMesh->LocateEntryCellBrute(ray);
-		int oldi = ray.index;
-		scene->arepoMesh->LocateEntryCell(ray, prevEntryCell);
-		if (ray.index != oldi) {
-				cout << "MISMATCH brute = " << oldi << " tree = " << ray.index << endl;
-				terminate("1119");
-		}
-		//return 0.0f;
-#endif
-		
 		// propagate ray to arepo box, set exit point
 		ray.min_t = t0;
 		ray.max_t = t1;
+		
+#ifdef DEBUG
+		ray(t0).print(" hitbox ");
+		ray(t1).print(" exitbox ");
+#endif		
 		
 		// maximum ray integration length from config
 		if (Config.rayMaxT && Config.rayMaxT < ray.max_t)
 				ray.max_t = Config.rayMaxT;
 				
 		IF_DEBUG(cout << " t0 = " << t0 << " t1 = " << t1
-									<< " ray.min_t = " << ray.min_t << " ray.max_t = " << ray.max_t << endl);
-				
+									<< " ray.min_t = " << ray.min_t << " ray.max_t = " << ray.max_t << endl);		
+		
+
 		// find the voronoi cell the ray will enter (or be in) first
 		scene->arepoMesh->LocateEntryCell(ray, prevEntryCell);
+		
+#if defined(DEBUG_VERIFY_ENTRY_CELLS)
+		Point pos = ray(ray.min_t);
+				
+		scene->arepoMesh->VerifyPointInCell(ray.index,pos);
+#endif
 		
 #if defined(DTFE_INTERP) || defined(NNI_WATSON_SAMBRIDGE) || defined(NNI_LIANG_HALE)
 		// find the delaunay tetra the ray will enter (or be in) first
@@ -179,9 +179,10 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 				cout << " VoronoiIntegrator::Li(iter=" << count << ") Lv.y = " << setw(5) << Lv.y()
 						 << " Tr.y = " << setw(2) << Tr.y() << " ray.x = " << setw(5) << p.x 
 						 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl;
+				cout << "  ( index = " << ray.index << " prev_index = " << ray.prev_index << " )" << endl;
 
-				if (count > 1000) {
-						cout << "COUNT > 1000 (Breaking)" << endl;
+				if (count > 10000) {
+						cout << "COUNT > 10000 (Breaking)" << endl;
 						break;
 				}
 #endif
@@ -194,8 +195,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 						
 #ifdef DEBUG
 						Point p = ray(ray.min_t);
-						cout << " roulette ray.x = " << p.x << " y = " << p.y << " z = " 
-													<< p.z << " tr.y = " << Tr.y() << endl;
+						cout << " roulette ray.x = " << p.x << " y = " << p.y << " z = " << p.z << " tr.y = " << Tr.y() << endl;
 #endif
 													
             if (rng.RandomFloat() > continueProb)

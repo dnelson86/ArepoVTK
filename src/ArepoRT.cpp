@@ -32,12 +32,6 @@ void rtIsoDiskCosmoCutoutRender()
 	Scene *scene          = new Scene(NULL, arepoMesh);
 	
 	// setup camera
-	//Point cameraPos    = Point(boxSize/2.0,boxSize/2.0,0.0); //face on		
-	//Point cameraPos    = Point(boxSize,boxSize/2.0,boxSize/2.0); //edge on (#1)
-	//Point cameraPos    = Point(0.0,boxSize/2.0,boxSize/2.0); //edge on (#2)
-	//Point cameraLook   = Point(boxSize/2.0,boxSize/2.0,boxSize/2.0); //center of box
-	//Point cameraLook   = cameraPos+Point(-1.0,0.0,0.0); //20mpc debug
-	
 	Vector cameraVecUp     = Vector(0.0,1.0,0.0);
 	Transform world2camera = LookAt(Point(Config.cameraPosition), Point(Config.cameraLookAt), cameraVecUp);
 	
@@ -51,15 +45,11 @@ void rtIsoDiskCosmoCutoutRender()
 	Camera *camera       = NULL;
 	
 	if (Config.cameraFOV)	camera = CreatePerspectiveCamera(Inverse(world2camera), film);
-	else								  camera = CreateOrthographicCamera(Inverse(world2camera), film);
+	else                    camera = CreateOrthographicCamera(Inverse(world2camera), film);
 		
 	Sampler *sampler     = CreateStratifiedSampler(film, camera);
 	Renderer *re         = new Renderer(sampler, camera, vi);
 
-#ifdef NATURAL_NEIGHBOR_SPHKERNEL
-       cout << "NATURAL_NEIGHBOR_SPHKERNEL" << endl;
-#endif
-	
 	cout << endl << "Raytracer Init and Arepo Preprocessing: [" << (float)timer.Time() << "] seconds." << endl;
 	
 	// render
@@ -74,7 +64,7 @@ void arepoTestOverrides()
 {
 	// debugging only (Arepo2b/3b overrides)
 	for (int i=0; i < NumGas; i++) {
-		SphP[i].Density      = 0.0;
+		SphP[i].Density      = 0.1;
 		SphP[i].Grad.drho[0] = 0.0;
 		SphP[i].Grad.drho[1] = 0.0;
 		SphP[i].Grad.drho[2] = 0.0;
@@ -95,6 +85,8 @@ void arepoTestOverrides()
   if ( Config.filename == "test/Arepo2b" )
 		dpInd = 6;
 	else if ( Config.filename == "test/Arepo3b" )
+		dpInd = 45;
+	else if ( Config.filename == "test/Arepo3a" )
 		dpInd = 45;
 	else
 		terminate("probably don't want these overrides");
@@ -205,9 +197,10 @@ int main (int argc, char* argv[])
     arepo.LoadSnapshot();
 #endif
 
-	// debug test render
-	rtTestRenderScene(Config.filename);
-	//rtIsoDiskCosmoCutoutRender();
+	if ( Config.filename.substr(0,10) == "test/Arepo" )
+		rtTestRenderScene(Config.filename);
+	else
+		rtIsoDiskCosmoCutoutRender();
 	
 	// cleanup
 #ifdef ENABLE_AREPO

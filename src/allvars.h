@@ -501,6 +501,7 @@ void write_voronoi_mesh(tessellation * T, char *fname, int writeTask, int lastTa
 int image_get_next_tetra(tessellation * T, int tt, point * ppstart, point * ppend, int *nexttetra,
                          point * ppexit, int *previous_tetra);
 
+void calc_mpz_determinant(mpz_t det, mpz_t ax, mpz_t ay, mpz_t az, mpz_t bx, mpz_t by, mpz_t bz, mpz_t cx, mpz_t cy, mpz_t cz);
 
 }
  

@@ -7,7 +7,7 @@
 #define AREPO_RT_H
 
 // defines
-#define AREPO_RT_VERSION    0.38
+#define AREPO_RT_VERSION    0.39
 #define L1_CACHE_LINE_SIZE  64
 #define FILTER_TABLE_SIZE   16
 #define TASK_MULT_FACT      8 //32
@@ -23,23 +23,26 @@
 //#define USE_LINEALGO_BRESENHAM
 #define USE_LINEALGO_WU
 
+#define USE_DC_CONNECTIVITY
+//#define USE_ALTERNATIVE_CONNECTIVITY
+
 /* interpolation methods (choose one) */
 
 //#define NATURAL_NEIGHBOR_INTERP
-#define NATURAL_NEIGHBOR_IDW
+//#define NATURAL_NEIGHBOR_IDW
 //#define NATURAL_NEIGHBOR_SPHKERNEL
 //#define NNI_WATSON_SAMBRIDGE
 //#define NNI_LIANG_HALE
-//#define DTFE_INTERP
+#define DTFE_INTERP
 //#define CELL_GRADIENTS_ONLY
 
-//#define NNI_DISABLE_EXACT
+//#define NNI_DISABLE_EXACT // for bruteforce NNI disable exact geometry computations
+//#define NATURAL_NEIGHBOR_INNER // for IDW or SPHKERNEL do neighbors of neighbors
+//#define BRUTE_FORCE // for IDW or SPHKERNEL, calculate over all NumGas in the box
 
 /* special behavior */
-#define DEBUG_VERIFY_INCELL_EACH_STEP
-#define DEBUG_VERIFY_ENTRY_CELLS
-#define USE_SUNRISE_CONNECTIVITY
-//#define USE_AREPO_TREEFIND_FUNC
+//#define DEBUG_VERIFY_INCELL_EACH_STEP
+//#define DEBUG_VERIFY_ENTRY_CELLS
 //#define DISABLE_MEMORY_MANAGER
 
 //#define DUMP_VORONOI_MESH
@@ -137,7 +140,12 @@ inline float Degrees(float rad) {
     return (180.0f/(float)M_PI) * rad;
 }
 
-inline float Clamp(float val, float low, float high) {
+/*inline float Clamp(float val, float low, float high) {
+    if (val < low) return low;
+    else if (val > high) return high;
+    else return val;
+}*/
+inline double Clamp(double val, double low, double high) {
     if (val < low) return low;
     else if (val > high) return high;
     else return val;

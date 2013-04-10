@@ -82,17 +82,17 @@ Version Roadmap:
   - parallel (threads) on shared memory node
 
  +v0.39
+  - external colortables
   - voronoi cell algorithm
   - SPH kernel and IDW of natural neighbors interp methods
   - tetra mesh walking
    - DTFE 
-   - Watson-Sambridge NNI
-   - Liang-Hale NNI
-  - external colortables
-
- +v0.4
   - use internal DC connectivity instead of alternative Sunrise
 
+ +v0.4
+  - Watson-Sambridge NNI
+  - Liang-Hale NNI
+  
  +v0.41
   - camera path splining in space (AnimatedTransform?)
   - keyframe transfer function settings
