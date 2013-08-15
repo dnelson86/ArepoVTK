@@ -17,6 +17,7 @@
 #include "transfer.h"
 #include "util.h"
 #include "spectrum.h"
+#include "keyframe.h"
 
 void rtIsoDiskCosmoCutoutRender()
 {
@@ -26,37 +27,55 @@ void rtIsoDiskCosmoCutoutRender()
 	const Spectrum sig_a = Spectrum::FromRGB(Config.rgbAbsorb);
 
 	// constant setup		
-	VolumeIntegrator *vi  = CreateVoronoiVolumeIntegrator();	
 	TransferFunction *tf  = new TransferFunction(sig_a);
 	ArepoMesh *arepoMesh  = new ArepoMesh(tf);
 	Scene *scene          = new Scene(NULL, arepoMesh);
-	
-	// setup camera
-	Vector cameraVecUp     = Vector(0.0,1.0,0.0);
-	Transform world2camera = LookAt(Point(Config.cameraPosition), Point(Config.cameraLookAt), cameraVecUp);
+	FrameManager *fm      = new FrameManager(Config.kfSet);
 	
 	// setup transfer function
 	for (unsigned int i=0; i < Config.tfSet.size(); i++)
 		tf->AddParseString(Config.tfSet[i]);
 
-	// would recreate per frame
-	Filter *filter       = CreateBoxFilter();
-	Film *film           = CreateFilm(filter);
-	Camera *camera       = NULL;
-	
-	if (Config.cameraFOV)	camera = CreatePerspectiveCamera(Inverse(world2camera), film);
-	else                    camera = CreateOrthographicCamera(Inverse(world2camera), film);
+#ifdef SPECIAL_BOUNDARY
+	// override density of ID=-2 (inner spoon boundary cells) with density much higher than surrounding gas
+	// put a TF near this value but below to highlight spoon boundary
+	for(int i = 0; i < NumGas; i++)
+	{
+		if( P[i].ID == -2 )
+			SphP[i].Density = 1000.0;
+	}
+#endif
 		
-	Sampler *sampler     = CreateStratifiedSampler(film, camera);
-	Renderer *re         = new Renderer(sampler, camera, vi);
+	cout << endl << "Raytracer Init: [" << (float)timer.Time() << "] seconds, now rendering [" 
+	     << Config.numFrames << "] frames:" << endl;		
+		
+	for(int i = 0; i < Config.numFrames; i++)
+	{
+		// set all frame properties based on current frame and requested keyframes
+		fm->Advance();
+		
+		// setup camera
+		Transform world2camera = fm->SetCamera();
 
-	cout << endl << "Raytracer Init and Arepo Preprocessing: [" << (float)timer.Time() << "] seconds." << endl;
-	
-	// render
-	if (re && scene)
-		re->Render(scene);
+		// recreate per frame
+		VolumeIntegrator *vi = CreateVoronoiVolumeIntegrator();	
+		Filter *filter       = CreateBoxFilter();
+		Film *film           = CreateFilm(filter);
+		Camera *camera       = NULL;
+		
+		if (Config.cameraFOV)	camera = CreatePerspectiveCamera(Inverse(world2camera), film);
+		else                  camera = CreateOrthographicCamera(Inverse(world2camera), film);
 			
-	delete re;
+		Sampler *sampler     = CreateStratifiedSampler(film, camera);
+		Renderer *re         = new Renderer(sampler, camera, vi);
+
+		// render
+		if (re && scene)
+			re->Render(scene,i);
+			
+		delete re;
+	}	
+	
 	delete scene;
 }
 
@@ -100,8 +119,8 @@ void arepoTestOverrides()
 void rtTestRenderScene(string filename)
 {
 	// config - camera
-	Vector cameraVecUp     = Vector(0.0,1.0,0.0);
-	Transform world2camera = LookAt(Point(Config.cameraPosition), Point(Config.cameraLookAt), cameraVecUp);
+	Transform world2camera = LookAt(Point(Config.cameraPosition), 
+	                                Point(Config.cameraLookAt), Vector(Config.cameraUp));
 	
 	IF_DEBUG(world2camera.print("world2camera:"));
 	IF_DEBUG(Inverse(world2camera).print("camera2world:"));
@@ -164,7 +183,7 @@ void rtTestRenderScene(string filename)
 				 
 	// render
 	if (scene && re)
-		re->Render(scene);
+		re->Render(scene,0);
 			
 	delete re;
 	delete scene;
@@ -179,22 +198,46 @@ int main (int argc, char* argv[])
 	IF_DEBUG(cout << "DEBUGGING ENALBED.\n\n");
 	
 	// command line arguments
-	if (argc != 2) {
+	if (argc != 2 && argc != 3) {
 			cout << "usage: ArepoRT <configfile.txt>\n";
 			return 0;
 	} else {
 			// read config
 			Config.ReadFile( argv[1] );
-			if (Config.verbose)
-					Config.print();
+
+			// second argument? input snapshot and output frame number
+			if( argc == 3 )
+			{
+			string num = argv[2];
+			const char padChar = '0';
+
+			if( num.size() < 3 ) // snapshot file number
+			num.insert(0, 3-num.size(), padChar);
+			size_t start_pos = Config.filename.find("NUM");
+			Config.filename.replace(start_pos, 3, num);
+
+      if( num.size() < 4 ) // output image numbering
+      num.insert(0, 4-num.size(), padChar);
+			start_pos = Config.imageFile.find("NUMM");
+			Config.imageFile.replace(start_pos, 4, num);
+			}
+
+      if (Config.verbose)
+        Config.print();
+
 	} 
 	
 	// init
 #ifdef ENABLE_AREPO
+    Timer timer;
+    timer.Start();
+
     Arepo arepo = Arepo(Config.filename, Config.paramFilename);
 
     arepo.Init(&argc,&argv);
     arepo.LoadSnapshot();
+
+    cout << endl << "Arepo Load, Init, Meshing: [" << (float)timer.Time() << "] seconds." << endl;
 #endif
 
 	if ( Config.filename.substr(0,10) == "test/Arepo" )

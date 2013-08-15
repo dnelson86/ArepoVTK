@@ -27,8 +27,8 @@ LIBS     = -lm
 CFLAGS   = $(OPTIMIZE)
 CPPFLAGS = $(OPT) $(INCL)
 
-OBJS = ArepoRT.o camera.o fileio.o geometry.o integrator.o renderer.o sampler.o transfer.o transform.o util.o volume.o
-HEAD = ArepoRT.h camera.h fileio.h geometry.h integrator.h renderer.h sampler.h spectrum.h transfer.h transform.h util.h volume.h
+OBJS = ArepoRT.o camera.o fileio.o geometry.o integrator.o keyframe.o renderer.o sampler.o transfer.o transform.o util.o volume.o
+HEAD = ArepoRT.h camera.h fileio.h geometry.h integrator.h keyframe.h renderer.h sampler.h spectrum.h transfer.h transform.h util.h volume.h
 MISC_RM = frame.raw.txt frame.tga
 
 ifeq (ENABLE_AREPO,$(findstring ENABLE_AREPO,$(OPT)))

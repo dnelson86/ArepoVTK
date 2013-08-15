@@ -1,0 +1,13 @@
+#!/bin/sh
+#BSUB -q nancy
+#BSUB -J spRT[501-1000]
+#BSUB -n 8
+#BSUB -R "span[ptile=8]"
+#BSUB -g /dnelson/orbit
+#BSUB -x
+#BSUB -o frames_final/runs.out
+#BSUB -e frames_final/runs.err
+#BSUB -C 1000
+
+module load hpc/openmpi-1.6_gcc-4.7.0thread
+./ArepoRT config_movie.txt ${LSB_JOBINDEX} >> frames_final/run_${LSB_JOBINDEX}.txt

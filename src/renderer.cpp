@@ -81,7 +81,8 @@ void RendererTask::Run() {
     }
 
 		float time = (float)timer2.Time();
-		cout << " [Task=" << setw(2) << taskNum << "] Raytracing phase: [" << time << "] seconds." << endl;
+		cout << " [Task=" << setw(2) << taskNum << "] Raytracing phase: [" 
+		     << setw(6) << time << "] seconds." << endl;
 		
     // Clean up after _SamplerRendererTask_ is done with its image region
     camera->film->UpdateDisplay(sampler->xPixelStart, sampler->yPixelStart, 
@@ -113,7 +114,7 @@ Renderer::~Renderer()
     delete volumeIntegrator;
 }
 
-void Renderer::Render(const Scene *scene)
+void Renderer::Render(const Scene *scene, int frameNum)
 {
     volumeIntegrator->Preprocess(scene, camera, this);
     // Allocate and initialize _sample_
@@ -162,7 +163,8 @@ void Renderer::Render(const Scene *scene)
 				Renderer::RasterizeStage(scene);		
 		
     float seconds = (float)timer->Time();
-		cout << endl << "Render complete (" << seconds << " seconds)." << endl << endl;
+		cout << endl << "[" << setw(3) << frameNum << "] Render complete (" 
+		     << setw(6) << seconds << " seconds)." << endl << endl;
 		
 		// cleanup and store image
 		TasksCleanup();

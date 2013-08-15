@@ -1,0 +1,72 @@
+% Sample ArepoVTK Configuration File
+
+% Input/Output
+% ------------
+imageFile      = frames_final/frame_NUMM.tga            % output: TGA image filename
+rawRGBFile     = frame.raw.txt        % output: raw dump of floats (debug only)
+filename       = snapshots/snap_NUM   % input: simulation snapshot (no extension)
+paramFilename  = param.txt            % input: Arepo parameter file
+
+% General
+% -------
+nCores         = 8                    % number of cores to use (0=all)
+nTasks         = 64                   % number of tasks/threads to run (0=auto)
+quickRender    = false                % unused
+openWindow     = false                % unused
+verbose        = true                 % report more information
+
+% Frame
+% -----
+imageXPixels   = 800                % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 800                % frame resolution (Y), e.g. 768,  1080
+swScale        = 0.51               % screenWindow mult factor * [-1,1]
+
+% Camera
+% ------
+% want to plot (x,z) or (y,z)
+cameraFOV      = 0.0           % degrees (0=orthographic camera)
+cameraPosition = 0.0 0.5 0.5   % (XYZ) camera position in world coord system
+cameraLookAt   = 0.5 0.5 0.5   % (XYZ) point centered in camera FOV
+cameraUp       = 0.0 0.0 1.0   % (XYZ) camera "up" vector
+
+% Transfer Function
+% -----------------
+%addTF_01 = gaussian_table Density cubehelix_1_50 3.1 3.5 3.3 0.1
+
+addTF_01 = gaussian_table Density idl_33_blue-red 2.05 3.2 2.2 0.1
+addTF_02 = gaussian_table Density idl_33_blue-red 2.05 3.2 2.6 0.1
+addTF_03 = gaussian_table Density idl_33_blue-red 2.05 3.2 3.0 0.1
+
+addTF_04 = gaussian_table Density idl_3_red-temp 3.0 12.0 4.0 0.3
+addTF_05 = gaussian_table Density idl_3_red-temp 3.0 12.0 6.0 0.3
+addTF_06 = gaussian_table Density idl_3_red-temp 3.0 12.0 8.0 0.3
+addTF_07 = gaussian_table Density idl_3_red-temp 3.0 12.0 10.0 0.3
+
+addTF_08 = gaussian Density 800.0 200.0 2.0 2.0 2.0 % non-log spoon
+
+%addTF_09 = gaussian_table Density idl_13_rainbow 2.02 2.18 2.1 0.02
+addTF_09 = gaussian_table Density idl_13_rainbow 1.05 1.95 1.5 0.15
+
+% Animation
+% ---------
+numFrames        = 1                 % total number of frames
+timePerFrame     = 1.0               % establish unit system of time/frame
+
+% Render
+% ------
+drawBBox         = true              % draw simulation bounding box
+drawTetra        = false             % draw delaunay tetrahedra
+drawVoronoi      = false             % DO NOT CHANGE
+projColDens      = false             % integrate quantities (density, etc) along each path 
+                                     % length, to make e.g. a "projected column density" image
+useDensGradients = true              % use density gradient within cells
+viStepSize       = 0.0005            % volume integration sub-stepping size (0=disabled)
+                                     % in (Arepo) code units
+rayMaxT          = 1.0               % maximum ray integration parametric length
+rgbLine          = 0.01 0.01 0.01    % (RGB) bounding box
+rgbTetra         = 0.01 0.01 0.01    % (RGB) tetra edges
+rgbVoronoi       = 0.0 0.05 0.0      % (RGB) voronoi edges
+rgbAbsorb        = 0.0 0.0 0.0       % (RGB) absorption
+
+% End.
+

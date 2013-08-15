@@ -167,12 +167,77 @@ Voronoi Faces [56]:
  55 p1 =   4 p2 =  -1 area =      17.1325 cx =    1.92131 cy =   -2.16944 cz =    3.10093
 
 Voronoi Connections (DC):
- SphP[  0] DC.first =  6  next =  7  next =  9  next = 12  next = 17  next = 19  next = 32  next = 34  next = 45  next = 50 DC.last = 50
- SphP[  1] DC.first =  8  next = 10  next = 11  next = 13  next = 15  next = 27  next = 30  next = 31 DC.last = 31
- SphP[  2] DC.first = 25  next = 28  next = 29  next = 33  next = 36  next = 38  next = 60  next = 63 DC.last = 63
- SphP[  3] DC.first = 35  next = 39  next = 41  next = 61  next = 65 DC.last = 65
- SphP[  4] DC.first = 42  next = 44  next = 46  next = 55  next = 58  next = 62  next = 64  next = 66  next = 71 DC.last = 71
- SphP[  5] DC.first = 23  next = 24  next = 26  next = 52  next = 54  next = 56  next = 69  next = 70 DC.last = 70
- SphP[  6] DC.first = 14  next = 18  next = 21  next = 37  next = 40  next = 43  next = 48  next = 53 DC.last = 53
- SphP[  7] DC.first =  0  next =  1  next =  2  next = 16  next = 20  next = 22  next = 57  next = 59  next = 67 DC.last = 67
- SphP[  8] DC.first =  3  next =  4  next =  5  next = 47  next = 49  next = 51  next = 68 DC.last = 68
+ SphP[  0] DC.first =  6 (-1)  next =  7 (1)  next =  9 (-1)  next = 12 (-1)  next = 17 (6)  next = 19 (7)  next = 32 (2)  next = 34 (3)  next = 45 (4)  next = 50 (8) DC.last = 50 (8)
+ SphP[  1] DC.first =  8 (0)  next = 10 (-1)  next = 11 (-1)  next = 13 (6)  next = 15 (7)  next = 27 (5)  next = 30 (2)  next = 31 (-1) DC.last = 31 (-1)
+ SphP[  2] DC.first = 25 (5)  next = 28 (-1)  next = 29 (1)  next = 33 (0)  next = 36 (6)  next = 38 (3)  next = 60 (-1)  next = 63 (4) DC.last = 63 (4)
+ SphP[  3] DC.first = 35 (0)  next = 39 (2)  next = 41 (6)  next = 61 (4)  next = 65 (-1) DC.last = 65 (-1)
+ SphP[  4] DC.first = 42 (6)  next = 44 (0)  next = 46 (8)  next = 55 (5)  next = 58 (7)  next = 62 (3)  next = 64 (2)  next = 66 (-1)  next = 71 (-1) DC.last = 71 (-1)
+ SphP[  5] DC.first = 23 (-1)  next = 24 (2)  next = 26 (1)  next = 52 (6)  next = 54 (4)  next = 56 (7)  next = 69 (-1)  next = 70 (-1) DC.last = 70 (-1)
+ SphP[  6] DC.first = 14 (1)  next = 18 (0)  next = 21 (7)  next = 37 (2)  next = 40 (3)  next = 43 (4)  next = 48 (8)  next = 53 (5) DC.last = 53 (5)
+ SphP[  7] DC.first =  0 (-1)  next =  1 (-1)  next =  2 (-1)  next = 16 (1)  next = 20 (0)  next = 22 (6)  next = 57 (5)  next = 59 (4)  next = 67 (8) DC.last = 67 (8)
+ SphP[  8] DC.first =  3 (-1)  next =  4 (-1)  next =  5 (-1)  next = 47 (4)  next = 49 (6)  next = 51 (0)  next = 68 (7) DC.last = 68 (7)
+
+Primary_Cells and Midpoint_Idx (size=9):
+[ 0] primary id = 0 edges start 0 num edges = 7
+[ 1] primary id = 1 edges start 7 num edges = 5
+[ 2] primary id = 2 edges start 12 num edges = 6
+[ 3] primary id = 3 edges start 18 num edges = 4
+[ 4] primary id = 4 edges start 22 num edges = 7
+[ 5] primary id = 5 edges start 29 num edges = 5
+[ 6] primary id = 6 edges start 34 num edges = 8
+[ 7] primary id = 7 edges start 42 num edges = 6
+[ 8] primary id = 8 edges start 48 num edges = 4
+
+Midpoints and Opposite_Points (size=52):
+[ 0] x = 0.25 y = 0.5 z = 0.25 opposite id = 1
+[ 1] x = 0.375 y = 0.375 z = 0.375 opposite id = 6
+[ 2] x = 0.25 y = 0.5 z = 0.5 opposite id = 7
+[ 3] x = 0.5 y = 0.5 z = 0.25 opposite id = 2
+[ 4] x = 0.5 y = 0.25 z = 0.25 opposite id = 3
+[ 5] x = 0.5 y = 0.25 z = 0.5 opposite id = 4
+[ 6] x = 0.25 y = 0.25 z = 0.5 opposite id = 8
+[ 7] x = 0.25 y = 0.5 z = 0.25 opposite id = 0
+[ 8] x = 0.375 y = 0.625 z = 0.375 opposite id = 6
+[ 9] x = 0.25 y = 0.75 z = 0.5 opposite id = 7
+[10] x = 0.5 y = 0.75 z = 0.5 opposite id = 5
+[11] x = 0.5 y = 0.75 z = 0.25 opposite id = 2
+[12] x = 0.75 y = 0.75 z = 0.5 opposite id = 5
+[13] x = 0.5 y = 0.75 z = 0.25 opposite id = 1
+[14] x = 0.5 y = 0.5 z = 0.25 opposite id = 0
+[15] x = 0.625 y = 0.625 z = 0.375 opposite id = 6
+[16] x = 0.75 y = 0.5 z = 0.25 opposite id = 3
+[17] x = 0.75 y = 0.5 z = 0.5 opposite id = 4
+[18] x = 0.5 y = 0.25 z = 0.25 opposite id = 0
+[19] x = 0.75 y = 0.5 z = 0.25 opposite id = 2
+[20] x = 0.625 y = 0.375 z = 0.375 opposite id = 6
+[21] x = 0.75 y = 0.25 z = 0.5 opposite id = 4
+[22] x = 0.625 y = 0.375 z = 0.625 opposite id = 6
+[23] x = 0.5 y = 0.25 z = 0.5 opposite id = 0
+[24] x = 0.5 y = 0.25 z = 0.75 opposite id = 8
+[25] x = 0.75 y = 0.5 z = 0.75 opposite id = 5
+[26] x = 0.5 y = 0.5 z = 0.75 opposite id = 7
+[27] x = 0.75 y = 0.25 z = 0.5 opposite id = 3
+[28] x = 0.75 y = 0.5 z = 0.5 opposite id = 2
+[29] x = 0.75 y = 0.75 z = 0.5 opposite id = 2
+[30] x = 0.5 y = 0.75 z = 0.5 opposite id = 1
+[31] x = 0.625 y = 0.625 z = 0.625 opposite id = 6
+[32] x = 0.75 y = 0.5 z = 0.75 opposite id = 4
+[33] x = 0.5 y = 0.75 z = 0.75 opposite id = 7
+[34] x = 0.375 y = 0.625 z = 0.375 opposite id = 1
+[35] x = 0.375 y = 0.375 z = 0.375 opposite id = 0
+[36] x = 0.375 y = 0.625 z = 0.625 opposite id = 7
+[37] x = 0.625 y = 0.625 z = 0.375 opposite id = 2
+[38] x = 0.625 y = 0.375 z = 0.375 opposite id = 3
+[39] x = 0.625 y = 0.375 z = 0.625 opposite id = 4
+[40] x = 0.375 y = 0.375 z = 0.625 opposite id = 8
+[41] x = 0.625 y = 0.625 z = 0.625 opposite id = 5
+[42] x = 0.25 y = 0.75 z = 0.5 opposite id = 1
+[43] x = 0.25 y = 0.5 z = 0.5 opposite id = 0
+[44] x = 0.375 y = 0.625 z = 0.625 opposite id = 6
+[45] x = 0.5 y = 0.75 z = 0.75 opposite id = 5
+[46] x = 0.5 y = 0.5 z = 0.75 opposite id = 4
+[47] x = 0.25 y = 0.5 z = 0.75 opposite id = 8
+[48] x = 0.5 y = 0.25 z = 0.75 opposite id = 4
+[49] x = 0.375 y = 0.375 z = 0.625 opposite id = 6
+[50] x = 0.25 y = 0.25 z = 0.5 opposite id = 0
+[51] x = 0.25 y = 0.5 z = 0.75 opposite id = 7

@@ -1,0 +1,13 @@
+#!/bin/sh
+#BSUB -q nancy
+#BSUB -J spRT_rot
+#BSUB -n 8
+#BSUB -R "span[ptile=8]"
+#BSUB -g /dnelson/orbit
+#BSUB -x
+#BSUB -o frames_rot/runs.out
+#BSUB -e frames_rot/runs.err
+#BSUB -C 1000
+
+module load hpc/openmpi-1.6_gcc-4.7.0thread
+./ArepoRT config_rot.txt >> frames_rot/run.txt

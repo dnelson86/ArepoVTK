@@ -815,11 +815,10 @@ int find_next_cell_DC(tessellation * T, int cell, double p0[3], double dir[3], i
     {
       ++iter;
       const int neighbor = DC[edge].dp_index;
-			//myassert((DC[edge].task != ThisTask) || (DC[edge].index != cell));
+			
+			// note: with reflective BCs we will fail this check
       if ( (DC[edge].task == ThisTask) && (DC[edge].index == cell) )
 				terminate("Bad DC we reached our parent cell in the neighbors.");
-
-      //printf(" CHECK: dp_neighbor = %d sphp_neighbor = %d\n",neighbor,DC[edge].index);
 
       // ignore the edge we entered through
       if((DC[edge].index == previous) && (DC[edge].task == ThisTask))
