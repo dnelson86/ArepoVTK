@@ -160,7 +160,7 @@ void TransferFunc1D::CheckReverse()
 		
 		// if the maximum is greater than 2.0 then assume the inputs are in [0,255] and rescale to [0,1]
 		if (curMax > 2.0) {
-				cout << "Warning: Rescaling input color table to [0,1]!" << endl;
+				IF_DEBUG(cout << "Warning: Rescaling input color table to [0,1]!" << endl);
 				
 				for (size_t i = 0; i < colorTableVals.size()/4; i++) {
 						colorTableVals[i*4+0] /= 255.0;

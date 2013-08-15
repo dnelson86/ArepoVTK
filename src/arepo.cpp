@@ -107,6 +107,10 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		//sampleWt = 0.2f; //All.BoxSize / pow(NumGas,0.333);
 		sampleWt = 0.001f;
 		
+#ifdef SPECIAL_BOUNDARY
+		sampleWt = 1.0f;
+#endif
+		
 		if (viStepSize)
 			sampleWt *= viStepSize;
 		
@@ -913,7 +917,6 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 																							
 					// subsample (replace fields in vals by interpolated values)
 					int status = subSampleCell(ray, midpt, &vals[0], taskNum);
-					if(status) status = 0; // kill warning
 							
 #ifdef DEBUG
 					double fracstep = 1.0 / nSamples;
@@ -929,7 +932,8 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 					}
 					
 					// compute emission-only source term using transfer function
-					Lv += Tr * transferFunction->Lve(vals) * sampleWt;
+					if(status)
+					  Lv += Tr * transferFunction->Lve(vals) * sampleWt;
 							
 					// update previous sample point marker
 					ray.depth++;
@@ -1442,15 +1446,17 @@ void ArepoMesh::DumpMesh()
 		int dc,next;
 		for (int i=0; i < NumGas; i++) {
 				dc   = SphP[i].first_connection;
-				cout << " SphP[" << setw(3) << i << "] DC.first = " << setw(2) << SphP[i].first_connection;
+				cout << " SphP[" << setw(3) << i << "] DC.first = " << setw(2) << SphP[i].first_connection
+				     << " (" << DC[SphP[i].first_connection].index << ")";
 				
 				do {
 						next = DC[dc].next;
-						cout << " " << " next = " << setw(2) << next;
+						cout << " " << " next = " << setw(2) << next << " (" << DC[next].index << ")";
 						dc = next;
 				} while (next != SphP[i].last_connection);
 				
-				cout << " DC.last = " << SphP[i].last_connection << endl;		
+				cout << " DC.last = " << SphP[i].last_connection 
+				     << " (" << DC[SphP[i].last_connection].index << ")" << endl;		
 		}
 		
 		if (numVertices.size()) {

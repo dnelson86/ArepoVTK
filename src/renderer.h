@@ -17,7 +17,7 @@ public:
     ~Renderer();
 		
 		// methods
-    void Render(const Scene *scene);
+    void Render(const Scene *scene, int frameNum);
 		void RasterizeStage(const Scene *scene);
 		
     Spectrum Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T = NULL, 

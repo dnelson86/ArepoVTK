@@ -1,9 +1,7 @@
-
 % Sample ArepoVTK Configuration File
 
 % Input/Output
 % ------------
-
 imageFile      = frame3b.tga             % output: TGA image filename
 rawRGBFile     = frame3b.raw.txt         % output: raw dump of floats (debug only)
 filename       = test/Arepo3b
@@ -11,33 +9,28 @@ paramFilename  = test/param.txt
 
 % General
 % -------
-
-nCores         = 2                     % number of cores to use (0=all)
-nTasks         = 8                     % number of tasks/threads to run (0=auto)
-quickRender    = false                 % unused
-openWindow     = false                 % unused
-verbose        = true                  % report more information
+nCores         = 2                   % number of cores to use (0=all)
+nTasks         = 8                   % number of tasks/threads to run (0=auto)
+quickRender    = false               % unused
+openWindow     = false               % unused
+verbose        = true                % report more information
 
 % Frame
 % -----
-
 imageXPixels   = 800                 % frame resolution (X), e.g. 1024, 1920
 imageYPixels   = 800                 % frame resolution (Y), e.g. 768,  1080
-swScale        = 0.26                 % screenWindow mult factor * [-1,1]
-                                      % 0.52 ortho face, 0.80 angled above, boxsize/2 in
-                                      % general if centering camera at [boxsize/2,boxsize/2,0]
+swScale        = 0.26                % screenWindow mult factor * [-1,1]
+                                     % 0.52 ortho face, 0.80 angled above, boxsize/2 in
+                                     % general if centering camera at [boxsize/2,boxsize/2,0]
 % Camera
 % ------
 cameraFOV      = 0.0                 % degrees (0=orthographic camera)
 cameraPosition = 0.5 0.5 0.0         % (XYZ) camera position in world coord system
 cameraLookAt   = 0.5 0.5 0.5         % (XYZ) point centered in camera FOV
-
-%cameraPosition = 0.240325 0.759675 0.0
-%cameraLookAt   = 0.240325 0.759675 0.5 
+cameraUp       = 0.0 0.0 1.0         % (XYZ) camera "up" vector
 
 % Transfer Function
 % -----------------
-
 %addTF_01 = constant Density 1e6 0.0 0.0
 addTF_02 = gaussian Density 15.0 0.5 red
 addTF_03 = gaussian Density 4 0.25 0.0 0.1 0.0
@@ -46,27 +39,25 @@ addTF_04 = gaussian Density 2.0 0.0625 blue
 %addTF_02 = gaussian_table Density idl_33_blue-red 12.0 20.0 16.0 1.0
 %addTF_03 = gaussian_table Density cubehelix_1 1.0 2.0 1.5 0.2
 
+% Animation
+% ---------
+numFrames        = 1                 % total number of frames
+timePerFrame     = 1.0               % establish unit system of time/frame
+
 % Render
 % ------
-
 drawBBox         = false             % draw simulation bounding box
-drawTetra        = false              % draw delaunay tetrahedra
-drawVoronoi      = false              % draw voronoi polyhedra faces
-
+drawTetra        = false             % draw delaunay tetrahedra
+drawVoronoi      = false             % draw voronoi polyhedra faces
 projColDens      = false             % integrate quantities (density, etc) along each path 
                                      % length, to make e.g. a "projected column density" image
-
 useDensGradients = true              % use density gradient within cells
-
-viStepSize       = 0.01             % volume integration sub-stepping size (0=disabled)
+viStepSize       = 0.01              % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
-
 rayMaxT          = 0.0               % maximum ray integration parametric length
-
 rgbLine          = 0.1 0.1 0.1       % (RGB) bounding box
 rgbTetra         = 0.02 0.0 0.0      % (RGB) tetra edges
 rgbVoronoi       = 0.0 0.02 0.0      % (RGB) voronoi edges
-
 rgbAbsorb        = 0.0 0.0 0.0       % (RGB) absorption
 
 % End.

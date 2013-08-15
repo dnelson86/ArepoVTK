@@ -40,9 +40,13 @@ public:
 		float swScale; // screenWindow mult factor * [-1,1]
 		
 		float cameraFOV;
-		float cameraPosition[3], cameraLookAt[3];
+		float cameraPosition[3], cameraLookAt[3], cameraUp[3];
 		
-		vector<string> tfSet;		
+		vector<string> tfSet; // transfer functions
+		vector<string> kfSet; // key frames
+		
+		int numFrames;
+		float timePerFrame;
 		
 		bool drawBBox, drawTetra, drawVoronoi;
 		bool projColDens, useDensGradients;		

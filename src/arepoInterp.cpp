@@ -168,8 +168,9 @@ void ArepoMesh::precomputeTetraGrads()
 				//	" p2 = " << DT[i].p[2] << " p3 = " << DT[i].p[3] << " det_A = " << det_A << endl;
 		
 				if (det_A < INSIDE_EPS && det_A > -INSIDE_EPS) { // debugging
-				  cout << "ERROR: det_A is zero! " << det_A << " [" << i << "]" << endl;
-					exit(12509);
+				  //cout << "ERROR: det_A is zero! " << det_A << " [" << i << "]" << endl;
+					//exit(12509);
+					continue;
 				}
 				
 				// reciprocal of determinant
@@ -227,10 +228,13 @@ float ArepoMesh::calcNeighborHSML(int sphInd, Vector &pt, int dpInd)
 		  int sphp_neighbor = DC[edge].index;
 			
 			// could connect to bounding tetra if we don't have a ghost across this boundary
-			if ( sphp_neighbor < 0 ) {
+			if ( sphp_neighbor < 0
+#ifdef NO_GHOST_CONTRIBS
+			|| DC[edge].dp_index >= NumGas
+#endif
+			) {
 				if ( edge == last_edge )
 					break;
-					
 				edge = DC[edge].next;
 				continue;
 			}
@@ -401,7 +405,7 @@ double ArepoMesh::ccVolume(double *ci, double *cj, double *ck, double *ct)
 int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNum)
 {
 #ifdef USE_DC_CONNECTIVITY
-	int dpInd = -1;
+	int dpInd = -1; // not used
 	int sphInd = ray.index;
 #else // USE_ALTERNATIVE_CONNECTIVITY
 	int dpInd = ray.index;
@@ -460,6 +464,19 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		
 		while(edge >= 0) {
 			int sphp_neighbor = DC[edge].index;
+			
+			// could connect to bounding tetra if we don't have a ghost across this boundary
+			if ( sphp_neighbor < 0 
+#ifdef NO_GHOST_CONTRIBS
+                        || DC[edge].dp_index >= NumGas
+#endif
+			) {
+				if ( edge == last_edge )
+					break;
+				edge = DC[edge].next;
+				continue;
+			}
+			
 			pri_neighbor_inds[k++] = sphp_neighbor;
 		
 #ifdef NATURAL_NEIGHBOR_INNER
@@ -468,6 +485,14 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 			int inner_last_edge = SphP[sphp_neighbor].last_connection;
 			
 			while(inner_edge >= 0) {
+				// could connect to bounding tetra if we don't have a ghost across this boundary
+				if ( DC[inner_edge].index < 0 ) {
+					if ( inner_edge == inner_last_edge )
+						break;
+					inner_edge = DC[inner_edge].next;
+					continue;
+				}
+				
 				// skip any neighbors we've already done
 				for( int i=0; i < k; i++ ) {
 				  if ( DC[inner_edge].index == pri_neighbor_inds[i] ) {
@@ -607,37 +632,51 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 /* -------------------------------------------------------------------------------------- */
 
 #ifdef NATURAL_NEIGHBOR_INTERP
-		int tlast = 0, sphp_neighbor;
-		int edge, last_edge;
-		float weight;	
+		int tlast = 0;
+		float weight, weightsum = 0.0;
 		
 		double dp_old_vol[AUXMESH_ALLOC_SIZE/2];
 		double dp_new_vol[AUXMESH_ALLOC_SIZE/2];
 
-		const int start_edge = midpoint_idx[sphInd].first;
-		const int n_edges    = midpoint_idx[sphInd].second;
-		
 		// recreate the voronoi cell of the parent's neighbors (auxiliary mesh approach):
 		init_clear_auxmesh(&AuxMeshes[taskNum]);
 			
 		// construct new auxiliary mesh around pt
-		edge = SphP[sphInd].first_connection;
-		last_edge = SphP[sphInd].last_connection;
+#ifdef USE_DC_CONNECTIVITY
+		int edge = SphP[sphInd].first_connection;
+		int last_edge = SphP[sphInd].last_connection;
 		
-		//while(edge >= 0) {
+		while(edge >= 0) {
+			int dp_neighbor = DC[edge].dp_index;
+			
+			// could connect to bounding tetra if we don't have a ghost across this boundary
+			if ( DC[edge].index < 0 ) {
+				if ( edge == last_edge )
+					break;
+				edge = DC[edge].next;
+				continue;
+			}
+#else // USE_ALTERNATIVE_CONNECTIVITY
+		const int start_edge = midpoint_idx[dpInd].first;
+		const int n_edges    = midpoint_idx[dpInd].second;
+		
 		for( int k = 0; k < n_edges; k++ ) {
+			int dp_neighbor = opposite_points[start_edge+k];
+#endif
+		
 			if(AuxMeshes[taskNum].Ndp + 2 >= AuxMeshes[taskNum].MaxNdp)
 				terminate("AuxMesh for NNI exceeds maximum size.");
 				
 			// insert point
-			//AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[ DC[edge].dp_index ];
-			AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[ opposite_points[start_edge+k] ];
+			AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[ dp_neighbor ];
 			
 			// wrap this DP point to near our sample point if necessary
-			periodic_wrap_DP_point( AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp], pt );
+			// this doesn't necessary work, if some neighbors are wrapped and others aren't we will not get the correct
+			// periodic volume change? in any case, only matters with ghost neighbors, deal with later
+			//periodic_wrap_DP_point( AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp], pt );
 				
-			IF_DEBUG(cout << "   insertN (orig x=" << Mesh.DP[ DC[edge].dp_index ].x << " y=" << Mesh.DP[ DC[edge].dp_index ].y
-			              << " z=" << Mesh.DP[ DC[edge].dp_index ].z << ") (wrapped x=" 
+			IF_DEBUG(cout << "   insertN (orig x=" << Mesh.DP[ dp_neighbor ].x << " y=" << Mesh.DP[ dp_neighbor ].y
+			              << " z=" << Mesh.DP[ dp_neighbor ].z << ") (wrapped x=" 
 										<< AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].x 
 										<< " y=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].y 
 										<< " z=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].z 
@@ -648,6 +687,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		  tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
 		  AuxMeshes[taskNum].Ndp++;
 				
+#ifdef USE_DC_CONNECTIVITY
 			// move to next neighbor
 			if(edge == last_edge)
 				break;
@@ -658,12 +698,18 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 #endif
 				
 			edge = DC[edge].next;
+#endif
 		}
-		// add primary parent as well
-		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[sphInd];
 		
+		// add primary parent as well
+#ifdef USE_DC_CONNECTIVITY
+		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[sphInd];
+#else
+		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[dpInd];
+#endif
+
 		// wrap
-		periodic_wrap_DP_point( AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp], pt);
+		//periodic_wrap_DP_point( AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp], pt);
 		
 		IF_DEBUG(cout << "   insertP (orig x=" << Mesh.DP[ sphInd ].x << " y=" << Mesh.DP[ sphInd ].y
 		              << " z=" << Mesh.DP[ sphInd ].z << ") (wrapped x=" 
@@ -672,7 +718,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 									<< " z=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].z 
 									<< ") tlast=" << setw(3) << tlast << " totnum=" << setw(2) << AuxMeshes[taskNum].Ndp+1 << endl);		
 		
-		set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
+		set_integers_for_pointer( &AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] );
 		tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
 		AuxMeshes[taskNum].Ndp++;
 		
@@ -693,8 +739,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].y = pt.y;
 		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].z = pt.z;
 		
-		set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
-
+		set_integers_for_pointer( &AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] );
 		tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
 		AuxMeshes[taskNum].Ndp++;
 		
@@ -713,23 +758,32 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 #endif
 
 		// calculate scalar value based on neighbor values and area fraction weights
+#ifdef USE_DC_CONNECTIVITY
 		edge = SphP[sphInd].first_connection;
-		
-		float weightsum = 0.0;
 		int k = 0;
 		
-		//while(edge >= 0) {
-		//for( sphp_neighbor = 0; sphp_neighbor < NumGas; sphp_neighbor++ ) {
+		while(edge >= 0) {
+			int sphp_neighbor = DC[edge].index;
+			// could connect to bounding tetra if we don't have a ghost across this boundary
+			if ( sphp_neighbor < 0 ) {
+				if ( edge == last_edge )
+					break;
+				edge = DC[edge].next;
+				continue;
+			}
+#else // USE_ALTERNATIVE_CONNECTIVITY
 		for ( int k=0; k < n_edges; k++ ) {
-			sphp_neighbor = getSphPID( DP[opposite_points[start_edge+k]].index );
-			//sphp_neighbor = DC[edge].index;
-			
+			int sphp_neighbor = getSphPID( DP[opposite_points[start_edge+k]].index );
+#endif
+
 			weight = dp_old_vol[k] - dp_new_vol[k];
 			weightsum += weight;
 			
 			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
 			vals[TF_VAL_UTHERM] += SphP[sphp_neighbor].Utherm * weight;
-			//k++;
+			
+#ifdef USE_DC_CONNECTIVITY
+			k++;
 			
 			// move to next neighbor
 			if(edge == last_edge)
@@ -740,7 +794,8 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 			  terminate(" what is going on ");
 #endif
 
-			edge = DC[edge].next;			
+			edge = DC[edge].next;	
+#endif			
 		}
 		
 		// add primary parent

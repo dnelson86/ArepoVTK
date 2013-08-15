@@ -263,27 +263,21 @@ extern struct global_data_all_processes
   int LevelHasBeenMeasured[GRAVCOSTLEVELS];
 
   /* variables that keep track of cumulative CPU consumption */
-
   double TimeLimitCPU;
-  double CPU_Sum[CPU_PARTS];	/**< sums wallclock time/CPU consumption in whole run */
+  double CPU_Sum[CPU_PARTS];
 
   /* tree code opening criterion */
-
-  double ErrTolTheta;		/**< BH tree opening angle */
-  double ErrTolForceAcc;	/**< parameter for relative opening criterion in tree walk */
+  double ErrTolTheta;
+  double ErrTolForceAcc;
 
   /* adjusts accuracy of time-integration */
-
-  double ErrTolIntAccuracy;	/**< accuracy tolerance parameter \f$ \eta \f$ for timestep criterion. The
-				   timesteps is \f$ \Delta t = \sqrt{\frac{2 \eta eps}{a}} \f$ */
-
-  double MinSizeTimestep,	/**< minimum allowed timestep. Normally, the simulation terminates if the
-				   timestep determined by the timestep criteria falls below this limit. */
-    MaxSizeTimestep;		/**< maximum allowed timestep */
+  double ErrTolIntAccuracy;
+  double MinSizeTimestep,
+    MaxSizeTimestep;
 
   double MaxRMSDisplacementFac;	
   double IsoSoundSpeed;
-  double CourantFac;		/**< SPH-Courant factor */
+  double CourantFac;
 
 #ifdef REGULARIZE_MESH_FACE_ANGLE
   double CellMaxAngleFactor;
@@ -351,6 +345,15 @@ extern struct global_data_all_processes
 #if defined(REFINEMENT_SPLIT_CELLS) || defined(USE_SFR)
   MyIDType MaxID;
 #endif
+
+#ifdef SPECIAL_BOUNDARY
+  double BoundaryLayerScaleFactor;
+  double SpecialBoundarySpeed;
+  int SpecialBoundaryMotion;
+  int SpecialBoundaryType;
+  double OutflowPressure;
+#endif
+
 }
 All;
 
@@ -393,6 +396,11 @@ extern struct sph_particle_data
   MyFloat SurfaceArea;
   MyFloat ActiveArea;
 
+#ifdef TRACER_FIELD
+  MyFloat Tracer;
+  MyFloat ConservedTracer;
+#endif
+	
 #ifdef COOLING
   MyFloat Ne;
 #endif
@@ -410,6 +418,10 @@ extern struct sph_particle_data
 #ifdef VORONOI_DYNAMIC_UPDATE
   int first_connection;
   int last_connection;
+#endif
+
+#ifdef SPECIAL_BOUNDARY
+  MyFloat MinDistBoundaryCell;
 #endif
 }
  *SphP,				/**< holds SPH particle data on local processor */

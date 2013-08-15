@@ -4,7 +4,7 @@
 
 Primary Author: Dylan Nelson (dnelson@cfa.harvard.edu)
 
-Current Version: 0.38 (31 Aug 2012)
+Current Version: 0.395 (15 Aug 2013)
 
 Installation/Compilation:
 
@@ -90,11 +90,13 @@ Version Roadmap:
   - use internal DC connectivity instead of alternative Sunrise
 
  +v0.4
+  - multiple frames on single snapshot
+  - camera path splining/tweening in space, orbits
+  - fix NNI auxMesh allocation per task instead of per thread
+
+ +v0.41
   - Watson-Sambridge NNI
   - Liang-Hale NNI
-  
- +v0.41
-  - camera path splining in space (AnimatedTransform?)
   - keyframe transfer function settings
 
  +v0.42

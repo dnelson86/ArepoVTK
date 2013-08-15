@@ -52,6 +52,12 @@ void ConfigSet::ReadFile(string cfgfile)
 						line.erase( 0, line.find_first_not_of(whitespace) );
 						line.erase( line.find_last_not_of(whitespace) + 1U );
 				
+						// keyframe and transfer function handling (multiple entries for each)
+						if (key.substr(0,5) == "addTF")
+							tfSet.push_back(line);
+						if (key.substr(0,5) == "addKF")
+							kfSet.push_back(line);
+				
 						// store key,value (map type, keys unique)
 						parsedParams[key] = line;
 						//IF_DEBUG(cout << " [" << key << "] = " << line << endl);
@@ -77,6 +83,10 @@ void ConfigSet::ReadFile(string cfgfile)
 		cameraFOV     = readValue<float>("cameraFOV",    0.0f); // 0 = ortho
 		splitStrArray( readValue<string>("cameraPosition") , &cameraPosition[0]   );
 		splitStrArray( readValue<string>("cameraLookAt")   , &cameraLookAt[0] );
+		splitStrArray( readValue<string>("cameraUp")       , &cameraUp[0] );
+		
+		numFrames     = readValue<int>("numFrames",      1);
+		timePerFrame  = readValue<float>("timePerFrame", 1.0);
 		
 		drawBBox      = readValue<bool>("drawBBox",      true);
 		drawTetra     = readValue<bool>("drawTetra",     true);	
@@ -88,20 +98,12 @@ void ConfigSet::ReadFile(string cfgfile)
 		viStepSize       = readValue<float>("viStepSize",      0.0f); // disabled by default
 		rayMaxT          = readValue<float>("rayMaxT",         0.0f);
 		
-		//TODO: temp rgb triplets input		
+		// rgb triplets input		
 		splitStrArray( readValue<string>("rgbLine",     "0.1  0.1  0.1")  , &rgbLine[0]    );
 		splitStrArray( readValue<string>("rgbTetra",    "0.01 0.01 0.01") , &rgbTetra[0]   );
 		splitStrArray( readValue<string>("rgbVoronoi",  "0.0  0.05 0.0")  , &rgbVoronoi[0] );
 
 		splitStrArray( readValue<string>("rgbAbsorb",   "0.0  0.05 0.0")  , &rgbAbsorb[0]  );
-		
-		//TODO: temp TF handling
-		map_i pi;
-		
-		for (pi = parsedParams.begin(); pi != parsedParams.end(); ++pi) {
-				if (pi->first.substr(0,5) == "addTF")
-						tfSet.push_back(pi->second);
-		}
 		
 		// basic validation
 		if (projColDens && viStepSize) {
