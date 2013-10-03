@@ -2,15 +2,15 @@
 
 % Input/Output
 % ------------
-imageFile      = frames_final/frame_NUMM.tga            % output: TGA image filename
+imageFile      = frames_rot2/frame_test.tga            % output: TGA image filename
 rawRGBFile     = frame.raw.txt        % output: raw dump of floats (debug only)
-filename       = snapshots/snap_NUM   % input: simulation snapshot (no extension)
+filename       = snapshots/snap_000   % input: simulation snapshot (no extension)
 paramFilename  = param.txt            % input: Arepo parameter file
 
 % General
 % -------
-nCores         = 8                    % number of cores to use (0=all)
-nTasks         = 64                   % number of tasks/threads to run (0=auto)
+nCores         = 64                    % number of cores to use (0=all)
+nTasks         = 128                   % number of tasks/threads to run (0=auto)
 quickRender    = false                % unused
 openWindow     = false                % unused
 verbose        = true                 % report more information
@@ -25,7 +25,7 @@ swScale        = 1.0                 % screenWindow mult factor * [-1,1]
 % ------
 % want to plot (x,z) or (y,z)
 cameraFOV      = 20.0           % degrees (0=orthographic camera)
-cameraPosition = -3.0 0.5 0.5   % (XYZ) camera position in world coord system
+cameraPosition = 0.499 0.5 -3.001   % (XYZ) camera position in world coord system
 cameraLookAt   = 0.5 0.5 0.5   % (XYZ) point centered in camera FOV
 cameraUp       = 0.0 0.0 1.0   % (XYZ) camera "up" vector
 
@@ -49,8 +49,12 @@ addTF_09 = gaussian_table Density idl_13_rainbow 1.05 1.95 1.5 0.15
 
 % Animation
 % ---------
-numFrames        = 1                 % total number of frames
-timePerFrame     = 1.0               % establish unit system of time/frame
+numFrames      = 91             % total number of frames
+timePerFrame   = 0.0333333      % establish unit system of time/frames (30 frames -> t=1)
+
+%addKF = startTime stopTime property value tween
+addKF = 0.0 3.0 cameraX -3.0 quadratic_inout
+addKF = 0.0 3.0 cameraZ 0.5 quadratic_inout
 
 % Render
 % ------
@@ -60,9 +64,9 @@ drawVoronoi      = false             % DO NOT CHANGE
 projColDens      = false             % integrate quantities (density, etc) along each path 
                                      % length, to make e.g. a "projected column density" image
 useDensGradients = true              % use density gradient within cells
-viStepSize       = 0.0005            % volume integration sub-stepping size (0=disabled)
+viStepSize       = 0.0005             % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
-rayMaxT          = 10.0              % maximum ray integration parametric length
+rayMaxT          = 10.0               % maximum ray integration parametric length
 rgbLine          = 0.01 0.01 0.01    % (RGB) bounding box
 rgbTetra         = 0.01 0.01 0.01    % (RGB) tetra edges
 rgbVoronoi       = 0.0 0.05 0.0      % (RGB) voronoi edges

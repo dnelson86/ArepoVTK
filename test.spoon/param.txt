@@ -27,7 +27,7 @@ ResubmitCommand           my-scriptfile
 
 %----- Memory alloction
 
-MaxMemSize        10000         % sets maximum memory use in MByte
+MaxMemSize        20000         % sets maximum memory use in MByte
 BufferSize        100          % in MByte
 BufferSizeGravity 100
 

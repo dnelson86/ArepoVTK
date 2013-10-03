@@ -31,7 +31,7 @@ private:
 		vector<float> stop;
 		vector<float> start_val;
 		vector<float> stop_val;
-		//vector<string> method;
+		vector<string> method;
 		vector<string> quantity;
 		
 		// quantities

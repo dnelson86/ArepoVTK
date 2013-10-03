@@ -24,8 +24,6 @@ Notes:
  * and current revision in Arepo allvars.h, otherwise All.BoxSize likely zero
  * and rays likely all terminated at their start.
 
- * To compile: module load hpc/openmpi-1.6_gcc-4.7.0thread
-
 -------
 ArepoRT
 -------

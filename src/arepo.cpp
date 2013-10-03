@@ -104,12 +104,7 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		transferFunction = tf;
 		viStepSize       = Config.viStepSize;
 		
-		//sampleWt = 0.2f; //All.BoxSize / pow(NumGas,0.333);
-		sampleWt = 0.001f;
-		
-#ifdef SPECIAL_BOUNDARY
-		sampleWt = 1.0f;
-#endif
+		sampleWt = 1.0f; //All.BoxSize / pow(NumGas,0.333);
 		
 		if (viStepSize)
 			sampleWt *= viStepSize;
@@ -138,7 +133,9 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		
 		// preprocessing
 		ArepoMesh::ComputeQuantityBounds();
+#ifdef USE_ALTERNATIVE_CONNECTIVITY
 		ArepoMesh::CalculateMidpoints();
+#endif
 		//ArepoMesh::LimitCellDensities();
 		
 		ArepoMesh::setupAuxMeshes();
@@ -187,10 +184,6 @@ void ArepoMesh::LocateEntryCellBrute(const Ray &ray)
 		double dist;
 		
 		for (int i=0; i < NumGas; i++) {
-				//double dist = sqrt( (hitbox.x-P[i].Pos[0]) * (hitbox.x-P[i].Pos[0]) + 
-				//									  (hitbox.y-P[i].Pos[1]) * (hitbox.y-P[i].Pos[1]) + 
-				//										(hitbox.z-P[i].Pos[2]) * (hitbox.z-P[i].Pos[2]) );
-														
 				delta.x = hitbox.x - P[i].Pos[0];
 				delta.y = hitbox.y - P[i].Pos[1];
 				delta.z = hitbox.z - P[i].Pos[2];
@@ -707,7 +700,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 																		 Spectrum &Lv, Spectrum &Tr, int taskNum)
 {
 		double min_t = MAX_REAL_NUMBER;
-		int qmin = -1; // next primary cell index
+		int qmin = -1, qmin_dp = -1; // next primary cell SphP/DP index
 		
 		// verify task
 		if (ray.task != ThisTask)
@@ -725,15 +718,17 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 		dir[1] = ray.d[1];
 		dir[2] = ray.d[2];
 		
-		qmin = find_next_cell_DC(T, SphP_ID, &(pos[0]), dir, ray.index, &length);
-
+		qmin = find_next_cell_DC(T, SphP_ID, &(pos[0]), dir, ray.index, &length); // TODO: change ray.index to ray.prev_index
+		
+		if( qmin != -1 )
+			qmin_dp = DC[qmin].dp_index; // DP_index (in ray.index we store SphP_index)
+		
 		qmin = DC[qmin].index; // SphP_index (already NumGas subtracted if necessary)
 		min_t = ray.min_t + length;
 		
 #ifdef DEBUG
-		int qmin_DC_dp = DC[qmin].dp_index; // DP_index (in ray.index we store dp_index)
-		cout << "  NEW intersection t = " << min_t << " setting new min_t, qmin_DC = " << qmin 
-		     << " qmin_DC_dp = " << qmin_DC_dp << endl;
+		cout << "  NEW intersection t = " << min_t << " setting new min_t, next_sphID = " << qmin 
+		     << " next_dpID = " << qmin_dp << endl;
 #endif
 
 #endif
@@ -788,9 +783,6 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 			}
 		}
 		
-		// DC doesn't handle ghosts in the same way that sunrise connectivity does (only contains links 
-		// between primary cells). DC can only be used to find sphp_index, and not the real dp_index?
-		
 		// verbose
 		//int qmin_old_sphp = getSphPID(DP[qmin_old].index);
 		
@@ -804,13 +796,15 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 #endif
 
 #ifdef DEBUG_VERIFY_INCELL_EACH_STEP
-		// verify ray is where we expect it
-		ArepoMesh::VerifyPointInCell(ray.index,pos);
+		// verify ray is where we expect it (halfway through this cell)
+		Point checkPos = ray( 0.5*(ray.min_t + min_t) );
+		ArepoMesh::VerifyPointInCell(ray.index,checkPos);
 #endif
 	
 		// check if exiting box and failed to exit a face
 		if (qmin == -1) {
-			Point exitcell = ray(*t0 + min_t);
+			//Point exitcell = ray(*t0 + min_t);
+			Point exitcell = ray(min_t);
 			
 			if (!extent.Inside(exitcell)) { // && ray.index >= NumGas
 				// set intersection with box face to allow for final contribution to ray
@@ -848,13 +842,15 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 		{
 			// clamp min_t to avoid integrating outside the box
 			IF_DEBUG(cout << " have exit: min_t = " << min_t << " (t1=" << *t1 << " t0=" << *t0 << ") addFlag = " << addFlag << endl);
-			min_t = Clamp(min_t,0.0,(*t1-*t0));
+			//min_t = Clamp(min_t,0.0,(*t1-*t0));
+			min_t = Clamp(min_t,*t0,*t1);
 			
 			if (addFlag)
 			{
 				// entry and exit points for this cell
 				Point hitcell  = ray(ray.min_t);
-				Point exitcell = ray(*t0 + min_t);
+				//Point exitcell = ray(*t0 + min_t);
+				Point exitcell = ray(min_t);
 					
 				// cell gradient information
 				Vector sphCen(     SphP[SphP_ID].Center[0],   SphP[SphP_ID].Center[1],   SphP[SphP_ID].Center[2]);
@@ -891,7 +887,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 				//double halfstep = 0.5 / nSamples;
 					
 				// setup sub-stepping: strict in world space
-				Vector prev_sample_pt(ray(ray.depth * viStepSize));
+				Vector prev_sample_pt(ray(*t0 + ray.depth * viStepSize));
 				Vector norm_sample(exitcell - prev_sample_pt);
 
 				int nSamples = (int)floorf(norm_sample.Length() / viStepSize);
@@ -908,8 +904,6 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 					Vector midpt(prev_sample_pt[0] + ((i+1)*viStepSize) * norm_sample[0],
 											 prev_sample_pt[1] + ((i+1)*viStepSize) * norm_sample[1],
 											 prev_sample_pt[2] + ((i+1)*viStepSize) * norm_sample[2]);
-							
-					IF_DEBUG(midpt.print("  substep midpt "));
 					
 #if defined(DTFE_INTERP) || defined(NNI_WATSON_SAMBRIDGE) || defined(NNI_LIANG_HALE)
 					locateCurrentTetra(ray, midpt);
@@ -922,7 +916,8 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 					double fracstep = 1.0 / nSamples;
 					cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
 							<< (i*fracstep)+fracstep << "] rho = " << SphP[SphP_ID].Density
-							<< " rho subSample = " << vals[TF_VAL_DENS] << endl;
+							<< " rho subSample = " << vals[TF_VAL_DENS];
+					midpt.print(" ");
 #endif
 							
 					// apply TF to integrated (total) quantities (only appropriate for constant?)
@@ -941,10 +936,11 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 			} //addFlag
 			
 			// update ray: transfer to next voronoi cell (possibly on different task)
-			ray.task  = DP[qmin].task;
+			ray.task  = DP[qmin_dp].task;
 			ray.prev_index = ray.index;
 			ray.index = qmin;
-			ray.min_t = Clamp(min_t + *t0,ray.min_t,ray.max_t);
+			//ray.min_t = Clamp(min_t + *t0,ray.min_t,ray.max_t);
+			ray.min_t = Clamp(min_t,ray.min_t,ray.max_t);
 			
 			IF_DEBUG(cout << " updated ray new task = " << ray.task << " index = " << ray.index 
 										<< " min_t = " << ray.min_t << endl);

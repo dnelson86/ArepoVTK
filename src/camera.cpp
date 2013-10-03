@@ -558,16 +558,11 @@ bool Camera::RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L)
 		//p2.print("Camera::RasterizeLine p2 W ");
 		
 		// transform start and end points to raster space
-    //float x1,y1,x2,y2;
 		Point start,end;
 		
 		Transform w2r = Inverse(RasterToCamera) * Inverse(CameraToWorld);
 		start = w2r(p1);
 		end   = w2r(p2);
-		
-		//w2r.print(" w2r ");
-		//Inverse(CameraToWorld).print(" inv c2w ");
-		//Inverse(RasterToCamera).print(" inc r2c ");
 		
 		//start.print("Camera::RasterizeLine p1 R ");
 		//end.print("Camera::RasterizeLine p2 R ");
