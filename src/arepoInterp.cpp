@@ -457,7 +457,9 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		int edge = SphP[sphInd].first_connection;
 		int last_edge = SphP[sphInd].last_connection;
 		
+#ifdef NATURAL_NEIGHBOR_INNER
 		int pri_neighbor_inds[20];
+#endif
 		int k=0;
 		
 		edge = SphP[sphInd].first_connection;
@@ -477,9 +479,9 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 				continue;
 			}
 			
+#ifdef NATURAL_NEIGHBOR_INNER
 			pri_neighbor_inds[k++] = sphp_neighbor;
 		
-#ifdef NATURAL_NEIGHBOR_INNER
 			// loop over neighbors of neighbors
 			int inner_edge = SphP[sphp_neighbor].first_connection;
 			int inner_last_edge = SphP[sphp_neighbor].last_connection;
@@ -584,6 +586,10 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		
 #endif // CONNECTIVITY
 
+#ifdef NO_GHOST_CONTRIBS
+		if( sphInd < NumGas )
+		{
+#endif
 		// add in primary parent
 		dx = NGB_PERIODIC_LONG_X(P[sphInd].Pos[0] - pt.x);
 		dy = NGB_PERIODIC_LONG_Y(P[sphInd].Pos[1] - pt.y);
@@ -599,6 +605,9 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		
 		vals[TF_VAL_DENS]   += SphP[sphInd].Density * weight;
 		vals[TF_VAL_UTHERM] += SphP[sphInd].Utherm * weight;
+#ifdef NO_GHOST_CONTRIBS
+		}
+#endif
 		
 #else // BRUTE_FORCE
 

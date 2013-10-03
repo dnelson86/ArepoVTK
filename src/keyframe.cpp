@@ -36,28 +36,28 @@ void FrameManager::AddParseString(string &addTFstr)
 			p.push_back(item);
 			
 	// check string size
-	if (p.size() != 4) {
+	if (p.size() != 5) {
 			cout << "ERROR: addKF string too short: " << addTFstr << endl;
 			exit(1164);
 	}
 	
 	// parse
-	float startTime  = 0.0;
-	float stopTime   = atof(p[0].c_str());
+	float startTime  = atof(p[0].c_str());
+	float stopTime   = atof(p[1].c_str());
 	float startVal   = 0.0;
-	float stopVal    = atof(p[2].c_str());
-	string qName     = p[1];
-	string intMethod = p[3];
+	float stopVal    = atof(p[3].c_str());
+	string qName     = p[2];
+	string intMethod = p[4];
 	
 	// temporary sanity checks
-	if (p[1] != "cameraX" && p[1] != "cameraY" && p[1] != "cameraZ") {
-		cout << "ERROR: addKF unsupported parameter to keyframe: " << p[1] << endl;
+	if (qName != "cameraX" && qName != "cameraY" && qName != "cameraZ" && qName != "rotXY") {
+		cout << "ERROR: addKF unsupported parameter to keyframe: " << qName << endl;
 		exit(1165);
 	}
 	
-	if (p[3] != "linear") {
-		cout << "ERROR: addKF only supports linear interpolation." << endl;
-		exit(1166);
+	if (intMethod != "linear" && intMethod != "quadratic_inout") {
+		cout << "ERROR: addKF unsupported interpolation method: " << intMethod << endl;
+		exit(1167);
 	}
 	
 	// get starting value (at t=0)
@@ -67,13 +67,15 @@ void FrameManager::AddParseString(string &addTFstr)
 		startVal = Config.cameraPosition[1];
 	if( qName == "cameraZ" )
 		startVal = Config.cameraPosition[2];
+	if( qName == "rotXY" )
+		startVal = 0.0; // angle in radians
 	
 	// add to keyframe arrays
 	start.push_back(startTime);
 	stop.push_back(stopTime);
 	start_val.push_back(startVal);
 	stop_val.push_back(stopVal);
-	//method.push_back(intMethod);
+	method.push_back(intMethod);
 	quantity.push_back(qName);
 	
 	cout << "Added KF: [" << addTFstr << "] now have [" << start.size() << "] keyframes." << endl;
@@ -94,7 +96,8 @@ void FrameManager::Advance()
 		if( num.size() < 4 ) // output image numbering
 		num.insert(0, 4-num.size(), padChar);
 		
-		Config.imageFile = "frames_rot/frame_" + num + ".tga";
+		size_t found = Config.imageFile.find_last_of("/");
+		Config.imageFile = Config.imageFile.substr(0,found) + "/frame_" + num + ".tga";
 	}
 
 	// update all quantities for the next frame
@@ -105,31 +108,24 @@ void FrameManager::Advance()
 			continue;
 			
 		float duration = (stop[i]-start[i]);
-		float change   = (stop_val[i]-start_val[i]);
 		float fracTime = (curTime-start[i]) / duration;
-		float curVal;
+		float curVal = 0;
 			
-		// linear
-		curVal = Lerp(fracTime, start_val[i], stop_val[i]);
-		
-		// easing
-		
-/*
-	myTween.setup(100, 0, ofGetWidth() - 25, Easing::BounceEaseOut);
-	setup(duration, start, change, easing func)
+		if( method[i] == "linear" )
+		{
+		  curVal = Lerp(fracTime, start_val[i], stop_val[i]);
+		}
+		else if( method[i] == "quadratic_inout" )
+		{
+		  float intVal = 0;
+		  if( fracTime < 0.5 )
+		    intVal = 2.0 * fracTime * fracTime;
+		  if( fracTime >= 0.5 )
+		    intVal = (-2.0 * fracTime * fracTime) + (4 * fracTime) - 1.0;
 
-num = _ease(_tween.time, _start, _change, _tween.duration);
-float Easing::QuadEaseInOut(float t,float b , float c, float d)
-{
-if ((t/=d/2) < 1) return ((c/2)*(t*t)) + b;
-return -c/2 * (((t-2)*(--t)) - 1) + b;
-}
-*/
-		//if ((fracTime/=1.0/2) < 1)
-		//	curVal = ((change/2)*(fracTime*fracTime)) + start_val[i];
-		//else
-		//	curVal = -change/2 * (((fracTime-2)*(fracTime)) - 1) + start_val[i];
-	
+		  curVal = start_val[i] + (stop_val[i]-start_val[i]) * intVal;
+		}
+		
 		// what quantity are we updating?
 		if( quantity[i] == "cameraX" )
 		  cameraPosition[0] = curVal;
@@ -137,6 +133,16 @@ return -c/2 * (((t-2)*(--t)) - 1) + b;
 		  cameraPosition[1] = curVal;
 		if( quantity[i] == "cameraZ" )
 		  cameraPosition[2] = curVal;
+			
+		// "rotXY": do an orbit/rotation in the z-plane as a function of theta (curVal, from 0 to 2pi)
+		if( quantity[i] == "rotXY" )
+		{
+			// currently hardcoded to do spoonHD ending rotation
+			float rad = 3.0;
+			cameraPosition[0] = -1.0 * rad * cosf( curVal );
+			cameraPosition[1] = 0.5 + rad * sinf( curVal );
+		}
+		
 	}
 	
 	cout << "Next frame to render: " << curFrame << " (time " << curTime << ") cameraXYZ [" 

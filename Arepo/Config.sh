@@ -8,7 +8,6 @@
 SUNRISE # disables Inf terminate in get_tetra
 PERIODIC
 VORONOI
-#MESHRELAX_DENSITY_IN_INPUT (not for normal snapshots)
 CHUNKING
 VORONOI_DYNAMIC_UPDATE # alters SphP
 NO_FANCY_MPI_CONSTRUCTS
@@ -18,7 +17,9 @@ FIX_PATHSCALE_MPI_STATUS_IGNORE_BUG
 HAVE_HDF5
 VORONOI_MESHOUTPUT # for write_voronoi_mesh
 
+#MESHRELAX_DENSITY_IN_INPUT # ICs (not for normal snapshots)
+#INPUT_IN_DOUBLEPRECISION # DP ICs or DP snaps
+
 # test.spoon
-###INPUT_IN_DOUBLEPRECISION
-#SPECIAL_BOUNDARY # only for test.spoon # alters SphP, All
+SPECIAL_BOUNDARY # only for test.spoon # alters SphP, All
 #TRACER_FIELD

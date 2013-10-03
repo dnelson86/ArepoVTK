@@ -130,7 +130,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		Spectrum Tr(1.0f);
 		
 		// propagate ray to arepo box, set exit point
-		ray.min_t = t0;
+		ray.min_t = t0 /*+ 0.0*/;
 		ray.max_t = t1;
 		
 #ifdef DEBUG

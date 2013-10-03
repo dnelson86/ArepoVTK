@@ -2,32 +2,32 @@
 
 % Input/Output
 % ------------
-imageFile      = frames_rot/frame_test.tga            % output: TGA image filename
+imageFile      = frames_end2/frame_test.tga            % output: TGA image filename
 rawRGBFile     = frame.raw.txt        % output: raw dump of floats (debug only)
-filename       = snapshots/snap_000   % input: simulation snapshot (no extension)
+filename       = snapshots/snap_1000  % input: simulation snapshot (no extension)
 paramFilename  = param.txt            % input: Arepo parameter file
 
 % General
 % -------
-nCores         = 8                    % number of cores to use (0=all)
-nTasks         = 64                   % number of tasks/threads to run (0=auto)
+nCores         = 64                   % number of cores to use (0=all)
+nTasks         = 256                  % number of tasks/threads to run (0=auto)
 quickRender    = false                % unused
 openWindow     = false                % unused
 verbose        = true                 % report more information
 
 % Frame
 % -----
-imageXPixels   = 800                % frame resolution (X), e.g. 1024, 1920
-imageYPixels   = 800                % frame resolution (Y), e.g. 768,  1080
-swScale        = 0.51               % screenWindow mult factor * [-1,1]
+imageXPixels   = 1920                % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 1080                % frame resolution (Y), e.g. 768,  1080
+swScale        = 1.0                 % screenWindow mult factor * [-1,1]
 
 % Camera
 % ------
 % want to plot (x,z) or (y,z)
-cameraFOV      = 0.0           % degrees (0=orthographic camera)
-cameraPosition = 0.499 0.5 -2.001   % (XYZ) camera position in world coord system
-cameraLookAt   = 0.5 0.5 0.5   % (XYZ) point centered in camera FOV
-cameraUp       = 0.0 0.0 1.0   % (XYZ) camera "up" vector
+cameraFOV      = 20.0           % degrees (0=orthographic camera)
+cameraPosition = -3.0 0.5 0.5   % (XYZ) camera position in world coord system
+cameraLookAt   = 1.5 0.5 0.5    % (XYZ) point centered in camera FOV
+cameraUp       = 0.0 0.0 1.0    % (XYZ) camera "up" vector
 
 % Transfer Function
 % -----------------
@@ -52,9 +52,9 @@ addTF_09 = gaussian_table Density idl_13_rainbow 1.05 1.95 1.5 0.15
 numFrames      = 91             % total number of frames
 timePerFrame   = 0.0333333      % establish unit system of time/frames (30 frames -> t=1)
 
-%addKF = time property value tween
-addKF = 3.0 cameraX -2.0 linear
-addKF = 3.0 cameraZ 0.5 linear
+%addKF = startTime stopTime property value tween
+%addKF = 0.0 7.0 rotXY 6.2831853 quadratic_inout
+addKF = 0.5 3.0 cameraX 1.1 quadratic_inout
 
 % Render
 % ------
@@ -66,7 +66,7 @@ projColDens      = false             % integrate quantities (density, etc) along
 useDensGradients = true              % use density gradient within cells
 viStepSize       = 0.0005             % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
-rayMaxT          = 1.0               % maximum ray integration parametric length
+rayMaxT          = 10.0               % maximum ray integration parametric length
 rgbLine          = 0.01 0.01 0.01    % (RGB) bounding box
 rgbTetra         = 0.01 0.01 0.01    % (RGB) tetra edges
 rgbVoronoi       = 0.0 0.05 0.0      % (RGB) voronoi edges
