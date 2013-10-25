@@ -81,8 +81,9 @@ void RendererTask::Run() {
     }
 
 		float time = (float)timer2.Time();
-		cout << " [Task=" << setw(2) << taskNum << "] Raytracing phase: [" 
-		     << setw(6) << time << "] seconds." << endl;
+		if( Config.verbose )
+		  cout << " [Task=" << setw(2) << taskNum << "] Raytracing phase: [" 
+		       << setw(6) << time << "] seconds." << endl;
 		
     // Clean up after _SamplerRendererTask_ is done with its image region
     camera->film->UpdateDisplay(sampler->xPixelStart, sampler->yPixelStart, 
@@ -158,7 +159,7 @@ void Renderer::Render(const Scene *scene, int frameNum)
 		for (unsigned int i=0; i < renderTasks.size(); i++)
 				delete renderTasks[i];
 		
-		// do rasterization stage in serial (TODO)
+		// do rasterization stage with just one task
 		if (Config.drawTetra || Config.drawVoronoi || Config.drawBBox)
 				Renderer::RasterizeStage(scene);		
 		
@@ -170,8 +171,8 @@ void Renderer::Render(const Scene *scene, int frameNum)
 		TasksCleanup();
     delete sample;
 		
-    camera->film->WriteImage();
-		IF_DEBUG(camera->film->WriteRawRGB());
+    camera->film->WriteImage(frameNum);
+    IF_DEBUG(camera->film->WriteRawRGB());
 }
 
 void Renderer::RasterizeStage(const Scene *scene)

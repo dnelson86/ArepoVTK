@@ -239,6 +239,36 @@ float ArepoMesh::calcNeighborHSML(int sphInd, Vector &pt, int dpInd)
 				continue;
 			}
 			
+#ifdef NATURAL_NEIGHBOR_INNER
+			// loop over neighbors of neighbors
+			int inner_edge = SphP[sphp_neighbor].first_connection;
+			int inner_last_edge = SphP[sphp_neighbor].last_connection;
+			
+			while(inner_edge >= 0) {
+				// could connect to bounding tetra if we don't have a ghost across this boundary
+				if ( DC[inner_edge].index < 0 ) {
+					if ( inner_edge == inner_last_edge )
+						break;
+					inner_edge = DC[inner_edge].next;
+					continue;
+				}
+								
+				// neighbor of neighbor IDW
+				dx = NGB_PERIODIC_LONG_X(P[ DC[inner_edge].index ].Pos[0] - pt.x);
+				dy = NGB_PERIODIC_LONG_Y(P[ DC[inner_edge].index ].Pos[1] - pt.y);
+				dz = NGB_PERIODIC_LONG_Z(P[ DC[inner_edge].index ].Pos[2] - pt.z);
+				distsq = dx*dx + dy*dy + dz*dz;
+			  
+				if(distsq > hsml2)
+					hsml2 = distsq;
+				
+			  if(inner_edge == inner_last_edge)
+					break;
+
+				inner_edge = DC[inner_edge].next;
+			}
+#endif // NATURAL_NEIGHBOR_INNER	
+			
 			dx = NGB_PERIODIC_LONG_X(P[sphp_neighbor].Pos[0] - pt.x);
 			dy = NGB_PERIODIC_LONG_Y(P[sphp_neighbor].Pos[1] - pt.y);
 			dz = NGB_PERIODIC_LONG_Z(P[sphp_neighbor].Pos[2] - pt.z);
@@ -458,9 +488,10 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		int last_edge = SphP[sphInd].last_connection;
 		
 #ifdef NATURAL_NEIGHBOR_INNER
-		int pri_neighbor_inds[20];
-#endif
+#define MAX_NON_INDS 400
+		int pri_neighbor_inds[MAX_NON_INDS];
 		int k=0;
+#endif
 		
 		edge = SphP[sphInd].first_connection;
 		
@@ -479,18 +510,29 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 				continue;
 			}
 			
-#ifdef NATURAL_NEIGHBOR_INNER
-			pri_neighbor_inds[k++] = sphp_neighbor;
-		
+#ifdef NATURAL_NEIGHBOR_INNER	
 			// loop over neighbors of neighbors
 			int inner_edge = SphP[sphp_neighbor].first_connection;
 			int inner_last_edge = SphP[sphp_neighbor].last_connection;
 			
 			while(inner_edge >= 0) {
 				// could connect to bounding tetra if we don't have a ghost across this boundary
-				if ( DC[inner_edge].index < 0 ) {
+				if ( DC[inner_edge].index < 0
+#ifdef NO_GHOST_CONTRIBS
+                        || DC[inner_edge].dp_index >= NumGas
+#endif
+				) {
 					if ( inner_edge == inner_last_edge )
 						break;
+					inner_edge = DC[inner_edge].next;
+					continue;
+				}
+				
+				// skip the primary parent (added later)
+				if ( DC[inner_edge].index == sphInd ) {
+					if(inner_edge == inner_last_edge)
+						break;
+
 					inner_edge = DC[inner_edge].next;
 					continue;
 				}
@@ -506,7 +548,12 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 					}
 				}
 				
-				// neighbor of neighbor IDW
+				// add current cell to handled list (will include first order and second order natural neighbors)
+				if(k >= MAX_NON_INDS)
+					terminate("k %d out of bounds",k);
+				pri_neighbor_inds[k++] = DC[inner_edge].index;
+				
+				// neighbor of neighbor distance
 				dx = NGB_PERIODIC_LONG_X(P[ DC[inner_edge].index ].Pos[0] - pt.x);
 				dy = NGB_PERIODIC_LONG_Y(P[ DC[inner_edge].index ].Pos[1] - pt.y);
 				dz = NGB_PERIODIC_LONG_Z(P[ DC[inner_edge].index ].Pos[2] - pt.z);
@@ -527,7 +574,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 
 				inner_edge = DC[inner_edge].next;
 			}
-#endif // NATURAL_NEIGHBOR_INNER	
+#else // NATURAL_NEIGHBOR_INNER	(already add first order neighbors as NoN of second order neighbors)
 		
 			dx = NGB_PERIODIC_LONG_X(P[sphp_neighbor].Pos[0] - pt.x);
 			dy = NGB_PERIODIC_LONG_Y(P[sphp_neighbor].Pos[1] - pt.y);
@@ -543,7 +590,9 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 				
 			vals[TF_VAL_DENS]   += SphP[ sphp_neighbor ].Density * weight;
 			vals[TF_VAL_UTHERM] += SphP[ sphp_neighbor ].Utherm * weight;
-				
+
+#endif // NATURAL_NEIGHBOR_INNER
+			
 			// move to next neighbor
 			if(edge == last_edge)
 				break;

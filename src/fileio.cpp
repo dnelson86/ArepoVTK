@@ -84,10 +84,12 @@ void ConfigSet::ReadFile(string cfgfile)
 		splitStrArray( readValue<string>("cameraPosition") , &cameraPosition[0]   );
 		splitStrArray( readValue<string>("cameraLookAt")   , &cameraLookAt[0] );
 		splitStrArray( readValue<string>("cameraUp")       , &cameraUp[0] );
-		
+	
+		startFrame    = readValue<int>("startFrame",     0);	
 		numFrames     = readValue<int>("numFrames",      1);
 		timePerFrame  = readValue<float>("timePerFrame", 1.0);
-		
+	        maxInv        = -1;
+	
 		drawBBox      = readValue<bool>("drawBBox",      true);
 		drawTetra     = readValue<bool>("drawTetra",     true);	
 		drawVoronoi   = readValue<bool>("drawVoronoi",   false);

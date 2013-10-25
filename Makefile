@@ -22,7 +22,7 @@ OPTIMIZE = -Wall -g -m64 -O3 #-pg enable profiler
 INCL     = -I ./Arepo/
 
 CC       = mpic++
-LIBS     = -lm 
+LIBS     = -fopenmp -lm 
 
 CFLAGS   = $(OPTIMIZE)
 CPPFLAGS = $(OPT) $(INCL)
