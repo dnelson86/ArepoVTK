@@ -201,7 +201,7 @@ class Task
 {
 public:
     virtual ~Task();
-    virtual void Run() = 0;
+    virtual void Run(int threadNum) = 0;
 };
 
 void TasksInit();

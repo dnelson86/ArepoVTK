@@ -2,7 +2,7 @@
 
 % Input/Output
 % ------------
-imageFile      = frames_455/volRend.I455.h0.123.edge40.px800.ss0.5_logTemp_config5g_sphInner.tga    % output TGA
+imageFile      = frames_455/volRend.I455.h0.123.edge40.px800.ss0.5_logTemp_config5g_test_delete.tga    % output TGA
 rawRGBFile     = frame.raw.txt                   % output: raw dump of floats (debug only)
 filename       = output/cutout.I455.h0.sf20_123  % input: simulation snapshot (no extension)
 paramFilename  = param_I455.txt                  % input: Arepo parameter file
@@ -10,15 +10,15 @@ paramFilename  = param_I455.txt                  % input: Arepo parameter file
 % General
 % -------
 nCores         = 8                   % number of cores to use (0=all)
-nTasks         = 16                  % number of tasks/threads to run (0=auto)
+nTasks         = 32                  % number of tasks/threads to run (0=auto)
 quickRender    = false                % unused
 openWindow     = false                % unused
 verbose        = true                 % report more information
 
 % Frame
 % -----
-imageXPixels   = 50                 % frame resolution (X), e.g. 1024, 1920
-imageYPixels   = 50                 % frame resolution (Y), e.g. 768,  1080
+imageXPixels   = 20                 % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 20                 % frame resolution (Y), e.g. 768,  1080
 swScale        = 1820.0              % screenWindow mult factor * [-1,1]
 
 % Camera

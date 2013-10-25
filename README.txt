@@ -4,7 +4,7 @@
 
 Primary Author: Dylan Nelson (dnelson@cfa.harvard.edu)
 
-Current Version: 0.395 (15 Aug 2013)
+Current Version: 0.40 (25 Oct 2013)
 
 Installation/Compilation:
 
@@ -93,21 +93,23 @@ Version Roadmap:
   - fix NNI auxMesh allocation per task instead of per thread
 
  +v0.41
+  - support for SphKernel and IDW using N-nearest neighbor spheres
+    using NGBTree searches, skip all mesh related tasks including
+    construction and memory overhead
+
+ +v0.42
   - Watson-Sambridge NNI
   - Liang-Hale NNI
   - keyframe transfer function settings
 
- +v0.42
+ +v0.43
   - time navigation (multiple snapshots, time interpolation)
   - movie pipeline
    - frame metadata (XML/MKV container?)
 
- +v0.43
+ +v0.44
   - load group catalogs, merger trees
    - track halos in time
-
- +v0.44
-  - tetrahedra decomposition: exporter (SILO/visit)
 
  +v0.45
   - 2D transfer functions, e.g. f(rho,T)	 

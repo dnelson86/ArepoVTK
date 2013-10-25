@@ -16,7 +16,7 @@
 
 // RendererTask
 
-void RendererTask::Run() {
+void RendererTask::Run(int threadNum) {
 
     /* First Pass - Volume Ray Trace */
 		Timer timer2;
@@ -48,7 +48,8 @@ void RendererTask::Run() {
 		
     while ((sampleCount = sampler->GetMoreSamples(samples, rng)) > 0)
 		{
-				IF_DEBUG(cout << " [Task=" << setw(2) << taskNum << "] RendererTask::Run() maxSamples = " << maxSamples 
+				IF_DEBUG(cout << " [Thread=" << setw(2) << threadNum << " Task=" << setw(3) << taskNum 
+				              << "] RendererTask::Run() maxSamples = " << maxSamples 
 											<< " sampleCount = " << sampleCount << endl);
 				
         // generate camera rays and compute radiance along rays
@@ -65,7 +66,7 @@ void RendererTask::Run() {
 				for (int i=0; i < sampleCount; i++)
 				{
 						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], 
-						                                     &prevEntryCell, &prevEntryTetra, taskNum);
+						                                     &prevEntryCell, &prevEntryTetra, threadNum);
 
 						// error check on value of Ls[i]
         }
@@ -81,9 +82,9 @@ void RendererTask::Run() {
     }
 
 		float time = (float)timer2.Time();
-		if( Config.verbose )
-		  cout << " [Task=" << setw(2) << taskNum << "] Raytracing phase: [" 
-		       << setw(6) << time << "] seconds." << endl;
+		
+		cout << " [Thread=" << setw(2) << threadNum << " Task=" << setw(3) << taskNum 
+		    << "] Raytracing phase: [" << setw(6) << time << "] seconds." << endl;
 		
     // Clean up after _SamplerRendererTask_ is done with its image region
     camera->film->UpdateDisplay(sampler->xPixelStart, sampler->yPixelStart, 
@@ -141,6 +142,10 @@ void Renderer::Render(const Scene *scene, int frameNum)
 				 
 		cout << "Rendering..." << endl << endl;
 		timer->Start();
+		
+		// if not verbose, start single-line progress bar
+		//if ( !Config.verbose )
+		//	writeStatusBar(0, Config.nTasks);
 		
 		// add render tasks to queue
 		vector<Task *> renderTasks;

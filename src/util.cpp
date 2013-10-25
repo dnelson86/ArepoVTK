@@ -161,6 +161,10 @@ void LatinHypercube(float *samples, uint32_t nSamples, uint32_t nDim, RNG &rng) 
 }
 
 // multiple cores and threading
+struct thread_info {
+	int thread_num;
+};
+
 static pthread_t *threads;
 static Mutex *taskQueueMutex = Mutex::Create();
 static std::vector<Task *> taskQueue;
@@ -168,6 +172,7 @@ static Semaphore *workerSemaphore;
 static uint32_t numUnfinishedTasks;
 static ConditionVariable *tasksRunningCondition;
 static void *taskEntryPoint(void *arg);
+static struct thread_info *tinfo;
 
 // Mutex
 Mutex *Mutex::Create()
@@ -321,6 +326,7 @@ void ConditionVariable::Unlock() {
 static void *taskEntryPoint(void *arg)
 {
 		IF_DEBUG(cout << "taskEntyPoint()" << endl);
+		struct thread_info *data = (struct thread_info*)arg;
 		
     while (true)
 		{
@@ -337,10 +343,10 @@ static void *taskEntryPoint(void *arg)
         taskQueue.pop_back();
         }
 				
-				IF_DEBUG(cout << " Acquired Task, Running." << endl);
+				//cout << "Thread [" << data->thread_num << "] Acquired Task, Running." << endl;
 
         // run acquired rendererTask
-        myTask->Run();
+        myTask->Run(data->thread_num);
         tasksRunningCondition->Lock();
 				
         int unfinished = --numUnfinishedTasks;
@@ -361,7 +367,7 @@ void startTasks(const vector<Task *> &tasks)
 		if (Config.nCores == 1) {
 				for (unsigned int i=0; i < tasks.size(); i++) {
 						IF_DEBUG(cout << "startTasks:: Starting SEQUENTIAL run task [" << i << "]" << endl);
-						tasks[i]->Run();
+						tasks[i]->Run(0);
 				}
 				return;
 		}
@@ -414,17 +420,22 @@ void TasksInit()
     static const int nThreads = numberOfCores();
     workerSemaphore = new Semaphore;
     tasksRunningCondition = new ConditionVariable;				
-				
+
 		// create threads
+		tinfo = (struct thread_info *)calloc(nThreads, sizeof(struct thread_info));
+		
     threads = new pthread_t[nThreads];
+		
     for (int i = 0; i < nThreads; ++i) {
 				IF_DEBUG(cout << "TasksInit:: Creating new thread [" << i << "]" << endl);
-        int err = pthread_create(&threads[i], NULL, &taskEntryPoint, reinterpret_cast<void *>(i));
+				tinfo[i].thread_num = i;
+        int err = pthread_create(&threads[i], NULL, &taskEntryPoint, &tinfo[i]);
         if (err != 0) {
             cout << "Renderer::TasksInit(): ERROR from pthread_create [" << err << "]" << endl;
 						exit(1141);
 				}
     }
+		
 }
 
 void TasksCleanup()
@@ -460,6 +471,8 @@ void TasksCleanup()
         delete[] threads;
         threads = NULL;
     }
+		
+		free(tinfo);
 }
 
 int numberOfCores()

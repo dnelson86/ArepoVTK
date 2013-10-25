@@ -113,7 +113,7 @@ Spectrum VoronoiIntegrator::Transmittance(const Scene *scene, const Renderer *re
 
 Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
 															  const Sample *sample, RNG &rng, Spectrum *T, int *prevEntryCell, 
-																int *prevEntryTetra, int taskNum) const
+																int *prevEntryTetra, int threadNum) const
 {
 		IF_DEBUG(cout << "VoronoiIntegrator::Li()" << endl);
 		
@@ -186,7 +186,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 						break;
 				}
 #endif
-				if (!scene->arepoMesh->AdvanceRayOneCellNew(ray, &t0, &t1, Lv, Tr, taskNum) )
+				if (!scene->arepoMesh->AdvanceRayOneCellNew(ray, &t0, &t1, Lv, Tr, threadNum) )
 						break;
 				
         // roulette terminate ray marching if transmittance is small

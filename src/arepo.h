@@ -76,7 +76,7 @@ public:
 		
 		int FindNearestGasParticle(Point &pt, int guess, double *mindist);
 		bool AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1, 
-															Spectrum &Lv, Spectrum &Tr, int taskNum);
+															Spectrum &Lv, Spectrum &Tr, int threadNum);
 		
 		inline int getSphPID(int dpInd);
 		void locateCurrentTetra(const Ray& ray, Vector &pt);
@@ -84,7 +84,7 @@ public:
 		
 		// fluid data introspection
 		float calcNeighborHSML(int sphInd, Vector &pt);
-		int subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNum);
+		int subSampleCell(const Ray &ray, Vector &pt, float *vals, int threadNum);
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
 		// NNI_WATSON_SAMBRIDGE

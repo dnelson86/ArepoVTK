@@ -9,6 +9,7 @@
 #include "transfer.h"
 
 #include "arepo.h"
+#include "util.h" // for numberOfCores()
 
 #ifdef ENABLE_AREPO
 
@@ -180,7 +181,7 @@ ArepoMesh::~ArepoMesh()
 {				
 #ifdef NATURAL_NEIGHBOR_INTERP
 		// free aux meshes
-		int numMeshes = Config.nTasks;
+		int numMeshes = numberOfCores();
 		
 		for(int k = numMeshes-1; k == 0; k--)
 		{
@@ -586,7 +587,7 @@ void ArepoMesh::locateCurrentTetra(const Ray &ray, Vector &pt)
 }
 
 bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1, 
-																		 Spectrum &Lv, Spectrum &Tr, int taskNum)
+																		 Spectrum &Lv, Spectrum &Tr, int threadNum)
 {
 		double min_t = MAX_REAL_NUMBER;
 		int qmin = -1, qmin_dp = -1; // next primary cell SphP/DP index
@@ -734,7 +735,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 #endif
 																							
 					// subsample (replace fields in vals by interpolated values)
-					int status = subSampleCell(ray, midpt, &vals[0], taskNum);
+					int status = subSampleCell(ray, midpt, &vals[0], threadNum);
 							
 #ifdef DEBUG
 					double fracstep = 1.0 / nSamples;
