@@ -21,8 +21,10 @@ public:
 		void RasterizeStage(const Scene *scene);
 		
     Spectrum Li(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng, Spectrum *T = NULL, 
-			int *prevEntryCell = NULL, int *prevEntryTetra = NULL, int taskNum = -1) const;
+			int *prevEntryCell = NULL, int *prevEntryTetra = NULL, int threadNum = -1) const;
     Spectrum Transmittance(const Scene *scene, const Ray &ray, const Sample *sample, RNG &rng) const;
+		
+		//writeStatusBar(int cur, int total);
 		
 private:
     // data
@@ -42,7 +44,7 @@ public:
         scene = sc; renderer = ren; camera = c; mainSampler = ms;
         origSample = sam; taskNum = tn; taskCount = tc;
     }
-    void Run();
+    void Run(int threadNum);
 		
 private:
     // data (good spot for thread dependent stuff)

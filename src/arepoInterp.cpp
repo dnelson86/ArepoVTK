@@ -10,6 +10,7 @@
 #include "arepo.h"
 #include "volume.h"
 #include "transfer.h"
+#include "util.h" // for numberOfCores()
 
 #ifdef ENABLE_AREPO
 
@@ -41,7 +42,7 @@ void ArepoMesh::setupAuxMeshes(void)
 {
 #ifdef NATURAL_NEIGHBOR_INTERP
 		// allocate auxiliary meshes
-		int numMeshes = Config.nTasks;
+		int numMeshes = numberOfCores();
 		AuxMeshes = new tessellation[numMeshes];
 		
 		// define neutral index
@@ -67,9 +68,9 @@ void ArepoMesh::setupAuxMeshes(void)
 			AuxMeshes[k].Indi.AllocFacNdt = AUXMESH_ALLOC_SIZE;
 			AuxMeshes[k].Indi.AllocFacNvf = AUXMESH_ALLOC_SIZE;
 
-			AuxMeshes[k].MaxNdp = (int)T->Indi.AllocFacNdp;
-			AuxMeshes[k].MaxNdt = (int)T->Indi.AllocFacNdt;
-			AuxMeshes[k].MaxNvf = (int)T->Indi.AllocFacNvf;		
+			AuxMeshes[k].MaxNdp = (int)AuxMeshes[k].Indi.AllocFacNdp;
+			AuxMeshes[k].MaxNdt = (int)AuxMeshes[k].Indi.AllocFacNdt;
+			AuxMeshes[k].MaxNvf = (int)AuxMeshes[k].Indi.AllocFacNvf;
 
 			AuxMeshes[k].VF = static_cast<face*>
 										 (mymalloc_movable(AuxMeshes[k].VF, "VFaux", AuxMeshes[k].MaxNvf * sizeof(face)));
@@ -410,7 +411,7 @@ double ArepoMesh::ccVolume(double *ci, double *cj, double *ck, double *ct)
 #endif
 
 // interpolate scalar fields at position pt inside Voronoi cell SphP_ID (various methods)
-int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNum)
+int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int threadNum)
 {
 	int sphInd = ray.index;
 	
@@ -637,7 +638,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		double dp_new_vol[AUXMESH_ALLOC_SIZE/2];
 
 		// recreate the voronoi cell of the parent's neighbors (auxiliary mesh approach):
-		init_clear_auxmesh(&AuxMeshes[taskNum]);
+		init_clear_auxmesh(&AuxMeshes[threadNum]);
 			
 		// construct new auxiliary mesh around pt
 		int edge = SphP[sphInd].first_connection;
@@ -654,28 +655,28 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 				continue;
 			}
 		
-			if(AuxMeshes[taskNum].Ndp + 2 >= AuxMeshes[taskNum].MaxNdp)
+			if(AuxMeshes[threadNum].Ndp + 2 >= AuxMeshes[threadNum].MaxNdp)
 				terminate("AuxMesh for NNI exceeds maximum size.");
 				
 			// insert point
-			AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[ dp_neighbor ];
+			AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] = Mesh.DP[ dp_neighbor ];
 			
 			// wrap this DP point to near our sample point if necessary
 			// this doesn't necessary work, if some neighbors are wrapped and others aren't we will not get the correct
 			// periodic volume change? in any case, only matters with ghost neighbors, deal with later
-			//periodic_wrap_DP_point( AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp], pt );
+			//periodic_wrap_DP_point( AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp], pt );
 				
 			IF_DEBUG(cout << "   insertN (orig x=" << Mesh.DP[ dp_neighbor ].x << " y=" << Mesh.DP[ dp_neighbor ].y
 			              << " z=" << Mesh.DP[ dp_neighbor ].z << ") (wrapped x=" 
-										<< AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].x 
-										<< " y=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].y 
-										<< " z=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].z 
-										<< ") tlast=" << setw(3) << tlast << " totnum=" << setw(2) << AuxMeshes[taskNum].Ndp+1 << endl);				
+										<< AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].x 
+										<< " y=" << AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].y 
+										<< " z=" << AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].z 
+										<< ") tlast=" << setw(3) << tlast << " totnum=" << setw(2) << AuxMeshes[threadNum].Ndp+1 << endl);				
 				
-		  //set_integers_for_point(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp);
-			set_integers_for_pointer( &AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] );
-		  tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
-		  AuxMeshes[taskNum].Ndp++;
+		  //set_integers_for_point(&AuxMeshes[threadNum], AuxMeshes[threadNum].Ndp);
+			set_integers_for_pointer( &AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] );
+		  tlast = insert_point_new(&AuxMeshes[threadNum], AuxMeshes[threadNum].Ndp, tlast);
+		  AuxMeshes[threadNum].Ndp++;
 				
 			// move to next neighbor
 			if(edge == last_edge)
@@ -690,52 +691,52 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		}
 		
 		// add primary parent as well
-		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[sphInd];
+		AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] = Mesh.DP[sphInd];
 
 		// wrap
-		//periodic_wrap_DP_point( AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp], pt);
+		//periodic_wrap_DP_point( AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp], pt);
 		
 		IF_DEBUG(cout << "   insertP (orig x=" << Mesh.DP[ sphInd ].x << " y=" << Mesh.DP[ sphInd ].y
 		              << " z=" << Mesh.DP[ sphInd ].z << ") (wrapped x=" 
-									<< AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].x 
-									<< " y=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].y 
-									<< " z=" << AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].z 
-									<< ") tlast=" << setw(3) << tlast << " totnum=" << setw(2) << AuxMeshes[taskNum].Ndp+1 << endl);		
+									<< AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].x 
+									<< " y=" << AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].y 
+									<< " z=" << AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].z 
+									<< ") tlast=" << setw(3) << tlast << " totnum=" << setw(2) << AuxMeshes[threadNum].Ndp+1 << endl);		
 		
-		set_integers_for_pointer( &AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] );
-		tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
-		AuxMeshes[taskNum].Ndp++;
+		set_integers_for_pointer( &AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] );
+		tlast = insert_point_new(&AuxMeshes[threadNum], AuxMeshes[threadNum].Ndp, tlast);
+		AuxMeshes[threadNum].Ndp++;
 		
 		// compute old circumcircles and volumes
-		compute_circumcircles(&AuxMeshes[taskNum]);
-		compute_auxmesh_volumes(&AuxMeshes[taskNum], dp_old_vol);
+		compute_circumcircles(&AuxMeshes[threadNum]);
+		compute_auxmesh_volumes(&AuxMeshes[threadNum], dp_old_vol);
 		
 #ifdef DEBUG
 		cout << "   old volumes:";
-		for (int k = 0; k < AuxMeshes[taskNum].Ndp; k++) {
+		for (int k = 0; k < AuxMeshes[threadNum].Ndp; k++) {
 				cout << " [" << k << "] " << dp_old_vol[k];
 		}
 		cout << endl;
 #endif		
 		
 		// add interpolate point
-		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].x = pt.x;
-		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].y = pt.y;
-		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp].z = pt.z;
+		AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].x = pt.x;
+		AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].y = pt.y;
+		AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].z = pt.z;
 		
-		set_integers_for_pointer( &AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] );
-		tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
-		AuxMeshes[taskNum].Ndp++;
+		set_integers_for_pointer( &AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] );
+		tlast = insert_point_new(&AuxMeshes[threadNum], AuxMeshes[threadNum].Ndp, tlast);
+		AuxMeshes[threadNum].Ndp++;
 		
-		IF_DEBUG(cout << "   inserted interpolate new tlast=" << tlast << " totnum=" << AuxMeshes[taskNum].Ndp << endl);
+		IF_DEBUG(cout << "   inserted interpolate new tlast=" << tlast << " totnum=" << AuxMeshes[threadNum].Ndp << endl);
 	
 		// compute new circumcircles and volumes
-		compute_circumcircles(&AuxMeshes[taskNum]);
-		compute_auxmesh_volumes(&AuxMeshes[taskNum], dp_new_vol);
+		compute_circumcircles(&AuxMeshes[threadNum]);
+		compute_auxmesh_volumes(&AuxMeshes[threadNum], dp_new_vol);
 
 #ifdef DEBUG
 		cout << "   new volumes:";
-		for (int k = 0; k < AuxMeshes[taskNum].Ndp; k++) {
+		for (int k = 0; k < AuxMeshes[threadNum].Ndp; k++) {
 				cout << " [" << k << "] " << dp_new_vol[k];
 		}
 		cout << endl;
@@ -776,21 +777,21 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		}
 		
 		// add primary parent
-		weight = dp_old_vol[AuxMeshes[taskNum].Ndp-2] - dp_new_vol[AuxMeshes[taskNum].Ndp-2];
+		weight = dp_old_vol[AuxMeshes[threadNum].Ndp-2] - dp_new_vol[AuxMeshes[threadNum].Ndp-2];
 		weightsum += weight;
 		
 		vals[TF_VAL_DENS]   += SphP[sphInd].Density * weight;
 		vals[TF_VAL_UTHERM] += SphP[sphInd].Utherm * weight;
 
-		IF_DEBUG(cout << "   weightsum = " << weightsum << " inserted vol = " << dp_new_vol[AuxMeshes[taskNum].Ndp-1] << endl);
+		IF_DEBUG(cout << "   weightsum = " << weightsum << " inserted vol = " << dp_new_vol[AuxMeshes[threadNum].Ndp-1] << endl);
 		
 		// do the volumes lost by all the natural neighbors add up to the sample pt cell volume?
-		//if ( fabs(weightsum - dp_new_vol[AuxMeshes[taskNum].Ndp-1]) / dp_new_vol[AuxMeshes[taskNum].Ndp-1] > 1e-1 )
+		//if ( fabs(weightsum - dp_new_vol[AuxMeshes[threadNum].Ndp-1]) / dp_new_vol[AuxMeshes[threadNum].Ndp-1] > 1e-1 )
 		//  terminate("NNI weight error is large.");
 		
 		// normalize by volume of last added cell (around interp point)
-		vals[TF_VAL_DENS]   /= dp_new_vol[AuxMeshes[taskNum].Ndp-1];
-		vals[TF_VAL_UTHERM] /= dp_new_vol[AuxMeshes[taskNum].Ndp-1];
+		vals[TF_VAL_DENS]   /= dp_new_vol[AuxMeshes[threadNum].Ndp-1];
+		vals[TF_VAL_UTHERM] /= dp_new_vol[AuxMeshes[threadNum].Ndp-1];
 
 #endif // NATURAL_NEIGHBOR_INTERP
 

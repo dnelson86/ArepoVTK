@@ -26,7 +26,7 @@ ResubmitCommand           my-scriptfile
 
 %----- Memory alloction
 
-MaxMemSize        2000
+MaxMemSize        4000
 BufferSize        100          % in MByte
 BufferSizeGravity 100
 

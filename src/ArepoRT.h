@@ -7,14 +7,14 @@
 #define AREPO_RT_H
 
 // defines
-#define AREPO_RT_VERSION    0.39
+#define AREPO_RT_VERSION    0.40
 #define L1_CACHE_LINE_SIZE  64
 #define FILTER_TABLE_SIZE   16
 #define TASK_MULT_FACT      8 //32
 #define TASK_MAX_PIXEL_SIZE 100 //16
 #define INFINITY            FLT_MAX
 #define INSIDE_EPS          1.0e-6
-#define AUXMESH_ALLOC_SIZE  50
+#define AUXMESH_ALLOC_SIZE  1000
 
 #define MSUN_PER_PC3_IN_CGS 6.769e-23
 
@@ -25,9 +25,9 @@
 
 /* interpolation methods (choose one) */
 
-//#define NATURAL_NEIGHBOR_INTERP
+#define NATURAL_NEIGHBOR_INTERP
 //#define NATURAL_NEIGHBOR_IDW
-#define NATURAL_NEIGHBOR_SPHKERNEL
+//#define NATURAL_NEIGHBOR_SPHKERNEL
 //#define NNI_WATSON_SAMBRIDGE
 //#define NNI_LIANG_HALE
 //#define DTFE_INTERP
