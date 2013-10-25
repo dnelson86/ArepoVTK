@@ -214,12 +214,10 @@ inline float sph_kernel(float dist, float hinv)
   return 0;
 }
 
-float ArepoMesh::calcNeighborHSML(int sphInd, Vector &pt, int dpInd)
+float ArepoMesh::calcNeighborHSML(int sphInd, Vector &pt)
 {
 		float dx,dy,dz,xtmp,ytmp,ztmp;
 		float distsq, hsml2 = 0.0;
-		
-#ifdef USE_DC_CONNECTIVITY
 		
 		int edge = SphP[sphInd].first_connection;
 		int last_edge = SphP[sphInd].last_connection;
@@ -289,29 +287,9 @@ float ArepoMesh::calcNeighborHSML(int sphInd, Vector &pt, int dpInd)
 			edge = DC[edge].next;
 		}
 		
-#else // USE_ALTERNATIVE_CONNECTIVITY
-		
-		const int start_edge = midpoint_idx[dpInd].first;
-		const int n_edges    = midpoint_idx[dpInd].second;
-		
-		for ( int k=0; k < n_edges; k++ ) {
-			int sphp_neighbor = getSphPID( opposite_points[start_edge+k] );
-			
-			dx = NGB_PERIODIC_LONG_X(P[sphp_neighbor].Pos[0] - pt.x);
-			dy = NGB_PERIODIC_LONG_Y(P[sphp_neighbor].Pos[1] - pt.y);
-			dz = NGB_PERIODIC_LONG_Z(P[sphp_neighbor].Pos[2] - pt.z);
-			distsq = dx*dx + dy*dy + dz*dz;
-			  
-      if(distsq > hsml2)
-        hsml2 = distsq;
-		}
-
-#endif // CONNECTIVITY
-
     float hinv = 1.0 / sqrtf(hsml2);
 		
 		return hinv;
-
 }
 #endif
 
@@ -434,13 +412,7 @@ double ArepoMesh::ccVolume(double *ci, double *cj, double *ck, double *ct)
 // interpolate scalar fields at position pt inside Voronoi cell SphP_ID (various methods)
 int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNum)
 {
-#ifdef USE_DC_CONNECTIVITY
-	int dpInd = -1; // not used
 	int sphInd = ray.index;
-#else // USE_ALTERNATIVE_CONNECTIVITY
-	int dpInd = ray.index;
-	int sphInd = getSphPID(DP[ray.index].index);
-#endif
 	
 	// check degenerate point in R3, immediate return
 	if (fabs(pt.x - P[sphInd].Pos[0]) <= INSIDE_EPS &&
@@ -477,12 +449,10 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 
 #ifdef NATURAL_NEIGHBOR_SPHKERNEL
 		// for SPHKERNEL first need to pick smoothing length
-		float hinv = HSML_FAC * calcNeighborHSML(sphInd,pt,dpInd);
+		float hinv = HSML_FAC * calcNeighborHSML(sphInd,pt);
 #endif
 		
 #ifndef BRUTE_FORCE
-
-#ifdef USE_DC_CONNECTIVITY
 
 		int edge = SphP[sphInd].first_connection;
 		int last_edge = SphP[sphInd].last_connection;
@@ -605,36 +575,6 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 			edge = DC[edge].next;
 		}
 		
-#else // USE_ALTERNATIVE_CONNECTIVITY
-
-#ifdef NATURAL_NEIGHBOR_INNER
-		terminate("Error: INNER for alt connectivity not implemented.");
-#endif
-
-		const int start_edge = midpoint_idx[dpInd].first;
-		const int n_edges    = midpoint_idx[dpInd].second;
-		
-		for ( int k=0; k < n_edges; k++ ) {
-			int sphp_neighbor = getSphPID( opposite_points[start_edge+k] );
-			
-			dx = NGB_PERIODIC_LONG_X(P[sphp_neighbor].Pos[0] - pt.x);
-			dy = NGB_PERIODIC_LONG_Y(P[sphp_neighbor].Pos[1] - pt.y);
-			dz = NGB_PERIODIC_LONG_Z(P[sphp_neighbor].Pos[2] - pt.z);
-			distsq = dx*dx + dy*dy + dz*dz;
-			  
-#ifdef NATURAL_NEIGHBOR_IDW
-			weight = 1.0 / pow( sqrtf(distsq),POWER_PARAM );
-#else // NATURAL_NEIGHBOR_SPHKERNEL
-			weight = sph_kernel( sqrtf(distsq),hinv );
-#endif
-			weightsum += weight;
-				
-			vals[TF_VAL_DENS]   += SphP[ sphp_neighbor ].Density * weight;
-			vals[TF_VAL_UTHERM] += SphP[ sphp_neighbor ].Utherm * weight;
-		}
-		
-#endif // CONNECTIVITY
-
 #ifdef NO_GHOST_CONTRIBS
 		if( sphInd < NumGas )
 		{
@@ -700,7 +640,6 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		init_clear_auxmesh(&AuxMeshes[taskNum]);
 			
 		// construct new auxiliary mesh around pt
-#ifdef USE_DC_CONNECTIVITY
 		int edge = SphP[sphInd].first_connection;
 		int last_edge = SphP[sphInd].last_connection;
 		
@@ -714,13 +653,6 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 				edge = DC[edge].next;
 				continue;
 			}
-#else // USE_ALTERNATIVE_CONNECTIVITY
-		const int start_edge = midpoint_idx[dpInd].first;
-		const int n_edges    = midpoint_idx[dpInd].second;
-		
-		for( int k = 0; k < n_edges; k++ ) {
-			int dp_neighbor = opposite_points[start_edge+k];
-#endif
 		
 			if(AuxMeshes[taskNum].Ndp + 2 >= AuxMeshes[taskNum].MaxNdp)
 				terminate("AuxMesh for NNI exceeds maximum size.");
@@ -745,7 +677,6 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 		  tlast = insert_point_new(&AuxMeshes[taskNum], AuxMeshes[taskNum].Ndp, tlast);
 		  AuxMeshes[taskNum].Ndp++;
 				
-#ifdef USE_DC_CONNECTIVITY
 			// move to next neighbor
 			if(edge == last_edge)
 				break;
@@ -756,15 +687,10 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 #endif
 				
 			edge = DC[edge].next;
-#endif
 		}
 		
 		// add primary parent as well
-#ifdef USE_DC_CONNECTIVITY
 		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[sphInd];
-#else
-		AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp] = Mesh.DP[dpInd];
-#endif
 
 		// wrap
 		//periodic_wrap_DP_point( AuxMeshes[taskNum].DP[AuxMeshes[taskNum].Ndp], pt);
@@ -816,7 +742,6 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 #endif
 
 		// calculate scalar value based on neighbor values and area fraction weights
-#ifdef USE_DC_CONNECTIVITY
 		edge = SphP[sphInd].first_connection;
 		int k = 0;
 		
@@ -829,10 +754,6 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 				edge = DC[edge].next;
 				continue;
 			}
-#else // USE_ALTERNATIVE_CONNECTIVITY
-		for ( int k=0; k < n_edges; k++ ) {
-			int sphp_neighbor = getSphPID( DP[opposite_points[start_edge+k]].index );
-#endif
 
 			weight = dp_old_vol[k] - dp_new_vol[k];
 			weightsum += weight;
@@ -840,7 +761,6 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
 			vals[TF_VAL_UTHERM] += SphP[sphp_neighbor].Utherm * weight;
 			
-#ifdef USE_DC_CONNECTIVITY
 			k++;
 			
 			// move to next neighbor
@@ -852,8 +772,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNu
 			  terminate(" what is going on ");
 #endif
 
-			edge = DC[edge].next;	
-#endif			
+			edge = DC[edge].next;
 		}
 		
 		// add primary parent

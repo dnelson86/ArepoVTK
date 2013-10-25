@@ -50,7 +50,6 @@ public:
 		// preprocessing
 		int ComputeVoronoiEdges();
 		void ComputeQuantityBounds();
-		void CalculateMidpoints();
 		void LimitCellDensities();
 		
 		// methods
@@ -84,7 +83,7 @@ public:
 		void checkCurCellTF(bool *addFlag, int sphInd, float *vals);
 		
 		// fluid data introspection
-		float calcNeighborHSML(int sphInd, Vector &pt, int dpInd);
+		float calcNeighborHSML(int sphInd, Vector &pt);
 		int subSampleCell(const Ray &ray, Vector &pt, float *vals, int taskNum);
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
@@ -127,14 +126,6 @@ private:
 		vector<int> vertexList;
 		vector<int> numVertices;
 		vector<int> vertexOffset;
-		
-		// sunrise alternative connectivity construction
-		
-		vector<int>            primary_cells;   // maps dp_idx to the dp_idx of the primary cell
-		vector<pair<int,int> > midpoint_idx;    // stores the starting midpoint and number of faces for the cell,
-		                                       // indexed by dp_idx
-		vector<Vector>         midpoints;       // stores the midpoints between the mesh points, indexed by midpoint_idx
-		vector<int>            opposite_points; // stores the dp index of the cell opposite to the midpoint
 };
 
 #endif //ENABLE_AREPO

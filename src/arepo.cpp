@@ -163,9 +163,6 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		
 		// preprocessing
 		ArepoMesh::ComputeQuantityBounds();
-#ifdef USE_ALTERNATIVE_CONNECTIVITY
-		ArepoMesh::CalculateMidpoints();
-#endif
 		//ArepoMesh::LimitCellDensities();
 		
 		ArepoMesh::setupAuxMeshes();
@@ -266,114 +263,6 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 		int dp_min = ArepoMesh::FindNearestGasParticle(hitbox, *prevEntryCell, &mindist);
 		*prevEntryCell = dp_min;
 		
-		//IF_DEBUG(cout << " dp_min = " << dp_min
-		//							<< " dist = " << mindist << " (x = " << P[sphp_min].Pos[0] << " y = "
-		//							<< P[sphp_min].Pos[1] << " z = " << P[sphp_min].Pos[2] << ")" << endl); 
-	 
-#ifdef USE_ALTERNATIVE_CONNECTIVITY
-		// refine nearest point search to account for local ghosts
-		int count   = 0;      // iterations marching through mesh
-		int dp_old  = dp_min; // where we are
-		int dp_oldi = dp_min; // candidates for closer points
-		int dp_2ago = dp_min; // where we are coming from
-		int dp_new;           // best candidate, where we are headed
-		double mindist2;
-		
-		while (true)
-		{
-				// if any neighbors are closer, use them instead
-				Vector celldist(hitbox.x - DP[dp_oldi].x,
-											  hitbox.y - DP[dp_oldi].y,
-												hitbox.z - DP[dp_oldi].z);
-				
-				mindist2 = celldist.LengthSquared();
-				
-				const int start_edge = midpoint_idx[dp_oldi].first;
-				const int num_edges  = midpoint_idx[dp_oldi].second;
-				
-				IF_DEBUG(cout << " checking start_edge = " << start_edge << " num_edges = " << num_edges << endl);
-				
-				// search over all edges of this point
-				for (int i=0; i < num_edges; i++)
-				{
-						const int dp_neighbor = opposite_points[start_edge + i];
-						
-						//IF_DEBUG(cout << " iter i=" << i << " dp_neighbor = " << dp_neighbor << endl);
-						
-						// find distance to neighbor across this edge
-						Point pos_neighbor(DP[dp_neighbor].x,DP[dp_neighbor].y,DP[dp_neighbor].z);
-						
-						celldist = hitbox - pos_neighbor;
-						
-						const double dist2 = celldist.LengthSquared();
-						//IF_DEBUG(cout << " dist2=" << dist2 << " mindist2=" << mindist2 << endl);
-						
-						if (dist2 < mindist2) {
-								IF_DEBUG(cout << "  new closest DP_id = " << dp_neighbor << endl);
-								mindist2 = dist2;
-								dp_oldi = dp_neighbor;
-						}
-				}
-				
-				dp_new  = dp_oldi; // set best candidate, where we are going
-		
-				// prevent infinite loop, where we are headed where we just were
-				if (count > 0 && dp_new == dp_2ago) {
-						cout << "WARNING: LocateEntryCell refine bounce " << dp_2ago << " " << dp_new << endl;
-						cout << " tree found dp_min=" << dp_min << " x = " << DP[dp_min].x << " y = " << 
-										DP[dp_min].y << " z = " << DP[dp_min].z << endl;
-						cout << " refine ended on dp_new=" << dp_new << " x = " << DP[dp_new].x << " y = " << 
-										DP[dp_new].y << " z = " << DP[dp_new].z << endl;
-						cout << " ray (hunting for, hitbox) at x = " << hitbox.x << " y = " << hitbox.y <<
-										" z = " << hitbox.z << endl;
-						continue;
-				}
-		
-				dp_2ago = dp_old; // set where we are leaving
-		
-				// in closest if we didn't find any closer
-				if (dp_new == dp_old) {
-						IF_DEBUG(cout << " dp_new == dp_old = " << dp_new << " (in closest, entry search done)" << endl);
-						break;
-				}
-				
-				// not yet in closest, repeat search over edges for next closest cell
-				IF_DEBUG(cout << " not yet in closest, moving to dp_new=" << dp_new << endl);
-				dp_old = dp_new;
-				count++;
-				
-				if ( count > 100 ) {
-						cout << "Error: Refine treesearch hit iter=100." << endl;
-						cout << " tree found dp_min=" << dp_min << " x = " << DP[dp_min].x << " y = " << 
-						        DP[dp_min].y << " z = " << DP[dp_min].z << endl;
-					  cout << " refine ended on dp_new=" << dp_new << " x = " << DP[dp_new].x << " y = " << 
-						        DP[dp_new].y << " z = " << DP[dp_new].z << endl;
-						cout << " ray (hunting for, hitbox) at x = " << hitbox.x << " y = " << hitbox.y <<
-						        " z = " << hitbox.z << endl;
-						terminate("1139");
-				}
-		}
-		
-		if (count > 20) {
-				cout << "WARNING: LocateEntryCell iterated [" << count << "] times." << endl;
-				cout << " tree found dp_min=" << dp_min << " x = " << DP[dp_min].x << " y = " << 
-								DP[dp_min].y << " z = " << DP[dp_min].z << endl;
-				cout << " refine ended on dp_new=" << dp_new << " x = " << DP[dp_new].x << " y = " << 
-								DP[dp_new].y << " z = " << DP[dp_new].z << endl;
-				cout << " ray (hunting for, hitbox) at x = " << hitbox.x << " y = " << hitbox.y <<
-								" z = " << hitbox.z << endl;
-		}
-		
-		// if we did not finish in a primary cell, check that we iterated over at least one neighbor
-		if (dp_new >= NumGas && !count) {
-				cout << "ERROR: Refined entry tree search ended in ghost but count=0" << endl;
-				terminate("1107");
-		}
-
-		dp_min = dp_new;
-		
-#endif
-		
 		ray.index = dp_min;
 		ray.task  = 0;
 		
@@ -387,7 +276,6 @@ void ArepoMesh::LocateEntryCell(const Ray &ray, int *prevEntryCell)
 
 void ArepoMesh::VerifyPointInCell(int parInd, Point &pos)
 {		
-#ifdef USE_DC_CONNECTIVITY
 		Vector celldist(pos.x - P[parInd].Pos[0], pos.y - P[parInd].Pos[1], pos.z - P[parInd].Pos[2]);
 		double dist2point = celldist.PeriodicLengthSquared();
 		
@@ -409,29 +297,6 @@ void ArepoMesh::VerifyPointInCell(int parInd, Point &pos)
 				}
 			}
 		}
-#else // USE_ALTERNATIVE_CONNECTIVITY
-		Vector celldist(pos.x - DP[parInd].x, pos.y - DP[parInd].y, pos.z - DP[parInd].z);
-		double dist2point = celldist.LengthSquared();
-		
-		if ( dist2point >= INSIDE_EPS )
-		{
-			// check all DP points using non-periodic distances
-			for (int i=0; i < Ndp; i++)
-			{
-				celldist = Vector(pos.x - DP[i].x, pos.y - DP[i].y, pos.z - DP[i].z);
-			
-				if(celldist.LengthSquared()/dist2point < 1 - INSIDE_EPS)
-				{
-					cout << "VerifyPointInCell FAILED! pt.x = " << setprecision(10) <<  pos.x << " pt.y = " << pos.y << " pt.z = " << pos.z << endl 
-						   << "  dpInd_cur = " << setw(3) << parInd << " DP.x = " << DP[parInd].x << " DP.y = " << DP[parInd].y
-						   << " DP.z = " << DP[parInd].z << " (dist2point = " << dist2point << ")" << endl;
-					cout << "  dpInd_min = " << setw(3) << i << " DP.x = " << DP[i].x << " DP.y = " << DP[i].y 
-				       << " DP.z = " << DP[i].z << " (dist2point = " << celldist.LengthSquared() << ")" << endl;
-					terminate("1129");
-				}
-			}
-		}
-#endif
 		
 		// METHOD 2. check neighbors for closer DP (use DC connectivity)
 		/*
@@ -461,14 +326,8 @@ void ArepoMesh::VerifyPointInCell(int parInd, Point &pos)
 #ifdef DEBUG
 		cout << "VerifyPointInCell PASSED! pt.x = " << pos.x << " pt.y = " << pos.y << " pt.z = " << pos.z << endl;
 		
-#ifdef USE_DC_CONNECTIVITY
 		cout << " [ ]   sphInd_cur = " << parInd << " P.x = " << P[parInd].Pos[0] << " P.y = " << P[parInd].Pos[1] 
 				 << " P.z = " << P[parInd].Pos[2] << " (dist2point = " << dist2point << ")" << endl;
-#else // USE_ALTERNATIVE_CONNECTIVITY
-		cout << " [ ]   dpInd_cur = " << parInd << " P.x = " << DP[parInd].x << " P.y = " << DP[parInd].y
-				 << " P.z = " << DP[parInd].z << " (dist2point = " << dist2point << ")" << endl;
-#endif
-
 #endif // DEBUG
 
 }
@@ -738,7 +597,6 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 	
 	  Point pos = ray(ray.min_t);
 
-#ifdef USE_DC_CONNECTIVITY
 		int SphP_ID = ray.index;
 		
 		double length; // find_next_voronoi_cell() return
@@ -759,70 +617,6 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 #ifdef DEBUG
 		cout << "  NEW intersection t = " << min_t << " setting new min_t, next_sphID = " << qmin 
 		     << " next_dpID = " << qmin_dp << endl;
-#endif
-
-#endif
-
-#ifdef USE_ALTERNATIVE_CONNECTIVITY
-		int SphP_ID = getSphPID(DP[ray.index].index); // current primary cell index
-		Point hitbox  = ray(*t0);
-		const Vector cellp(DP[ray.index].x,DP[ray.index].y,DP[ray.index].z);
-		
-		const pair<int,int> edge = midpoint_idx[ray.index];
-		
-		for (int i=edge.second-1; i >= 0; i--)
-		{
-			// skip face we arrived through, if any
-			if (opposite_points[edge.first + i] == ray.prev_index && ray.prev_index != -1)
-				continue;
-			
-			//IF_DEBUG(cout << " OLD checking face[" << i << "] midp.x = " << midpoints[edge.first + i].x
-			//							<< " midp.y = " << midpoints[edge.first + i].y << " midp.z = " 
-			//							<< midpoints[edge.first + i].z << " opposite_dp = " 
-			//							<< opposite_points[edge.first + i] << " opposite_sphp = " << getSphPID(DP[opposite_points[edge.first + i]].index) << endl);
-	
-			// midpoint (c)
-			const Vector midp(midpoints[edge.first + i].x - hitbox.x, // hitbox.x or pos
-												midpoints[edge.first + i].y - hitbox.y, // hitbox.y
-												midpoints[edge.first + i].z - hitbox.z); // hitbox.z
-			
-			// vector pointing to the outside, normal to a voronoi face of the cell (q)
-			const Vector norm = midpoints[edge.first + i] - cellp;
-	
-			// find intersection of ray with this face
-			double dotprod1 = Dot( ray.d, norm );
-			double dotprod2 = Dot( midp,  norm );
-			
-			// check if ray is aligned on face (e.g. backgroundgrid)
-			if (dotprod1 == 0 && dotprod2 == 0)
-				continue;
-			
-			if (dotprod1 > 0)
-			{
-				double t = dotprod2 / dotprod1; // infinite line/plane intersection test
-				
-				//IF_DEBUG(cout << "  OLD i[" << i << "] dotprod>0 and t = " << t << " (min=" << (ray.min_t-*t0) << ")" << endl);
-				
-				if (t > (ray.min_t-*t0) && t < min_t) { // for hitbox instead of pos in midp
-				//if ( t > *t0 && t < min_t ) { // for pos instead of hitbox
-					min_t = t; // for hitbox instead of pos in midp
-					//min_t = ray.min_t + t; // for pos instead of hitbox
-					qmin = opposite_points[edge.first + i];
-					//IF_DEBUG(cout << "  OLD intersection t = " << min_t_old << " setting new min_t, qmin (next DP) = " << qmin_old << endl);
-				}
-			}
-		}
-		
-		// verbose
-		//int qmin_old_sphp = getSphPID(DP[qmin_old].index);
-		
-		//IF_DEBUG(cout << " qmin_DC = " << qmin << " qmin_old_sphp = " << qmin_old_sphp 
-		//              << " min_t = " << min_t << " min_t_old = " << min_t_old << endl);
-		
-		// verify connectivity
-		//if ( qmin != qmin_old_sphp || fabs(min_t - min_t_old) >= INSIDE_EPS )
-		//  terminate("connectivity mismatch");
-		
 #endif
 
 #ifdef DEBUG_VERIFY_INCELL_EACH_STEP
@@ -1033,117 +827,6 @@ void ArepoMesh::LimitCellDensities()
 						} // valid?
 				} // vertices
 		} //tetras
-
-}
-
-// construct the sunrise alternative connectivity
-
-/*  Sets up the midpoints array which stores the midpoints of the face
-    planes in a compact way so we don't have to chase a bunch of
-    pointers all over the place to do the intersection tests with the
-    face planes when finding the voronoi neighbors. The connections
-    stored in our data structure differs from that in the Arepo DC
-    array in that we map connections between distinct mesh points, not
-    just primary cells. */
-void ArepoMesh::CalculateMidpoints()
-{
-		IF_DEBUG(cout << "ArepoMesh::CalculateMidpoints()" << endl);
-
-		// set up temporary multimap of SphP id -> DP id, to identify all local ghosts
-		// associated with a particular SphP entry
-		multimap<int,int> mm;
-		typedef multimap<int,int>::iterator mmi;
-		
-		for (int i=0; i < Ndp; i++)
-		{
-				int SphP_ID = getSphPID(DP[i].index);
-				
-				mm.insert(make_pair(SphP_ID, i));
-		}
-		
-		// set up mapping of DP id -> DP primary id
-		for (int i=0; i < Ndp; i++)
-		{
-				int SphP_ID = getSphPID(DP[i].index);
-		
-				// cell has no hydro quantities -> map to -1
-				if (SphP_ID < 0) {
-						IF_DEBUG(cout << "WARNING: CM i=" << i << " SphP_ID (neg) = " << SphP_ID << endl);
-						primary_cells.push_back(-1);
-				}
-				
-				// loop over all DP indices that share this SphP cell
-				pair<mmi,mmi> dp_indices(mm.equal_range(SphP_ID));
-				
-				if (dp_indices.second == dp_indices.first)
-						terminate("1131");
-						
-				// search for primary cell and record to map
-				while (dp_indices.first != dp_indices.second)
-				{
-						if (dp_indices.first->second >= 0 && dp_indices.first->second < NumGas) {
-								primary_cells.push_back(dp_indices.first->second);
-								break;
-						}
-						dp_indices.first++;
-				}
-		}
-		
-		// verify size
-		if (primary_cells.size() != (unsigned int)Ndp)
-				terminate("1132");
-				
-		// use VF array to generate connnections (reorganize it to index by point)
-		multimap<int,int> conn;
-		
-		for (int i=0; i < Nvf; i++) {
-				conn.insert(make_pair(VF[i].p1,VF[i].p2));
-				conn.insert(make_pair(VF[i].p2,VF[i].p1));
-		}
-		
-		// associate connections with cells
-		for (int i=0; i < Ndp; i++)
-		{
-				//int SphP_ID = getSphPID(DP[i].index);
-				const Vector cellp(DP[i].x,DP[i].y,DP[i].z);
-				
-				// find connections for this cell
-				pair<mmi,mmi> dp_neighbors(conn.equal_range(i));
-				
-				if (dp_neighbors.first == dp_neighbors.second)
-						terminate("1133");
-						
-				for (; dp_neighbors.first != dp_neighbors.second; dp_neighbors.first++)
-				{
-						const int dp_neighbor = dp_neighbors.first->second;
-				
-						int SphP_ID_n = -1; // don't use getSphPID()
-						
-						if (DP[dp_neighbor].index >= 0 && DP[dp_neighbor].index < NumGas)
-								SphP_ID_n = DP[dp_neighbor].index;
-						else if (DP[dp_neighbor].index >= NumGas) {
-								SphP_ID_n = DP[dp_neighbor].index - NumGas;
-						}
-								
-						// skip invalid neighbors
-						if (SphP_ID_n < 0)
-								continue;
-								
-						const Vector midp( 0.5 * (cellp.x + DP[dp_neighbor].x),
-															 0.5 * (cellp.y + DP[dp_neighbor].y),
-															 0.5 * (cellp.z + DP[dp_neighbor].z) );
-																										 
-						// add connection to the connectivity map
-						midpoints.push_back(midp);
-						opposite_points.push_back(dp_neighbor);
-				}
-				
-				// all connections for this DP cell done, update the number and position in the midpoint index vector
-				const int start_pos = 
-					midpoint_idx.empty() ? 0 :
-					(midpoint_idx.back().first + midpoint_idx.back().second);
-				midpoint_idx.push_back(make_pair(start_pos, midpoints.size()-start_pos));
-		}
 
 }
 
@@ -1493,18 +1176,6 @@ void ArepoMesh::DumpMesh()
 			}
 		}
 		
-		cout << endl << "Primary_Cells and Midpoint_Idx (size=" << primary_cells.size() << "):" << endl;
-		for (unsigned int i=0; i < primary_cells.size(); i++) {
-				cout << "[" << setw(2) << i << "] primary id = " << primary_cells[i] 
-				     << " edges start " << midpoint_idx[i].first << " num edges = " 
-						 << midpoint_idx[i].second << endl;
-		}
-		
-		cout << endl << "Midpoints and Opposite_Points (size=" << midpoints.size() << "):" << endl;
-		for (unsigned int i=0; i < opposite_points.size(); i++) {
-				cout << "[" << setw(2) << i << "] x = " << midpoints[i].x << " y = " << midpoints[i].y
-				     << " z = " << midpoints[i].z << " opposite id = " << opposite_points[i] << endl;
-		}
 }
 
 bool ArepoMesh::TetraEdges(const int i, vector<Line> *edges)
