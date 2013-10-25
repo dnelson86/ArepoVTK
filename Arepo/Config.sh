@@ -16,10 +16,15 @@ NO_ISEND_IRECV_IN_DOMAIN
 FIX_PATHSCALE_MPI_STATUS_IGNORE_BUG
 HAVE_HDF5
 VORONOI_MESHOUTPUT # for write_voronoi_mesh
-
 #MESHRELAX_DENSITY_IN_INPUT # ICs (not for normal snapshots)
 #INPUT_IN_DOUBLEPRECISION # DP ICs or DP snaps
 
-# test.spoon
-SPECIAL_BOUNDARY # only for test.spoon # alters SphP, All
-#TRACER_FIELD
+# for ArepoVTK only (not Arepo projection)
+NUM_THREADS=4
+SPECIAL_BOUNDARY # for test.spoon, doesn't hurt otherwise (allows negative IDs)
+
+# illustris.fof0 (for Arepo projection, not ArepoVTK)
+#VORONOI_NEW_IMAGE
+#COOLING
+#USE_SFR
+#METALS

@@ -26,8 +26,19 @@ void Arepo::Init(int *argc, char*** argv)
 		MPI_Init(argc, argv);
 		MPI_Comm_rank(MPI_COMM_WORLD, &ThisTask);
 		MPI_Comm_size(MPI_COMM_WORLD, &NTask);
+
+		determine_compute_nodes();
+
+		int num_threads = 1;
+#if (NUM_THREADS > 1)
+		//calling omp_set_num_threads overrides OMP_NUM_THREADS env variable
+		omp_set_num_threads(NUM_THREADS);
+		omp_set_dynamic(0);
+		num_threads = omp_get_max_threads();
+#endif
 		
-		cout << "AREPO ENABLED. (NTask = " << NTask << " ThisTask = " << ThisTask << ")" << endl;
+		cout << "AREPO ENABLED. (OpenMP NThreads = " << num_threads << ", MPI NTask = " << NTask 
+		     << " ThisTask = " << ThisTask << ")" << endl;
 }
 
 void Arepo::Cleanup()
@@ -130,6 +141,25 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		extent = BBox(Point(0.0,0.0,0.0),Point(All.BoxSize,All.BoxSize,All.BoxSize));
 		
 		IF_DEBUG(extent.print(" ArepoMesh extent "));
+
+#ifdef SPECIAL_BOUNDARY
+		// override density of ID=-2 (inner spoon boundary cells) with density much higher than surrounding gas
+		// put a TF near this value but below to highlight spoon boundary
+		for(int i = 0; i < NumGas; i++)
+		{
+			if( P[i].ID == -2 )
+				SphP[i].Density = 1000.0;
+		}
+#endif
+
+		// illustris fof0 log density/temp
+		cout << "Converting DENSITY TO LOG!" << endl;
+		cout << "Converting TEMPERATURE TO LOG!" << endl;
+		for(int i = 0; i < NumGas; i++)
+		{
+			SphP[i].Density = log10( SphP[i].Density );
+        		SphP[i].Utherm = log10( SphP[i].Utherm );
+		}
 		
 		// preprocessing
 		ArepoMesh::ComputeQuantityBounds();
@@ -1119,11 +1149,11 @@ void ArepoMesh::CalculateMidpoints()
 
 void ArepoMesh::ComputeQuantityBounds()
 {
-		float pmax  = 0.0;
+		float pmax  = -INFINITY;
 		float pmin  = INFINITY;
 		float pmean = 0.0;
 		
-		float umax = 0.0;
+		float umax = -INFINITY;
 		float umin = INFINITY;
 		float umean = 0.0;
 		
@@ -1353,7 +1383,7 @@ int ArepoMesh::ComputeVoronoiEdges()
 		
 		for(size_t i = 1; i < numVertices.size(); i++) {
 			vertexOffset.push_back(vertexOffset[i - 1] + numVertices[i - 1]);
-			cout << "[" << i << "] numVert=" << numVertices[i-1] << " offset=" << vertexOffset.back() << endl;
+		//	cout << "[" << i << "] numVert=" << numVertices[i-1] << " offset=" << vertexOffset.back() << endl;
 		}
 		
 		delete Edge_visited;

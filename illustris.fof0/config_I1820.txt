@@ -1,0 +1,104 @@
+% Sample ArepoVTK Configuration File
+
+% Input/Output
+% ------------
+imageFile      = frames_1820/volRend.I1820.h0.123.edge40.px1440.ss0.5_logDens_config4_sphInner.tga % output: TGA
+rawRGBFile     = frame.raw.txt                   % output: raw dump of floats (debug only)
+filename       = output/cutout.I1820.h0.sf20_123  % input: simulation snapshot (no extension)
+paramFilename  = param_I1820.txt                  % input: Arepo parameter file
+
+% General
+% -------
+nCores         = 32                   % number of cores to use (0=all)
+nTasks         = 128                  % number of tasks/threads to run (0=auto)
+quickRender    = false                % unused
+openWindow     = false                % unused
+verbose        = true                 % report more information
+
+% Frame
+% -----
+imageXPixels   = 1440                % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 1440                % frame resolution (Y), e.g. 768,  1080
+swScale        = 1820.0              % screenWindow mult factor * [-1,1]
+
+% Camera
+% ------
+cameraFOV      = 0.0                     % degrees (0=orthographic camera)
+cameraUp       = 0.0 1.0 0.0             % (XYZ) camera "up" vector
+cameraPosition = 1840 1840 20            % (XYZ) camera position in world coord system
+cameraLookAt   = 1840 1840 1840          % (XYZ) point centered in camera FOV
+
+% Transfer Function
+% -----------------
+
+% illustris.fof0 temp config5
+%addTF_01 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 8.2 0.005
+%addTF_02 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 7.3 0.0015
+%addTF_03 = gaussian_table Utherm idl_3_red-temp 7.4 7.6 7.56 0.0015
+%addTF_04 = gaussian_table Utherm idl_33_blue-red 5.2 7.4 5.3 0.006
+%addTF_05 = gaussian_table Utherm idl_33_blue-red 5.2 7.4 5.7 0.004
+
+% illustris.fof0 temp config6 (1820)
+%addTF_01 = gaussian_table Utherm idl_3_red-temp 8.1 9.2 9.2 0.005
+%addTF_02 = gaussian_table Utherm idl_3_red-temp 8.1 9.2 8.3 0.0015
+%addTF_03 = gaussian_table Utherm idl_3_red-temp 8.4 8.6 8.56 0.0015
+%addTF_04 = gaussian_table Utherm idl_33_blue-red 6.2 8.4 6.3 0.006
+%addTF_05 = gaussian_table Utherm idl_33_blue-red 6.2 8.4 6.7 0.004
+
+% illustris.fof0 temp config6b:
+%addTF_01 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 7.9 0.005
+
+% illustris.fof0 density config1:
+%addTF_01 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.5 -7.0 0.005
+%addTF_02 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.5 -6.5 0.005
+%addTF_03 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.5 -6.0 0.005
+%addTF_04 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.5 -5.5 0.005
+
+% illustris.fof0 density config2:
+%addTF_01 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.0 -7.2 0.005  %red
+%addTF_02 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.0 -6.6 0.005  %orange
+%addTF_03 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.0 -6.25 0.005 %yellow
+%addTF_04 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.0 -6.0 0.005  %green
+%addTF_05 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.0 -5.6 0.005  %blue
+%addTF_06 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.0 -5.3 0.02   %white
+
+% illustris.fof0 density config3:
+%addTF_01 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.2 -7.2 0.001  %red
+%addTF_02 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.2 -6.6 0.002  %orange
+%addTF_03 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.2 -6.25 0.002 %yellow
+%addTF_04 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.2 -6.0 0.002  %green
+%addTF_05 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.2 -5.6 0.002  %blue
+%addTF_06 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.2 -5.2 -5.2 0.01   %white
+
+% illustris.fof0 density config4:
+addTF_01 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.1 -7.1 0.001  %red
+addTF_02 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.1 -6.7 0.002  %orange
+addTF_03 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.1 -6.3 0.002 %yellow
+addTF_04 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.1 -5.9 0.002  %green
+addTF_05 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.1 -5.5 0.002  %blue
+addTF_06 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.1 -5.3 0.01   %white
+
+% Animation
+% ---------
+startFrame       = 0
+numFrames        = 1                 % total number of frames
+timePerFrame     = 1.0               % establish unit system of time/frame
+
+% Render
+% ------
+drawBBox         = false             % draw simulation bounding box
+drawTetra        = false             % draw delaunay tetrahedra
+drawVoronoi      = false             % DO NOT CHANGE
+projColDens      = false             % integrate quantities (density, etc) along each path 
+                                     % length, to make e.g. a "projected column density" image
+useDensGradients = true              % use density gradient within cells
+viStepSize       = 0.5               % volume integration sub-stepping size (0=disabled)
+                                     % in (Arepo) code units
+rayMaxT          = 3640.0
+rgbLine          = 5.0 5.0 5.0       % (RGB) bounding box
+rgbTetra         = 0.01 0.01 0.01    % (RGB) tetra edges
+rgbVoronoi       = 0.0 0.05 0.0      % (RGB) voronoi edges
+rgbAbsorb        = 0.0 0.0 0.0       % (RGB) absorption
+
+% End.
+

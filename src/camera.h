@@ -54,7 +54,7 @@ public:
     void GetSampleExtent(int *xstart, int *xend, int *ystart, int *yend) const;
     void GetPixelExtent(int *xstart, int *xend, int *ystart, int *yend) const;
     void UpdateDisplay(int x0, int y0, int x1, int y1, float splatScale = 1.f);
-    void WriteImage(float splatScale = 1.f);
+    void WriteImage(int frameNum, float splatScale = 1.f);
 		void WriteRawRGB();
 		
 		bool DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L);

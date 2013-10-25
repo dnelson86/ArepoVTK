@@ -19,7 +19,7 @@
 #include "spectrum.h"
 #include "keyframe.h"
 
-void rtIsoDiskCosmoCutoutRender()
+void rtRenderFrames()
 {
 	Timer timer;
 	timer.Start();
@@ -36,24 +36,15 @@ void rtIsoDiskCosmoCutoutRender()
 	for (unsigned int i=0; i < Config.tfSet.size(); i++)
 		tf->AddParseString(Config.tfSet[i]);
 
-#ifdef SPECIAL_BOUNDARY
-	// override density of ID=-2 (inner spoon boundary cells) with density much higher than surrounding gas
-	// put a TF near this value but below to highlight spoon boundary
-	for(int i = 0; i < NumGas; i++)
-	{
-		if( P[i].ID == -2 )
-			SphP[i].Density = 1000.0;
-	}
-#endif
-		
 	cout << endl << "Raytracer Init: [" << (float)timer.Time() << "] seconds, now rendering [" 
 	     << Config.numFrames << "] frames:" << endl;		
-		
-	for(int i = 0; i < Config.numFrames; i++)
+	
+	// loop for requested frames	
+	for(int i = Config.startFrame; i < Config.numFrames; i++)
 	{
 		// set all frame properties based on current frame and requested keyframes
-		fm->Advance();
-		
+		fm->Advance(i);
+	
 		// setup camera
 		Transform world2camera = fm->SetCamera();
 
@@ -243,7 +234,7 @@ int main (int argc, char* argv[])
 	if ( Config.filename.substr(0,10) == "test/Arepo" )
 		rtTestRenderScene(Config.filename);
 	else
-		rtIsoDiskCosmoCutoutRender();
+		rtRenderFrames();
 	
 	// cleanup
 #ifdef ENABLE_AREPO

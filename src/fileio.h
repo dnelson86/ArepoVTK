@@ -45,8 +45,9 @@ public:
 		vector<string> tfSet; // transfer functions
 		vector<string> kfSet; // key frames
 		
-		int numFrames;
+		int startFrame, numFrames;
 		float timePerFrame;
+		float maxInv; // inverse of maximum pixel value for first frame
 		
 		bool drawBBox, drawTetra, drawVoronoi;
 		bool projColDens, useDensGradients;		

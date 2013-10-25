@@ -14,6 +14,10 @@
 #include "transfer.h"
 #include "voronoi_3db.h"
 
+#if (NUM_THREADS > 1)
+#include <omp.h>
+#endif
+
 // Arepo: main interface with Arepo to load a snapshot, create data structures, and return
 class Arepo
 {

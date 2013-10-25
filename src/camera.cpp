@@ -359,7 +359,7 @@ bool Film::DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L)
 						pixel.Lxyz[0] += xyz[0] * rfpart_(intery);
 						pixel.Lxyz[1] += xyz[1] * rfpart_(intery);
 						pixel.Lxyz[2] += xyz[2] * rfpart_(intery);
-						pixel.weightSum = filterWt;
+						pixel.weightSum += filterWt;
 						IF_DEBUG(cout << " Painting x = " << off1 << " y = " << off2 << " (" 
 						              << rfpart_(intery) << ")" << endl);
 				}
@@ -368,7 +368,7 @@ bool Film::DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L)
 						pixel.Lxyz[0] += xyz[0] * fpart_(intery);
 						pixel.Lxyz[1] += xyz[1] * fpart_(intery);
 						pixel.Lxyz[2] += xyz[2] * fpart_(intery);
-						pixel.weightSum = filterWt;
+						pixel.weightSum += filterWt;
 						IF_DEBUG(cout << " Painting x = " << off1 << " y = " << off2+1 << " (" 
 						              << fpart_(intery) << ")" << endl);
 				}
@@ -419,10 +419,10 @@ void Film::GetPixelExtent(int *xstart, int *xend, int *ystart, int *yend) const
 }
 
 
-void Film::WriteImage(float splatScale)
+void Film::WriteImage(int frameNum, float splatScale)
 {
-		IF_DEBUG(cout << "Film:WriteImage(" << splatScale << ") nx = " << xPixelCount << " ny = " 
-		              << yPixelCount << endl);
+	IF_DEBUG(cout << "Film:WriteImage(" << frameNum << "," << splatScale << ") nx = " 
+		      << xPixelCount << " ny = " << yPixelCount << endl);
 		
     // Convert image to RGB and compute final pixel values
     int nPix = xPixelCount * yPixelCount;
@@ -459,15 +459,17 @@ void Film::WriteImage(float splatScale)
         }
     }
 
-    // testing: scale the maximum intensity up to 1.0
     offset = 0;
-    maxInv = 1.0 / maxInv;
+
+    // scale the maximum intensity up to 1.0 based on the FIRST frame
+    if( frameNum == 0 || Config.maxInv <= 0.0 )
+      Config.maxInv = 1.0 / maxInv;
 
     for (int y = 0; y < yPixelCount; ++y) {
         for (int x = 0; x < xPixelCount; ++x) {
-            rgb[3*offset  ] = rgb[3*offset  ]*maxInv;
-            rgb[3*offset+1] = rgb[3*offset+1]*maxInv;
-            rgb[3*offset+2] = rgb[3*offset+2]*maxInv;
+            rgb[3*offset  ] = rgb[3*offset  ] * Config.maxInv;
+            rgb[3*offset+1] = rgb[3*offset+1] * Config.maxInv;
+            rgb[3*offset+2] = rgb[3*offset+2] * Config.maxInv;
             offset++;
         }
     }
@@ -593,7 +595,7 @@ Camera::Camera(const Transform &cam2world, const Transform &proj, const float sc
         Scale(1.0f / (screenWindow[1] - screenWindow[0]),
               1.0f / (screenWindow[2] - screenWindow[3]), 1.0f) *
         Translate(Vector(-screenWindow[0], -screenWindow[3], 0.0f));
-		//ScreenToRaster.print(" ScreenToRaster ");
+
     RasterToScreen = Inverse(ScreenToRaster);
     RasterToCamera = Inverse(CameraToScreen) * RasterToScreen;
 }
@@ -618,7 +620,7 @@ ProjCamera::ProjCamera(const Transform &cam2world, const Transform &proj, const 
         Scale(1.0f / (screenWindow[1] - screenWindow[0]),
               1.0f / (screenWindow[2] - screenWindow[3]), 1.0f) *
         Translate(Vector(-screenWindow[0], -screenWindow[3], 0.0f));
-		ScreenToRaster.print(" ScreenToRaster ");
+
     RasterToScreen = Inverse(ScreenToRaster);
     RasterToCamera = Inverse(CameraToScreen) * RasterToScreen;
 }

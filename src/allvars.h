@@ -64,8 +64,7 @@ typedef int integertime;
 /* box and periodic */
 
 extern MyDouble boxSize, boxHalf; // NOTE: this is maybe not the boxSize global used by Arepo functions since this is
-                                  // "C++ mangled" (whether or not a function is inside an extern "C" determines which
-																	// it sees
+                                  // "C++ mangled" (whether or not a function is inside an extern "C" determines which it sees
 #define boxSize_X boxSize
 #define boxHalf_X boxHalf
 #define boxSize_Y boxSize
@@ -367,6 +366,10 @@ extern struct particle_data
 
   float OldAcc;         /**< magnitude of old gravitational force. Used in relative opening criterion */
   float Soft;
+
+#ifdef METALS
+  MyFloat Metallicity;          /**< metallicity of gas or star particle */
+#endif
 	
   float GravCost[GRAVCOSTLEVELS];	/**< weight factors used for balancing the work-load */
   short int Type;		/**< flags particle type.  0=gas, 1=halo, 2=disk, 3=bulge, 4=stars, 5=bndry */
@@ -395,6 +398,11 @@ extern struct sph_particle_data
   MyFloat Hsml;		        /* auxiliary search radius for points around a delaunay triangle */
   MyFloat SurfaceArea;
   MyFloat ActiveArea;
+
+#ifdef METALS
+  MyFloat Metallicity;
+  MyFloat MassMetallicity;
+#endif
 
 #ifdef TRACER_FIELD
   MyFloat Tracer;
@@ -493,6 +501,7 @@ void begrun1(void);
 void endrun(int);
 int init(void); 
 void read_ic(const char *fname, int); 
+void determine_compute_nodes(void);
  
 void *mymalloc_fullinfo(const char *varname, size_t n, const char *func, const char *file, int linenr);
 void *mymalloc_movable_fullinfo(void *ptr, const char *varname, size_t n, const char *func, const char *file,int line);

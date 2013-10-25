@@ -9,18 +9,21 @@
 
 FrameManager::FrameManager(vector<string> kfSet)
 {
-		IF_DEBUG(cout << "FrameManager() constructor." << endl);
+	IF_DEBUG(cout << "FrameManager() constructor." << endl);
 		
-		// parse keyframe strings
-		for(unsigned int i = 0; i < kfSet.size(); i++)
-			FrameManager::AddParseString( kfSet[i] );
+	// parse keyframe strings
+	for(unsigned int i = 0; i < kfSet.size(); i++)
+		FrameManager::AddParseString( kfSet[i] );
 			
-		// init
-		curTime  = -1;
-		curFrame = -1;
+	// init
+	curTime  = -1;
+	curFrame = -1;
 		
-		for(int i=0; i < 3; i++)
-		  cameraPosition[i] = Config.cameraPosition[i];
+	for(int i=0; i < 3; i++)
+	{
+	  cameraPosition[i] = Config.cameraPosition[i];
+	  cameraLookAt[i] = Config.cameraLookAt[i];
+	}
 }
 
 void FrameManager::AddParseString(string &addTFstr)
@@ -37,8 +40,8 @@ void FrameManager::AddParseString(string &addTFstr)
 			
 	// check string size
 	if (p.size() != 5) {
-			cout << "ERROR: addKF string too short: " << addTFstr << endl;
-			exit(1164);
+		cout << "ERROR: addKF string too short: " << addTFstr << endl;
+		exit(1164);
 	}
 	
 	// parse
@@ -50,7 +53,9 @@ void FrameManager::AddParseString(string &addTFstr)
 	string intMethod = p[4];
 	
 	// temporary sanity checks
-	if (qName != "cameraX" && qName != "cameraY" && qName != "cameraZ" && qName != "rotXY") {
+	if (qName != "cameraX" && qName != "cameraY" && qName != "cameraZ" && 
+	    qName != "lookAtX" && qName != "lookAtY" && qName != "lookAtZ" && 
+	    qName != "rotXY") {
 		cout << "ERROR: addKF unsupported parameter to keyframe: " << qName << endl;
 		exit(1165);
 	}
@@ -67,8 +72,14 @@ void FrameManager::AddParseString(string &addTFstr)
 		startVal = Config.cameraPosition[1];
 	if( qName == "cameraZ" )
 		startVal = Config.cameraPosition[2];
+	if( qName == "lookAtX" )
+		startVal = Config.cameraLookAt[0];
+	if( qName == "lookAtY" )
+		startVal = Config.cameraLookAt[1];
+	if( qName == "lookAtZ" )
+		startVal = Config.cameraLookAt[2];
 	if( qName == "rotXY" )
-		startVal = 0.0; // angle in radians
+		startVal = -1.0; // angle in radians, override when rotation starts
 	
 	// add to keyframe arrays
 	start.push_back(startTime);
@@ -81,9 +92,8 @@ void FrameManager::AddParseString(string &addTFstr)
 	cout << "Added KF: [" << addTFstr << "] now have [" << start.size() << "] keyframes." << endl;
 }
 
-void FrameManager::Advance()
+void FrameManager::Advance(int curFrame)
 {
-	curFrame++;
 	curTime = curFrame * Config.timePerFrame;
 	
 	// update imageFilename
@@ -106,7 +116,17 @@ void FrameManager::Advance()
 		// is this keyframe not active?
 		if( start[i] > curTime || stop[i] < curTime )
 			continue;
-			
+	
+		// set start_val for rotation (angle offset) if needed
+                float rad = sqrt( pow(cameraPosition[0]-cameraLookAt[0],2) +
+                                  pow(cameraPosition[1]-cameraLookAt[1],2) ); // only for rotXY
+
+		if( quantity[i] == "rotXY" && start_val[i] < 0.0 )
+		{
+			start_val[i] = asin( (cameraPosition[0] - cameraLookAt[0]) / rad );
+			stop_val[i] += start_val[i];	
+		}
+
 		float duration = (stop[i]-start[i]);
 		float fracTime = (curTime-start[i]) / duration;
 		float curVal = 0;
@@ -133,21 +153,28 @@ void FrameManager::Advance()
 		  cameraPosition[1] = curVal;
 		if( quantity[i] == "cameraZ" )
 		  cameraPosition[2] = curVal;
+		if( quantity[i] == "lookAtX" )
+		  cameraLookAt[0] = curVal;
+		if( quantity[i] == "lookAtY" )
+		  cameraLookAt[1] = curVal;
+		if( quantity[i] == "lookAtZ" )
+		  cameraLookAt[2] = curVal;
 			
 		// "rotXY": do an orbit/rotation in the z-plane as a function of theta (curVal, from 0 to 2pi)
 		if( quantity[i] == "rotXY" )
 		{
-			// currently hardcoded to do spoonHD ending rotation
-			float rad = 3.0;
-			cameraPosition[0] = -1.0 * rad * cosf( curVal );
-			cameraPosition[1] = 0.5 + rad * sinf( curVal );
+			cout << " curVal : " << curVal << " start_val : " << start_val[i] << " sin: " << sin(curVal+start_val[i]) << endl;
+			// progress camera along rotation
+			cameraPosition[0] = rad * sin( curVal + start_val[i] ) + cameraLookAt[0];
+			cameraPosition[1] = rad * cos( curVal + start_val[i] ) + cameraLookAt[1];
 		}
 		
 	}
 	
-	cout << "Next frame to render: " << curFrame << " (time " << curTime << ") cameraXYZ [" 
-	     << cameraPosition[0] << " " << cameraPosition[1] << " " << cameraPosition[2] << "]" << endl;
-	cout << "Next frame: " << Config.imageFile << endl;
+	cout << "Next frame to render: [" << curFrame << "] " << Config.imageFile << " (time " << curTime 
+	     << ") cameraXYZ [" << cameraPosition[0] << " " << cameraPosition[1] << " " << cameraPosition[2] 
+	     << "] cameraLookAt [" << cameraLookAt[0] << " " << cameraLookAt[1] << " " << cameraLookAt[2] 
+	     << "]" << endl;
 }
 
 Transform FrameManager::SetCamera()
@@ -155,8 +182,8 @@ Transform FrameManager::SetCamera()
 	Transform world2camera;
 	
 	world2camera = LookAt(Point(cameraPosition), 
-	                      Point(Config.cameraLookAt), 
-												Vector(Config.cameraUp));
+	                      Point(cameraLookAt), 
+	                      Vector(Config.cameraUp));
 	
 	return world2camera;
 }
@@ -164,6 +191,5 @@ Transform FrameManager::SetCamera()
 FrameManager::~FrameManager()
 {
 		IF_DEBUG(cout << "FrameManager() destructor." << endl);
-		
 		
 }

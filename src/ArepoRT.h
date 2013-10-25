@@ -36,12 +36,16 @@
 //#define DTFE_INTERP
 //#define CELL_GRADIENTS_ONLY
 
-#define NO_GHOST_CONTRIBS // only for SPHKERNEL+DC_CONNECTIVITY and no INNER, do not use
-                          // ghosts for hsml/TF (i.e. for reflective BCs but we are doing
-                          // periodic meshing, the ghosts are incorrect and should be skipped)
+/* interpolation method options */
+
+//#define NO_GHOST_CONTRIBS // only for SPHKERNEL+DC_CONNECTIVITY and no INNER, do not use
+                            // ghosts for hsml/TF (i.e. for reflective BCs but we are doing
+                            // periodic meshing, the ghosts are incorrect and should be skipped)
 //#define NNI_DISABLE_EXACT // for bruteforce NNI disable exact geometry computations
 //#define NATURAL_NEIGHBOR_INNER // for IDW or SPHKERNEL do neighbors of neighbors
-//#define BRUTE_FORCE // for IDW or SPHKERNEL, calculate over all NumGas in the box
+//#define N_NEAREST_NEIGHBORS 32 // for IDW or SPHKERNEL, apply to N nearest neighbors (spherical)
+                                 // using tree searches, i.e. not the mesh
+//#define BRUTE_FORCE            // for IDW or SPHKERNEL, calculate over all NumGas in the box
 
 /* special behavior */
 //#define DEBUG_VERIFY_INCELL_EACH_STEP
