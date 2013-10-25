@@ -23,9 +23,6 @@
 //#define USE_LINEALGO_BRESENHAM
 #define USE_LINEALGO_WU
 
-#define USE_DC_CONNECTIVITY
-//#define USE_ALTERNATIVE_CONNECTIVITY
-
 /* interpolation methods (choose one) */
 
 //#define NATURAL_NEIGHBOR_INTERP
@@ -38,7 +35,7 @@
 
 /* interpolation method options */
 
-//#define NO_GHOST_CONTRIBS // only for SPHKERNEL+DC_CONNECTIVITY and no INNER, do not use
+//#define NO_GHOST_CONTRIBS // only for SPHKERNEL, do not use
                             // ghosts for hsml/TF (i.e. for reflective BCs but we are doing
                             // periodic meshing, the ghosts are incorrect and should be skipped)
 //#define NNI_DISABLE_EXACT // for bruteforce NNI disable exact geometry computations
