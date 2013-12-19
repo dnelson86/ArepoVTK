@@ -2,7 +2,7 @@
 
 % Input/Output
 % ------------
-imageFile      = frames_1820/volRend.I1820.h0.123.edge40.px1440.ss0.5_logDens_config4_sphInner.tga % output: TGA
+imageFile      = frames_1820/volRend.I1820.h0.123.edge40.px1440.ss0.5_logDens_config4_sphTree20.tga % output: TGA
 rawRGBFile     = frame.raw.txt                   % output: raw dump of floats (debug only)
 filename       = output/cutout.I1820.h0.sf20_123  % input: simulation snapshot (no extension)
 paramFilename  = param_I1820.txt                  % input: Arepo parameter file
@@ -37,6 +37,28 @@ cameraLookAt   = 1840 1840 1840          % (XYZ) point centered in camera FOV
 %addTF_03 = gaussian_table Utherm idl_3_red-temp 7.4 7.6 7.56 0.0015
 %addTF_04 = gaussian_table Utherm idl_33_blue-red 5.2 7.4 5.3 0.006
 %addTF_05 = gaussian_table Utherm idl_33_blue-red 5.2 7.4 5.7 0.004
+
+% ilustris.fof0 temp config5g
+addTF_01 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 8.2 0.005
+addTF_02 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 7.3 0.0015
+addTF_03 = gaussian_table Utherm idl_3_red-temp 7.4 7.6 7.56 0.0015
+addTF_04 = gaussian_table Utherm idl_33_blue-red 5.2 7.4 5.3 0.006
+addTF_05 = gaussian_table Utherm idl_33_blue-red 5.2 7.4 5.7 0.004
+
+% ilustris.fof0 temp config5h (sf20)
+addTF_01 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 8.2 0.005
+addTF_02 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 7.3 0.0015
+addTF_03 = gaussian_table Utherm idl_3_red-temp 7.4 7.6 7.56 0.0015
+addTF_04 = gaussian_table Utherm idl_33_blue-red 3.8 7.4 4.5 0.003
+addTF_05 = gaussian_table Utherm idl_33_blue-red 3.8 7.4 5.1 0.003
+addTF_06 = gaussian_table Utherm idl_33_blue-red 3.8 7.4 5.7 0.002
+
+% illustris.fof0 temp config5i (sf150)
+addTF_01 = gaussian_table Utherm idl_3_red-temp 7.1 8.1 8.0 0.002
+addTF_02 = gaussian_table Utherm idl_3_red-temp 7.1 8.1 7.0 0.001
+addTF_03 = gaussian_table Utherm idl_33_blue-red 3.9 7.4 6.0 0.001
+addTF_04 = gaussian_table Utherm idl_33_blue-red 3.9 7.4 5.0 0.0005
+addTF_05 = gaussian_table Utherm idl_33_blue-red 3.9 7.4 4.1 0.0005
 
 % illustris.fof0 temp config6 (1820)
 %addTF_01 = gaussian_table Utherm idl_3_red-temp 8.1 9.2 9.2 0.005
@@ -92,6 +114,7 @@ drawVoronoi      = false             % DO NOT CHANGE
 projColDens      = false             % integrate quantities (density, etc) along each path 
                                      % length, to make e.g. a "projected column density" image
 useDensGradients = true              % use density gradient within cells
+nTreeNGB         = 20                % use tree-based search integrator instead of mesh (0=disabled)
 viStepSize       = 0.5               % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
 rayMaxT          = 3640.0

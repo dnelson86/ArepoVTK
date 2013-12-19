@@ -9,7 +9,6 @@
 EXECNAME = ArepoRT
 
 #OPT += -DDEBUG
-OPT  += -DENABLE_AREPO
 #OPT  += -DENABLE_OPENGL
 #OPT  += -DENABLE_CUDA
 
@@ -31,11 +30,10 @@ OBJS = ArepoRT.o camera.o fileio.o geometry.o integrator.o keyframe.o renderer.o
 HEAD = ArepoRT.h camera.h fileio.h geometry.h integrator.h keyframe.h renderer.h sampler.h spectrum.h transfer.h transform.h util.h volume.h
 MISC_RM = frame.raw.txt frame.tga
 
-ifeq (ENABLE_AREPO,$(findstring ENABLE_AREPO,$(OPT)))
-  OBJS += arepo.o arepoInterp.o voronoi_3db.o
-  HEAD += arepo.h
-  LIBS += -lgsl -lgslcblas -lgmp -lhdf5 -pthread -L ./Arepo/ -larepo
-endif
+# ENABLE_AREPO
+OBJS += arepo.o arepoTree.o arepoInterp.o voronoi_3db.o
+HEAD += arepo.h arepoTree.h
+LIBS += -lgsl -lgslcblas -lgmp -lhdf5 -pthread -L ./Arepo/ -larepo
 
 OBJS := $(addprefix build/,$(OBJS))
 INCL := $(addprefix src/,$(INCL))

@@ -12,8 +12,6 @@
 #include "transfer.h"
 #include "util.h" // for numberOfCores()
 
-#ifdef ENABLE_AREPO
-
 // NNI_WATSON_SAMBRIDGE
 #define MAX_NUM_TETS 100
 #define MAX_NUM_NODES 400
@@ -21,6 +19,9 @@
 #define NODE_B 0
 #define NODE_C 1
 #define NODE_D 2
+
+// NATURAL_NEIGHBOR_INNER
+#define MAX_NON_INDS 800 // 500 for 455^3 ok
 
 // get primary hydro ID - handle local ghosts
 inline int ArepoMesh::getSphPID(int dp_id)
@@ -431,20 +432,6 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 				
 #if defined(NATURAL_NEIGHBOR_IDW) || defined(NATURAL_NEIGHBOR_SPHKERNEL)
 
-/* exponent of distance, greater values assign more influence to values closest to the 
- * interpolating point, approaching piecewise constant for large POWER_PARAM.
- * in N dimensions, if p <= N, the interpolated values are dominated by points far away,
- * which is rather bizarre. note: p is actually 2p since we skip the sqrt.
- */
-#define POWER_PARAM 2.0
-
-/* use <1 for more smoothing, makes hsml_used bigger than hsml_ngb_max
- * use >1 for less smoothing, make hsml_used smaller than hsml_ngb_max 
- *   (at least some some neighbors will not contribute, and if this is too big, the
- *    containing cell may also not contribute, leading to black holes)
- */
-#define HSML_FAC 0.95
-
 		float dx,dy,dz,xtmp,ytmp,ztmp;
 		float weight, weightsum=0, distsq;
 
@@ -459,7 +446,6 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 		int last_edge = SphP[sphInd].last_connection;
 		
 #ifdef NATURAL_NEIGHBOR_INNER
-#define MAX_NON_INDS 400
 		int pri_neighbor_inds[MAX_NON_INDS];
 		int k=0;
 #endif
@@ -966,5 +952,3 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 
 		return 1;
 }
-
-#endif // ENABLE_AREPO

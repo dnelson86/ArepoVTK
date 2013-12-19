@@ -1,0 +1,159 @@
+% Arepo Parameter File (ArepoVTK Testing)
+
+%----  Relevant files 
+
+InitCondFile	      ./Arepo2
+OutputDir           ./output
+EnergyFile          energy.txt
+InfoFile            info.txt
+TimingsFile         timings.txt
+CpuFile             cpu.txt
+RestartFile         restart
+OutputListFilename  output_list.txt
+
+% -------------------------------------------------------------
+% ------------------- CHECK DM ENDING OR NOT ------------------
+% -------------------------------------------------------------
+% ------------------- CHECK SF20 or SF150 ---------------------
+% -------------------------------------------------------------
+
+%I455
+%SnapshotFileBase    cutout.I455.h0.sf20  %_DM
+%I1820
+SnapshotFileBase    cutout.I1820.h0.sf20_DM %_itc
+
+%---- File formats
+
+ICFormat           3
+SnapFormat         3
+
+%---- CPU-time limits
+
+TimeLimitCPU              21600  % 6 hours in seconds
+CpuTimeBetRestartFile     7200   % 2 hours in seconds
+ResubmitOn                0
+ResubmitCommand           my-scriptfile 
+
+%----- Memory alloction
+
+MaxMemSize        3700         % sets maximum memory use in MByte
+BufferSize        100          % in MByte
+BufferSizeGravity 100
+
+%----- New
+
+MultipleDomains 1
+TopNodeFactor   5
+MaxTimeBinsWithoutDomainDecomposition 5
+
+%----- Mesh regularization options
+
+CellShapingFactor 0.2          % sets threshold for CM-displacement
+CellShapingSpeed  0.5          % sets speed of CM correction
+
+%ErrTolThetaInZeldovich 0.5    % tree opening parameter for inverse Zeldovich mesh correction
+%MeanVolume             1.0e30  % desired maximum volume of cells for Zeldovich mesh corrrection
+%MeanMass               3.0e-5  % desired maximum mass of cells for Zeldovich mesh corrrection
+
+%---- Caracteristics of run
+
+TimeBegin           0.0        % Begin of the simulation
+TimeMax	            1.0        % End of the simulation
+
+%I455 (snap 123)
+%BoxSize             3720.0
+%I1820 (snap 123)
+%BoxSize              3680.0
+%I1820 sf20 (snap 135)
+BoxSize              3560.0
+
+%---- Basic code options that set the type of simulation
+
+ComovingIntegrationOn    0
+PeriodicBoundariesOn     1
+CoolingOn		 1
+StarformationOn		 1
+
+%---- Cosmological parameters
+
+Omega0                    0.0
+OmegaLambda               0.0
+OmegaBaryon               0.0
+HubbleParam               0.0
+
+%---- Output frequency and output paramaters
+
+OutputListOn              0
+TimeBetSnapshot           0.1
+TimeOfFirstSnapshot       0.0
+TimeBetStatistics         0.01
+NumFilesPerSnapshot       1
+NumFilesWrittenInParallel 1
+
+%---- Accuracy of time integration
+
+TypeOfTimestepCriterion  0
+ErrTolIntAccuracy        0.025 
+CourantFac               0.4
+MaxRMSDisplacementFac    0.2
+MaxSizeTimestep          1e-2
+MinSizeTimestep          1e-10
+
+%---- Treatment of empty space and temperature limits
+
+MinimumDensityOnStartUp               1.0e-20
+LimitUBelowThisDensity                1.0e-20
+LimitUBelowCertainDensityToThisValue  1.0
+
+InitGasTemp            0
+MinGasTemp             0
+MinEgySpec             0
+
+%---- Tree algorithm, force accuracy, domain update frequency
+
+TypeOfOpeningCriterion       1
+ErrTolTheta                  0.7
+ErrTolForceAcc               0.0025
+
+%---- Initial density estimate
+
+DesNumNgb              32
+MaxNumNgbDeviation     2
+
+%---- System of units
+
+UnitLength_in_cm         3.085678e21        ;  1.0 kpc
+UnitMass_in_g            1.989e43           ;  1.0e10 solar masses
+UnitVelocity_in_cm_per_s 1e5                ;  1 km/sec
+GravityConstantInternal  0
+
+%---- Gravitational softening lengths
+
+MinGasHsmlFractional 0.25   % in principal obsolete
+GasSoftFactor      2.5
+SofteningGas       1.0
+SofteningHalo      0
+SofteningDisk      0
+SofteningBulge     0
+SofteningStars     0
+SofteningBndry     0
+SofteningGasMaxPhys       0.5
+SofteningHaloMaxPhys      0
+SofteningDiskMaxPhys      0
+SofteningBulgeMaxPhys     0           
+SofteningStarsMaxPhys     0
+SofteningBndryMaxPhys     0
+
+%---- Parameters for star formation model
+CritPhysDensity      0       % critical physical density for star formation(in cm^(-3))
+MaxSfrTimescale      2.27    % in internal time units (1.5)
+CritOverDensity      57.7    % overdensity threshold value
+TempSupernova        5.73e7  % in Kelvin (1.0e8)
+TempClouds           1000.0  % in Kelvin
+FactorSN             0.1     % changed internally
+FactorEVP            573.0   % (1000.0)
+TemperatureThresh    0
+TreecoolFile         ../Arepo/data/TREECOOL_fg_dec11
+
+% End
+
