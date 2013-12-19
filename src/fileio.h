@@ -52,6 +52,7 @@ public:
 		bool drawBBox, drawTetra, drawVoronoi;
 		bool projColDens, useDensGradients;		
 		
+		int nTreeNGB;
 		float viStepSize;
 		float rayMaxT;
 		float rgbLine[3], rgbTetra[3], rgbVoronoi[3];

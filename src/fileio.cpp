@@ -97,6 +97,7 @@ void ConfigSet::ReadFile(string cfgfile)
 		projColDens      = readValue<bool>("projColDens",     false);
 		useDensGradients = readValue<bool>("useDensGradients", true);
 
+		nTreeNGB         = readValue<int>("nTreeNGB",             0); // disabled by default
 		viStepSize       = readValue<float>("viStepSize",      0.0f); // disabled by default
 		rayMaxT          = readValue<float>("rayMaxT",         0.0f);
 		

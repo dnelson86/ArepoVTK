@@ -435,6 +435,8 @@ extern struct sph_particle_data
  *SphP,				/**< holds SPH particle data on local processor */
  *DomainSphBuf;			/**< buffer for SPH particle data in domain decomposition */
 
+extern int NTopnodes, NTopleaves;
+ 
 extern struct NODE
 {
   union
@@ -502,6 +504,11 @@ void endrun(int);
 int init(void); 
 void read_ic(const char *fname, int); 
 void determine_compute_nodes(void);
+ 
+void domain_Decomposition(void);
+void set_softenings(void);
+int ngb_treebuild(int npart);
+void ngb_treeallocate(void);
  
 void *mymalloc_fullinfo(const char *varname, size_t n, const char *func, const char *file, int linenr);
 void *mymalloc_movable_fullinfo(void *ptr, const char *varname, size_t n, const char *func, const char *file,int line);

@@ -5,7 +5,6 @@
  
 #ifndef AREPO_RT_AREPO_H
 #define AREPO_RT_AREPO_H
-#ifdef ENABLE_AREPO
 
 #ifdef DEUBG
 #define VERBOSE
@@ -128,5 +127,4 @@ private:
 		vector<int> vertexOffset;
 };
 
-#endif //ENABLE_AREPO
 #endif //AREPO_RT_AREPO_H

@@ -7,8 +7,6 @@
 
 #include "voronoi_3db.h"
 
-#ifdef ENABLE_AREPO
-
 const int access_triangles[4][3] = {
   {1, 3, 2},
   {0, 2, 3},
@@ -1136,5 +1134,3 @@ bool calc_circumcenter(tessellation *T, point *p0, int dp1, int dp2, int dp3, do
 	 
 	return true;
 }
-
-#endif // ENABLE_AREPO

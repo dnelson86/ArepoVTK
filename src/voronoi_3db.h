@@ -5,7 +5,6 @@
  
 #ifndef VORONOI_3DB_H
 #define VORONOI_3DB_H
-#ifdef ENABLE_AREPO
  
 #include "ArepoRT.h"
  
@@ -44,5 +43,4 @@ int find_next_cell_DC(tessellation *T, int cell, double p0[3], double dir[3], in
 // for delaunay based NNI
 bool calc_circumcenter(tessellation *T, point *p0, int dp1, int dp2, int dp3, double *cp);
 
-#endif // ENABLE_AREPO
 #endif // VORONOI_3DB_H

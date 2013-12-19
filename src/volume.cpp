@@ -7,21 +7,24 @@
 #include "spectrum.h"
 
 // Scene
-Scene::Scene(VolumeRegion *vr, ArepoMesh *am)
+Scene::Scene(VolumeRegion *vr, ArepoMesh *am, ArepoTree *at)
 {
 		IF_DEBUG(cout << "Scene() constructor." << endl);
 		
     volumeRegion = vr;
 		arepoMesh    = am;
+		arepoTree    = at;
 		
     if (volumeRegion) bound = volumeRegion->WorldBound();
-    if (arepoMesh) bound = Union(bound, arepoMesh->WorldBound());
+    if (arepoMesh)    bound = Union(bound, arepoMesh->WorldBound());
+		if (arepoTree)    bound = Union(bound, arepoTree->WorldBound());
 }
 
 Scene::~Scene()
 {
     delete volumeRegion;
 		delete arepoMesh;
+		delete arepoTree;
 }
 
 const BBox &Scene::WorldBound() const

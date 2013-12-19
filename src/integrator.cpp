@@ -12,7 +12,7 @@
 #include "camera.h"
 #include "renderer.h"
 
-// EmissionIntegrator
+// ------------------------------- EmissionIntegrator -------------------------------
 void EmissionIntegrator::RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene)
 {
     tauSampleOffset = sample->Add1D(1);
@@ -88,7 +88,7 @@ EmissionIntegrator *CreateEmissionVolumeIntegrator(const float stepSize)
     return new EmissionIntegrator(stepSize);
 }
 
-// VoronoiIntegrator
+// ------------------------------- VoronoiIntegrator -------------------------------
 void VoronoiIntegrator::Preprocess(const Scene *scene, const Camera *camera, const Renderer *renderer)
 {
 		// find entry voronoi cells for rays
@@ -216,4 +216,119 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 VoronoiIntegrator *CreateVoronoiVolumeIntegrator()
 {
     return new VoronoiIntegrator();
+}
+
+// ------------------------------- TreeSearchIntegrator -------------------------------
+void TreeSearchIntegrator::Preprocess(const Scene *scene, const Camera *camera, const Renderer *renderer)
+{
+		// distribute rays to appropriate start tasks
+		// based on tree topnodes
+}
+
+void TreeSearchIntegrator::RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene)
+{
+    tauSampleOffset = sample->Add1D(1);
+    scatterSampleOffset = sample->Add1D(1);
+}
+
+Spectrum TreeSearchIntegrator::Transmittance(const Scene *scene, const Renderer *renderer, const Ray &ray,
+																					   const Sample *sample, RNG &rng) const
+{
+		cout << "CHECK" << endl;
+		endrun(1196);
+		return Spectrum(1.0f); // added just to suppress return warning, CHECK
+}
+
+Spectrum TreeSearchIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
+															    const Sample *sample, RNG &rng, Spectrum *T,
+																  int *prevEntryCell, int *prevEntryTetra, int threadNum) const
+{
+		IF_DEBUG(cout << "TreeSearchIntegrator::Li()" << endl);
+		
+    double t0, t1;
+		
+    if (!scene->arepoTree || !scene->arepoTree->IntersectP(ray, &t0, &t1) || (t1-t0) == 0.0f) {
+				IF_DEBUG(cout << " Returning! IntersectP t0 = " << t0 << " t1 = " << t1 << endl);
+        *T = Spectrum(1.0f);
+        return 0.0f;
+    }
+			
+		// do emission only volume integration in AM
+		Spectrum Lv(0.0);
+		Spectrum Tr(1.0f);
+		
+		// propagate ray to arepo box, set exit point
+		ray.min_t = t0 /*+ 0.0*/;
+		ray.max_t = t1;
+		
+#ifdef DEBUG
+		ray(t0).print(" hitbox ");
+		ray(t1).print(" exitbox ");
+#endif		
+		
+		// maximum ray integration length from config
+		if (Config.rayMaxT && Config.rayMaxT < ray.max_t)
+				ray.max_t = Config.rayMaxT;
+				
+		IF_DEBUG(cout << " t0 = " << t0 << " t1 = " << t1
+									<< " ray.min_t = " << ray.min_t << " ray.max_t = " << ray.max_t << endl);		
+		
+
+		// TODO: find initial tasks and exchange (or in preprocess)?
+		ray.task = 0;
+		ray.prevHSML = 10.0;
+		
+		// advance ray through box
+#ifdef DEBUG
+		int count = 0;
+
+		Point p = ray(ray.min_t);
+		cout << " TreeSearchIntegrator::Li(iter=" << count << ") Lv.y = " << setw(6) << Lv.y()
+				 << " Tr.y = " << Tr.y() << " ray.x = " << setw(5) << p.x 
+				 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl;
+#endif			 
+		while( true ) {
+#ifdef DEBUG
+				count++;
+
+				p = ray(ray.min_t);
+				cout << " TreeSearchIntegrator::Li(iter=" << count << ") Lv.y = " << setw(5) << Lv.y()
+						 << " Tr.y = " << setw(2) << Tr.y() << " ray.x = " << setw(5) << p.x 
+						 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << " (depth=" << ray.depth << ")" << endl;
+
+				if (count > 10000) {
+						cout << "COUNT > 10000 (Breaking)" << endl;
+						break;
+				}
+#endif
+				if (!scene->arepoTree->AdvanceRayOneStep(ray, &t0, &t1, Lv, Tr, threadNum) )
+						break;
+				
+        // roulette terminate ray marching if transmittance is small
+        if (Tr.y() < 1e-3) {
+            const float continueProb = 0.5f;
+						
+#ifdef DEBUG
+						Point p = ray(ray.min_t);
+						cout << " roulette ray.x = " << p.x << " y = " << p.y << " z = " << p.z << " tr.y = " << Tr.y() << endl;
+#endif
+													
+            if (rng.RandomFloat() > continueProb)
+								break;
+            Tr /= continueProb;
+        }
+		}
+#ifdef DEBUG
+		p = ray(ray.min_t);
+		cout << " TreeSearchIntegrator::Li(done_f) Lv.y = " << setw(6) << Lv.y()
+				 << " Tr.y = " << Tr.y() << " ray.x = " << setw(5) << p.x 
+				 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl << endl;
+#endif
+    *T = Tr;
+		return Lv;
+}
+
+TreeSearchIntegrator *CreateTreeSearchVolumeIntegrator()
+{
+    return new TreeSearchIntegrator();
 }

@@ -2,23 +2,23 @@
 
 % Input/Output
 % ------------
-imageFile      = frames_455/volRend.I455.h0.123.edge40.px800.ss0.5_logTemp_config5g_test_delete.tga    % output TGA
+imageFile      = frames_455/volRend.I455.h0.123.edge40.px800.ss0.5_logTemp_config5g_tree20.tga    % output TGA
 rawRGBFile     = frame.raw.txt                   % output: raw dump of floats (debug only)
 filename       = output/cutout.I455.h0.sf20_123  % input: simulation snapshot (no extension)
 paramFilename  = param_I455.txt                  % input: Arepo parameter file
 
 % General
 % -------
-nCores         = 8                   % number of cores to use (0=all)
-nTasks         = 32                  % number of tasks/threads to run (0=auto)
+nCores         = 32                   % number of cores to use (0=all)
+nTasks         = 128                  % number of tasks/threads to run (0=auto)
 quickRender    = false                % unused
 openWindow     = false                % unused
 verbose        = true                 % report more information
 
 % Frame
 % -----
-imageXPixels   = 20                 % frame resolution (X), e.g. 1024, 1920
-imageYPixels   = 20                 % frame resolution (Y), e.g. 768,  1080
+imageXPixels   = 800                 % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 800                % frame resolution (Y), e.g. 768,  1080
 swScale        = 1820.0              % screenWindow mult factor * [-1,1]
 
 % Camera
@@ -101,6 +101,7 @@ drawVoronoi      = false             % DO NOT CHANGE
 projColDens      = false             % integrate quantities (density, etc) along each path 
                                      % length, to make e.g. a "projected column density" image
 useDensGradients = true              % use density gradient within cells
+nTreeNGB         = 20                % use tree-based search integrator instead of mesh (0=disabled)
 viStepSize       = 0.5               % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
 rayMaxT          = 3640.0            % maximum ray integration parametric length

@@ -25,12 +25,13 @@ public:
 };
 
 #include "arepo.h"
+#include "arepoTree.h"
 
 // Scene
 class Scene {
 public:
     // construction
-    Scene(VolumeRegion *vr, ArepoMesh* am);
+    Scene(VolumeRegion *vr, ArepoMesh* am, ArepoTree* at);
     ~Scene();
 		
     //bool Intersect(const Ray &ray, Intersection *isect) const {
@@ -46,6 +47,7 @@ public:
     // data
     VolumeRegion *volumeRegion;
 		ArepoMesh *arepoMesh;
+		ArepoTree *arepoTree;
     BBox bound;
 };
 

@@ -7,7 +7,7 @@
 #define AREPO_RT_H
 
 // defines
-#define AREPO_RT_VERSION    0.40
+#define AREPO_RT_VERSION    0.41
 #define L1_CACHE_LINE_SIZE  64
 #define FILTER_TABLE_SIZE   16
 #define TASK_MULT_FACT      8 //32
@@ -25,9 +25,9 @@
 
 /* interpolation methods (choose one) */
 
-#define NATURAL_NEIGHBOR_INTERP
+//#define NATURAL_NEIGHBOR_INTERP
 //#define NATURAL_NEIGHBOR_IDW
-//#define NATURAL_NEIGHBOR_SPHKERNEL
+#define NATURAL_NEIGHBOR_SPHKERNEL
 //#define NNI_WATSON_SAMBRIDGE
 //#define NNI_LIANG_HALE
 //#define DTFE_INTERP
@@ -40,9 +40,21 @@
                             // periodic meshing, the ghosts are incorrect and should be skipped)
 //#define NNI_DISABLE_EXACT // for bruteforce NNI disable exact geometry computations
 //#define NATURAL_NEIGHBOR_INNER // for IDW or SPHKERNEL do neighbors of neighbors
-//#define N_NEAREST_NEIGHBORS 32 // for IDW or SPHKERNEL, apply to N nearest neighbors (spherical)
-                                 // using tree searches, i.e. not the mesh
 //#define BRUTE_FORCE            // for IDW or SPHKERNEL, calculate over all NumGas in the box
+
+/* exponent of distance, greater values assign more influence to values closest to the 
+ * interpolating point, approaching piecewise constant for large POWER_PARAM.
+ * in N dimensions, if p <= N, the interpolated values are dominated by points far away,
+ * which is rather bizarre. note: p is actually 2p since we skip the sqrt.
+ */
+#define POWER_PARAM 2.0
+
+/* use <1 for more smoothing, makes hsml_used bigger than hsml_ngb_max
+ * use >1 for less smoothing, make hsml_used smaller than hsml_ngb_max 
+ *   (at least some some neighbors will not contribute, and if this is too big, the
+ *    containing cell may also not contribute, leading to black holes)
+ */
+#define HSML_FAC 1.0
 
 /* special behavior */
 //#define DEBUG_VERIFY_INCELL_EACH_STEP
@@ -56,13 +68,6 @@
 #define IF_DEBUG(expr) (expr)
 #else
 #define IF_DEBUG(expr) ((void)0)
-#endif
-
-#ifdef ENABLE_AREPO
-#define IF_AREPO(expr) (expr)
-#else
-#define IF_AREPO(expr) ((void)0)
-typedef int ArepoMesh; //pointers
 #endif
 
 // includes
@@ -116,20 +121,17 @@ class Sampler;
 struct CameraSample;
 struct Sample;
 
-#ifdef ENABLE_AREPO
 class Arepo;
 class ArepoMesh;
-#endif
-
+class ArepoTree;
 class Scene;
 class VolumeRegion;
 class DensityRegion;
 class VolumeGridDensity;
 class TransferFunction;
-
 class VolumeIntegrator;
 class VoronoiIntegrator;
-
+class TreeSearchIntegrator;
 class Timer;
 
 // global inlines

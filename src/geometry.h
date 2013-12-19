@@ -182,6 +182,7 @@ public:
 		mutable int index, task;    // index and task of the primary voronoi cell in which this ray is located
 		mutable int prev_index;     // index of the primary voronoi cell where the ray was last
     mutable int depth; // counter of ViStepSize steps
+		mutable float prevHSML; // for nTreeNGB > 0
 		mutable int tetra; // DT index of the Delaunay tetra this ray is in (or was in last)
     double time;
 };

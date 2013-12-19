@@ -1,0 +1,968 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  ms/call  ms/call  name    
+ 37.45     12.93    12.93 33234179     0.00     0.00  derefine_refine_process_edge_new(tessellation_data*, double*, int, int, unsigned char*)
+ 14.74     18.02     5.09                             solve_linear_equations
+  9.21     21.20     3.18                             InSphere_Errorbound
+  7.30     23.72     2.52                             MY_mpz_set_si
+  4.14     25.15     1.43  2783577     0.00     0.00  insert_point_new(tessellation_data*, int, int)
+  3.91     26.50     1.35                             MY_mpz_mul_si
+  2.87     27.49     0.99                             InSphere_Exact
+  2.55     28.37     0.88                             update_circumcircle
+  2.52     29.24     0.87                             InTetra
+  2.46     30.09     0.85                             make_a_2_to_3_flip
+  2.26     30.87     0.78   725534     0.00     0.02  compute_auxmesh_volumes(tessellation_data*, double*)
+  1.56     31.41     0.54                             Orient3d_Exact
+  1.45     31.91     0.50                             convex_edge_test
+  1.07     32.28     0.37                             derefine_refine_get_triangles
+  0.87     32.58     0.30   362010     0.00     0.04  ArepoMesh::subSampleCell(int, int, Vector&, float*, int)
+  0.87     32.88     0.30                             make_a_3_to_2_flip
+  0.75     33.14     0.26                             MY_mpz_sub_ui
+  0.75     33.40     0.26                             set_integers_for_pointer
+  0.72     33.65     0.25                             make_a_4_to_4_flip
+  0.67     33.88     0.23                             make_a_1_to_4_flip
+  0.58     34.08     0.20                             compute_circumcircles
+  0.20     34.15     0.07                             get_tetra
+  0.14     34.20     0.05   362297     0.00     0.00  TransferFunc1D::Lve(float const*) const
+  0.14     34.25     0.05   362497     0.00     0.00  init_clear_auxmesh(tessellation_data*)
+  0.12     34.29     0.04    67812     0.00     0.00  make_an_edge_split_new(tessellation_data*, int, int, int, int, int*)
+  0.12     34.33     0.04                             Orient3d_Quick
+  0.09     34.36     0.03   359281     0.00     0.00  TransferFunction::Lve(float const*) const
+  0.06     34.38     0.02    83650     0.00     0.19  ArepoMesh::AdvanceRayOneCellNew(Ray const&, float*, float*, int, RGBSpectrum&, RGBSpectrum&, int)
+  0.06     34.40     0.02    36692     0.00     0.00  ArepoMesh::FindNearestGasParticle(Point&, int, double*)
+  0.06     34.42     0.02                             InSphere_Gauss
+  0.06     34.44     0.02                             get_tri_volume
+  0.03     34.45     0.01    39527     0.00     0.00  StratifiedSampler::GetMoreSamples(Sample*, RNG&)
+  0.03     34.46     0.01    39500     0.00     0.40  VoronoiIntegrator::Li(Scene const*, Renderer const*, Ray const&, Sample const*, RNG&, RGBSpectrum*, int*, int) const
+  0.03     34.47     0.01    36713     0.00     0.00  ArepoMesh::LocateEntryCell(Ray const&, int*)
+  0.03     34.48     0.01       16     0.63   980.95  RendererTask::Run()
+  0.03     34.49     0.01        1    10.00    10.00  WriteImage(std::string const&, float*, float*, int, int, int, int, int, int)
+  0.03     34.50     0.01        1    10.00    20.00  Film::WriteImage(float)
+  0.03     34.51     0.01                             get_circumcircle_exact
+  0.03     34.52     0.01                             test_tetra_orientation
+  0.01     34.53     0.01    39577     0.00     0.00  BBox::IntersectP(Ray const&, float*, float*) const
+  0.01     34.53     0.01        1     5.00     5.00  _GLOBAL__sub_I__ZN9ConfigSet8ReadFileESs
+  0.00     34.53     0.00   237330     0.00     0.00  RNG::RandomUInt() const
+  0.00     34.53     0.00    79120     0.00     0.00  LatinHypercube(float*, unsigned int, unsigned int, RNG&)
+  0.00     34.53     0.00    79120     0.00     0.00  StratifiedSample2D(float*, int, int, RNG&, bool)
+  0.00     34.53     0.00    39566     0.00     0.00  StratifiedSample1D(float*, int, RNG&, bool)
+  0.00     34.53     0.00    39535     0.00     0.00  Film::AddSample(CameraSample const&, RGBSpectrum const&)
+  0.00     34.53     0.00    39434     0.00     0.00  Sampler::ReportResults(Sample*, Ray const*, RGBSpectrum const*, int)
+  0.00     34.53     0.00    39404     0.00     0.00  OrthoCamera::GenerateRay(CameraSample const&, Ray*) const
+  0.00     34.53     0.00      256     0.00     0.00  BoxFilter::Evaluate(float, float) const
+  0.00     34.53     0.00       63     0.00     0.00  MPI::Datatype::Create_contiguous(int) const
+  0.00     34.53     0.00       35     0.00     0.00  FreeAligned(void*)
+  0.00     34.53     0.00       35     0.00     0.00  AllocAligned(unsigned long)
+  0.00     34.53     0.00       34     0.00     0.00  ConfigSet::ReadFile(std::string)
+  0.00     34.53     0.00       32     0.00     0.00  std::vector<unsigned int, std::allocator<unsigned int> >::operator=(std::vector<unsigned int, std::allocator<unsigned int> > const&)
+  0.00     34.53     0.00       27     0.00     0.00  std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<std::string const, std::string> const&)
+  0.00     34.53     0.00       27     0.00     0.00  std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, std::string> >, std::pair<std::string const, std::string> const&)
+  0.00     34.53     0.00       26     0.00     0.00  std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::find(std::string const&) const
+  0.00     34.53     0.00       17     0.00     0.00  StratifiedSampler::~StratifiedSampler()
+  0.00     34.53     0.00       17     0.00     0.00  Timer::Time()
+  0.00     34.53     0.00       17     0.00     0.00  Timer::Start()
+  0.00     34.53     0.00       17     0.00     0.00  Timer::Timer()
+  0.00     34.53     0.00       17     0.00     0.00  Sample::AllocateSampleMemory()
+  0.00     34.53     0.00       16     0.00     0.00  RendererTask::~RendererTask()
+  0.00     34.53     0.00       16     0.00     0.00  Film::UpdateDisplay(int, int, int, int, float)
+  0.00     34.53     0.00       16     0.00     0.00  Task::~Task()
+  0.00     34.53     0.00       16     0.00     0.00  RNG::Seed(unsigned int) const
+  0.00     34.53     0.00       15     0.00     0.00  StratifiedSampler::GetSubSampler(int, int)
+  0.00     34.53     0.00       15     0.00     0.00  Sample::Duplicate(int) const
+  0.00     34.53     0.00       15     0.00     0.00  Sampler::ComputeSubWindow(int, int, int*, int*, int*, int*) const
+  0.00     34.53     0.00       14     0.00     0.00  StratifiedSampler::MaximumSampleCount()
+  0.00     34.53     0.00       13     0.00     0.00  std::vector<float, std::allocator<float> >::_M_insert_aux(__gnu_cxx::__normal_iterator<float*, std::vector<float, std::allocator<float> > >, float const&)
+  0.00     34.53     0.00       12     0.00     0.00  std::vector<int, std::allocator<int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<int*, std::vector<int, std::allocator<int> > >, int const&)
+  0.00     34.53     0.00       10     0.00     0.00  TransferFunction::TransferFunction(RGBSpectrum const&)
+  0.00     34.53     0.00        7     0.00     0.00  std::vector<Vector, std::allocator<Vector> >::_M_insert_aux(__gnu_cxx::__normal_iterator<Vector*, std::vector<Vector, std::allocator<Vector> > >, Vector const&)
+  0.00     34.53     0.00        6     0.00     0.00  bool ConfigSet::string_to_T<bool>(std::string const&)
+  0.00     34.53     0.00        5     0.00     0.00  std::vector<Task*, std::allocator<Task*> >::_M_insert_aux(__gnu_cxx::__normal_iterator<Task**, std::vector<Task*, std::allocator<Task*> > >, Task* const&)
+  0.00     34.53     0.00        5     0.00     0.00  std::vector<std::string, std::allocator<std::string> >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::string*, std::vector<std::string, std::allocator<std::string> > >, std::string const&)
+  0.00     34.53     0.00        5     0.00     0.00  std::vector<std::pair<int, int>, std::allocator<std::pair<int, int> > >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::pair<int, int>*, std::vector<std::pair<int, int>, std::allocator<std::pair<int, int> > > >, std::pair<int, int> const&)
+  0.00     34.53     0.00        5     0.00     0.00  std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<std::string const, int> const&)
+  0.00     34.53     0.00        5     0.00     0.00  std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, int> >, std::pair<std::string const, int> const&)
+  0.00     34.53     0.00        4     0.00     0.00  float ConfigSet::string_to_T<float>(std::string const&)
+  0.00     34.53     0.00        4     0.00     0.00  int ConfigSet::string_to_T<int>(std::string const&)
+  0.00     34.53     0.00        4     0.00     0.00  MutexLock::~MutexLock()
+  0.00     34.53     0.00        4     0.00     0.00  Transform::operator*(Transform const&) const
+  0.00     34.53     0.00        3     0.00     0.00  BoxFilter::~BoxFilter()
+  0.00     34.53     0.00        2     0.00     0.00  Scale(float, float, float)
+  0.00     34.53     0.00        2     0.00     0.00  std::vector<unsigned int, std::allocator<unsigned int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<unsigned int*, std::vector<unsigned int, std::allocator<unsigned int> > >, unsigned int const&)
+  0.00     34.53     0.00        2     0.00     0.00  std::_Rb_tree<int, std::pair<int const, int>, std::_Select1st<std::pair<int const, int> >, std::less<int>, std::allocator<std::pair<int const, int> > >::_M_erase(std::_Rb_tree_node<std::pair<int const, int> >*)
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z18init_clear_auxmeshP17tessellation_data
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__Z26rtIsoDiskCosmoCutoutRenderv
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN12RendererTask3RunEv
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN14TransferFunc1DC2EssRSt6vectorIfSaIfEERS0_I11RGBSpectrumSaIS4_EESs
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN18EmissionIntegrator14RequestSamplesEP7SamplerP6SamplePK5Scene
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN4BBox5EdgesEPSt6vectorI4LineSaIS1_EE
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN5Arepo4InitEPiPPPc
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN5SceneC2EP12VolumeRegionP9ArepoMesh
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN5TimerC2Ev
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN6FilterD2Ev
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN7SamplerD2Ev
+  0.00     34.53     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN9Matrix4x4C2EPA4_f
+  0.00     34.53     0.00        1     0.00     0.00  CreateFilm(Filter*)
+  0.00     34.53     0.00        1     0.00     0.00  startTasks(std::vector<Task*, std::allocator<Task*> > const&)
+  0.00     34.53     0.00        1     0.00     0.00  Orthographic(float, float)
+  0.00     34.53     0.00        1     0.00     0.00  TasksCleanup()
+  0.00     34.53     0.00        1     0.00     0.00  ReadFloatFile(char const*, std::vector<float, std::allocator<float> >*)
+  0.00     34.53     0.00        1     0.00     0.00  numberOfCores()
+  0.00     34.53     0.00        1     0.00     0.00  CreateBoxFilter()
+  0.00     34.53     0.00        1     0.00    20.00  rtTestRenderScene(std::string)
+  0.00     34.53     0.00        1     0.00     0.00  waitUntilAllTasksDone()
+  0.00     34.53     0.00        1     0.00     0.00  loadDiscreteColorTable(std::string const&, std::vector<float, std::allocator<float> >*)
+  0.00     34.53     0.00        1     0.00     0.00  CreateStratifiedSampler(Film const*, Camera const*)
+  0.00     34.53     0.00        1     0.00     0.00  CreateOrthographicCamera(Transform const&, Film*)
+  0.00     34.53     0.00        1     0.00     0.00  CreateVoronoiVolumeIntegrator()
+  0.00     34.53     0.00        1     0.00     0.00  Union(BBox const&, BBox const&)
+  0.00     34.53     0.00        1     0.00     0.00  LookAt(Point const&, Point const&, Vector const&)
+  0.00     34.53     0.00        1     0.00     0.00  Inverse(Matrix4x4 const&)
+  0.00     34.53     0.00        1     0.00     0.00  TasksInit()
+  0.00     34.53     0.00        1     0.00     0.00  Translate(Vector const&)
+  0.00     34.53     0.00        1     0.00     0.00  OrthoCamera::OrthoCamera(Transform const&, float const*, float, float, float, float, Film*)
+  0.00     34.53     0.00        1     0.00     0.00  OrthoCamera::~OrthoCamera()
+  0.00     34.53     0.00        1     0.00     0.00  TransferFunc1D::CheckReverse()
+  0.00     34.53     0.00        1     0.00     0.00  TransferFunc1D::TransferFunc1D(short, short, std::vector<float, std::allocator<float> >&, std::vector<RGBSpectrum, std::allocator<RGBSpectrum> >&, std::string)
+  0.00     34.53     0.00        1     0.00     0.00  TransferFunction::AddParseString(std::string&)
+  0.00     34.53     0.00        1     0.00     0.00  TransferFunction::AddConstantDiscrete(int, std::string, float, float)
+  0.00     34.53     0.00        1     0.00     0.00  VoronoiIntegrator::Preprocess(Scene const*, Camera const*, Renderer const*)
+  0.00     34.53     0.00        1     0.00     0.00  VoronoiIntegrator::RequestSamples(Sampler*, Sample*, Scene const*)
+  0.00     34.53     0.00        1     0.00     0.00  VoronoiIntegrator::~VoronoiIntegrator()
+  0.00     34.53     0.00        1     0.00     0.00  Film::Film(int, int, Filter*, float const*, std::string const&, bool)
+  0.00     34.53     0.00        1     0.00     0.00  Arepo::LoadSnapshot()
+  0.00     34.53     0.00        1     0.00     0.00  Arepo::Init(int*, char***)
+  0.00     34.53     0.00        1     0.00     0.00  Arepo::Cleanup()
+  0.00     34.53     0.00        1     0.00     0.00  Arepo::~Arepo()
+  0.00     34.53     0.00        1     0.00     0.00  Mutex::Create()
+  0.00     34.53     0.00        1     0.00     0.00  Scene::Scene(VolumeRegion*, ArepoMesh*)
+  0.00     34.53     0.00        1     0.00     0.00  Scene::~Scene()
+  0.00     34.53     0.00        1     0.00     0.00  Camera::Camera(Transform const&, Transform const&, float const*, float, float, float, float, Film*)
+  0.00     34.53     0.00        1     0.00     0.00  Sample::Sample(Sampler*, VolumeIntegrator*, Scene const*)
+  0.00     34.53     0.00        1     0.00    20.00  Renderer::Render(Scene const*)
+  0.00     34.53     0.00        1     0.00     0.00  Renderer::Renderer(Sampler*, Camera*, VolumeIntegrator*)
+  0.00     34.53     0.00        1     0.00     0.00  Renderer::~Renderer()
+  0.00     34.53     0.00        1     0.00     0.00  ArepoMesh::CalculateMidpoints()
+  0.00     34.53     0.00        1     0.00     0.00  ArepoMesh::ComputeQuantityBounds()
+  0.00     34.53     0.00        1     0.00     0.00  ArepoMesh::ArepoMesh(TransferFunction const*)
+  0.00     34.53     0.00        1     0.00     0.00  ArepoMesh::~ArepoMesh()
+  0.00     34.53     0.00        1     0.00     0.00  ConfigSet::print()
+  0.00     34.53     0.00        1     0.00     0.00  Film::GetSampleExtent(int*, int*, int*, int*) const
+  0.00     34.53     0.00        1     0.00     0.00  std::vector<TransferFunc1D*, std::allocator<TransferFunc1D*> >::_M_insert_aux(__gnu_cxx::__normal_iterator<TransferFunc1D**, std::vector<TransferFunc1D*, std::allocator<TransferFunc1D*> > >, TransferFunc1D* const&)
+  0.00     34.53     0.00        1     0.00     0.00  std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique(std::pair<std::string const, std::string> const&)
+  0.00     34.53     0.00        1     0.00     0.00  std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_erase(std::_Rb_tree_node<std::pair<std::string const, std::string> >*)
+  0.00     34.53     0.00        1     0.00     0.00  std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique(std::pair<std::string const, int> const&)
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+ 
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this 
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 2 byte(s) for 0.03% of 34.53 seconds
+
+index % time    self  children    called     name
+                0.01   15.69      16/16          _ZL14taskEntryPointPv [2]
+[1]     45.5    0.01   15.69      16         RendererTask::Run() [1]
+                0.01   15.67   39500/39500       VoronoiIntegrator::Li(Scene const*, Renderer const*, Ray const&, Sample const*, RNG&, RGBSpectrum*, int*, int) const [3]
+                0.01    0.00   39527/39527       StratifiedSampler::GetMoreSamples(Sample*, RNG&) [42]
+                0.00    0.00   39535/39535       Film::AddSample(CameraSample const&, RGBSpectrum const&) [444]
+                0.00    0.00   39434/39434       Sampler::ReportResults(Sample*, Ray const*, RGBSpectrum const*, int) [445]
+                0.00    0.00   39404/39404       OrthoCamera::GenerateRay(CameraSample const&, Ray*) const [446]
+                0.00    0.00      32/35          FreeAligned(void*) [449]
+                0.00    0.00      16/17          Timer::Timer() [459]
+                0.00    0.00      16/17          Timer::Start() [458]
+                0.00    0.00      16/16          RNG::Seed(unsigned int) const [464]
+                0.00    0.00      16/17          Timer::Time() [457]
+                0.00    0.00      16/16          Film::UpdateDisplay(int, int, int, int, float) [462]
+                0.00    0.00      16/17          StratifiedSampler::~StratifiedSampler() [456]
+                0.00    0.00      15/15          StratifiedSampler::GetSubSampler(int, int) [465]
+                0.00    0.00      15/15          Sample::Duplicate(int) const [466]
+                0.00    0.00      14/14          StratifiedSampler::MaximumSampleCount() [468]
+-----------------------------------------------
+                                                 <spontaneous>
+[2]     45.5    0.00   15.70                 _ZL14taskEntryPointPv [2]
+                0.01   15.69      16/16          RendererTask::Run() [1]
+                0.00    0.00       4/4           MutexLock::~MutexLock() [481]
+-----------------------------------------------
+                0.01   15.67   39500/39500       RendererTask::Run() [1]
+[3]     45.4    0.01   15.67   39500         VoronoiIntegrator::Li(Scene const*, Renderer const*, Ray const&, Sample const*, RNG&, RGBSpectrum*, int*, int) const [3]
+                0.02   15.61   83650/83650       ArepoMesh::AdvanceRayOneCellNew(Ray const&, float*, float*, int, RGBSpectrum&, RGBSpectrum&, int) [4]
+                0.01    0.02   36713/36713       ArepoMesh::LocateEntryCell(Ray const&, int*) [32]
+                0.01    0.00   39577/39577       BBox::IntersectP(Ray const&, float*, float*) const [44]
+-----------------------------------------------
+                0.02   15.61   83650/83650       VoronoiIntegrator::Li(Scene const*, Renderer const*, Ray const&, Sample const*, RNG&, RGBSpectrum*, int*, int) const [3]
+[4]     45.3    0.02   15.61   83650         ArepoMesh::AdvanceRayOneCellNew(Ray const&, float*, float*, int, RGBSpectrum&, RGBSpectrum&, int) [4]
+                0.30   15.23  362010/362010      ArepoMesh::subSampleCell(int, int, Vector&, float*, int) [5]
+                0.03    0.05  359281/359281      TransferFunction::Lve(float const*) const [26]
+-----------------------------------------------
+                0.30   15.23  362010/362010      ArepoMesh::AdvanceRayOneCellNew(Ray const&, float*, float*, int, RGBSpectrum&, RGBSpectrum&, int) [4]
+[5]     45.0    0.30   15.23  362010         ArepoMesh::subSampleCell(int, int, Vector&, float*, int) [5]
+                0.78   12.93  725534/725534      compute_auxmesh_volumes(tessellation_data*, double*) [6]
+                1.43    0.04 2783577/2783577     insert_point_new(tessellation_data*, int, int) [11]
+                0.05    0.00  362497/362497      init_clear_auxmesh(tessellation_data*) [29]
+-----------------------------------------------
+                0.78   12.93  725534/725534      ArepoMesh::subSampleCell(int, int, Vector&, float*, int) [5]
+[6]     39.7    0.78   12.93  725534         compute_auxmesh_volumes(tessellation_data*, double*) [6]
+               12.93    0.00 33234179/33234179     derefine_refine_process_edge_new(tessellation_data*, double*, int, int, unsigned char*) [7]
+-----------------------------------------------
+               12.93    0.00 33234179/33234179     compute_auxmesh_volumes(tessellation_data*, double*) [6]
+[7]     37.4   12.93    0.00 33234179         derefine_refine_process_edge_new(tessellation_data*, double*, int, int, unsigned char*) [7]
+-----------------------------------------------
+                                                 <spontaneous>
+[8]     14.7    5.09    0.00                 solve_linear_equations [8]
+-----------------------------------------------
+                                                 <spontaneous>
+[9]      9.2    3.18    0.00                 InSphere_Errorbound [9]
+-----------------------------------------------
+                                                 <spontaneous>
+[10]     7.3    2.52    0.00                 MY_mpz_set_si [10]
+-----------------------------------------------
+                1.43    0.04 2783577/2783577     ArepoMesh::subSampleCell(int, int, Vector&, float*, int) [5]
+[11]     4.3    1.43    0.04 2783577         insert_point_new(tessellation_data*, int, int) [11]
+                0.04    0.00   67812/67812       make_an_edge_split_new(tessellation_data*, int, int, int, int, int*) [31]
+-----------------------------------------------
+                                                 <spontaneous>
+[12]     3.9    1.35    0.00                 MY_mpz_mul_si [12]
+-----------------------------------------------
+                                                 <spontaneous>
+[13]     2.9    0.99    0.00                 InSphere_Exact [13]
+-----------------------------------------------
+                                                 <spontaneous>
+[14]     2.5    0.88    0.00                 update_circumcircle [14]
+-----------------------------------------------
+                                                 <spontaneous>
+[15]     2.5    0.87    0.00                 InTetra [15]
+-----------------------------------------------
+                                                 <spontaneous>
+[16]     2.5    0.85    0.00                 make_a_2_to_3_flip [16]
+-----------------------------------------------
+                                                 <spontaneous>
+[17]     1.6    0.54    0.00                 Orient3d_Exact [17]
+-----------------------------------------------
+                                                 <spontaneous>
+[18]     1.4    0.50    0.00                 convex_edge_test [18]
+-----------------------------------------------
+                                                 <spontaneous>
+[19]     1.1    0.37    0.00                 derefine_refine_get_triangles [19]
+-----------------------------------------------
+                                                 <spontaneous>
+[20]     0.9    0.30    0.00                 make_a_3_to_2_flip [20]
+-----------------------------------------------
+                                                 <spontaneous>
+[21]     0.8    0.26    0.00                 MY_mpz_sub_ui [21]
+-----------------------------------------------
+                                                 <spontaneous>
+[22]     0.8    0.26    0.00                 set_integers_for_pointer [22]
+-----------------------------------------------
+                                                 <spontaneous>
+[23]     0.7    0.25    0.00                 make_a_4_to_4_flip [23]
+-----------------------------------------------
+                                                 <spontaneous>
+[24]     0.7    0.23    0.00                 make_a_1_to_4_flip [24]
+-----------------------------------------------
+                                                 <spontaneous>
+[25]     0.6    0.20    0.00                 compute_circumcircles [25]
+-----------------------------------------------
+                0.03    0.05  359281/359281      ArepoMesh::AdvanceRayOneCellNew(Ray const&, float*, float*, int, RGBSpectrum&, RGBSpectrum&, int) [4]
+[26]     0.2    0.03    0.05  359281         TransferFunction::Lve(float const*) const [26]
+                0.05    0.00  362297/362297      TransferFunc1D::Lve(float const*) const [28]
+-----------------------------------------------
+                                                 <spontaneous>
+[27]     0.2    0.07    0.00                 get_tetra [27]
+-----------------------------------------------
+                0.05    0.00  362297/362297      TransferFunction::Lve(float const*) const [26]
+[28]     0.1    0.05    0.00  362297         TransferFunc1D::Lve(float const*) const [28]
+-----------------------------------------------
+                0.05    0.00  362497/362497      ArepoMesh::subSampleCell(int, int, Vector&, float*, int) [5]
+[29]     0.1    0.05    0.00  362497         init_clear_auxmesh(tessellation_data*) [29]
+-----------------------------------------------
+                                                 <spontaneous>
+[30]     0.1    0.04    0.00                 Orient3d_Quick [30]
+-----------------------------------------------
+                0.04    0.00   67812/67812       insert_point_new(tessellation_data*, int, int) [11]
+[31]     0.1    0.04    0.00   67812         make_an_edge_split_new(tessellation_data*, int, int, int, int, int*) [31]
+-----------------------------------------------
+                0.01    0.02   36713/36713       VoronoiIntegrator::Li(Scene const*, Renderer const*, Ray const&, Sample const*, RNG&, RGBSpectrum*, int*, int) const [3]
+[32]     0.1    0.01    0.02   36713         ArepoMesh::LocateEntryCell(Ray const&, int*) [32]
+                0.02    0.00   36692/36692       ArepoMesh::FindNearestGasParticle(Point&, int, double*) [36]
+-----------------------------------------------
+                                                 <spontaneous>
+[33]     0.1    0.02    0.00                 InSphere_Gauss [33]
+-----------------------------------------------
+                                                 <spontaneous>
+[34]     0.1    0.02    0.00                 get_tri_volume [34]
+-----------------------------------------------
+                                                 <spontaneous>
+[35]     0.1    0.00    0.02                 main [35]
+                0.00    0.02       1/1           rtTestRenderScene(std::string) [37]
+                0.00    0.00       1/7           ConfigSet::ReadFile(std::string) <cycle 1> [451]
+                0.00    0.00       1/1           Arepo::Init(int*, char***) [527]
+                0.00    0.00       1/1           Arepo::LoadSnapshot() [526]
+                0.00    0.00       1/1           Arepo::Cleanup() [528]
+                0.00    0.00       1/1           Arepo::~Arepo() [529]
+                0.00    0.00       1/1           ConfigSet::print() [541]
+-----------------------------------------------
+                0.02    0.00   36692/36692       ArepoMesh::LocateEntryCell(Ray const&, int*) [32]
+[36]     0.1    0.02    0.00   36692         ArepoMesh::FindNearestGasParticle(Point&, int, double*) [36]
+-----------------------------------------------
+                0.00    0.02       1/1           main [35]
+[37]     0.1    0.00    0.02       1         rtTestRenderScene(std::string) [37]
+                0.00    0.02       1/1           Renderer::Render(Scene const*) [39]
+                0.00    0.00       1/1           LookAt(Point const&, Point const&, Vector const&) [512]
+                0.00    0.00       1/1           CreateFilm(Filter*) [499]
+                0.00    0.00       1/1           CreateBoxFilter() [505]
+                0.00    0.00       1/1           CreateOrthographicCamera(Transform const&, Film*) [509]
+                0.00    0.00       1/1           CreateVoronoiVolumeIntegrator() [510]
+                0.00    0.00       1/1           CreateStratifiedSampler(Film const*, Camera const*) [508]
+                0.00    0.00       1/1           Renderer::Renderer(Sampler*, Camera*, VolumeIntegrator*) [535]
+                0.00    0.00       1/10          TransferFunction::TransferFunction(RGBSpectrum const&) [471]
+                0.00    0.00       1/1           TransferFunction::AddParseString(std::string&) [520]
+                0.00    0.00       1/1           ArepoMesh::ArepoMesh(TransferFunction const*) [539]
+                0.00    0.00       1/1           Scene::Scene(VolumeRegion*, ArepoMesh*) [531]
+                0.00    0.00       1/1           VoronoiIntegrator::~VoronoiIntegrator() [524]
+                0.00    0.00       1/1           Renderer::~Renderer() [536]
+                0.00    0.00       1/1           Scene::~Scene() [532]
+-----------------------------------------------
+                0.01    0.01       1/1           Renderer::Render(Scene const*) [39]
+[38]     0.1    0.01    0.01       1         Film::WriteImage(float) [38]
+                0.01    0.00       1/1           WriteImage(std::string const&, float*, float*, int, int, int, int, int, int) [43]
+-----------------------------------------------
+                0.00    0.02       1/1           rtTestRenderScene(std::string) [37]
+[39]     0.1    0.00    0.02       1         Renderer::Render(Scene const*) [39]
+                0.01    0.01       1/1           Film::WriteImage(float) [38]
+                0.00    0.00      16/16          RendererTask::~RendererTask() [461]
+                0.00    0.00       2/35          FreeAligned(void*) [449]
+                0.00    0.00       1/1           VoronoiIntegrator::Preprocess(Scene const*, Camera const*, Renderer const*) [522]
+                0.00    0.00       1/1           Sample::Sample(Sampler*, VolumeIntegrator*, Scene const*) [534]
+                0.00    0.00       1/17          Timer::Timer() [459]
+                0.00    0.00       1/1           numberOfCores() [504]
+                0.00    0.00       1/17          Timer::Start() [458]
+                0.00    0.00       1/1           waitUntilAllTasksDone() [506]
+                0.00    0.00       1/1           startTasks(std::vector<Task*, std::allocator<Task*> > const&) [500]
+                0.00    0.00       1/17          Timer::Time() [457]
+                0.00    0.00       1/1           TasksCleanup() [502]
+-----------------------------------------------
+                                                 <spontaneous>
+[40]     0.0    0.01    0.00                 get_circumcircle_exact [40]
+-----------------------------------------------
+                                                 <spontaneous>
+[41]     0.0    0.01    0.00                 test_tetra_orientation [41]
+-----------------------------------------------
+                0.01    0.00   39527/39527       RendererTask::Run() [1]
+[42]     0.0    0.01    0.00   39527         StratifiedSampler::GetMoreSamples(Sample*, RNG&) [42]
+                0.00    0.00   79211/237330      RNG::RandomUInt() const [440]
+                0.00    0.00   79120/79120       StratifiedSample2D(float*, int, int, RNG&, bool) [442]
+                0.00    0.00   79120/79120       LatinHypercube(float*, unsigned int, unsigned int, RNG&) [441]
+                0.00    0.00   39566/39566       StratifiedSample1D(float*, int, RNG&, bool) [443]
+-----------------------------------------------
+                0.01    0.00       1/1           Film::WriteImage(float) [38]
+[43]     0.0    0.01    0.00       1         WriteImage(std::string const&, float*, float*, int, int, int, int, int, int) [43]
+-----------------------------------------------
+                0.01    0.00   39577/39577       VoronoiIntegrator::Li(Scene const*, Renderer const*, Ray const&, Sample const*, RNG&, RGBSpectrum*, int*, int) const [3]
+[44]     0.0    0.01    0.00   39577         BBox::IntersectP(Ray const&, float*, float*) const [44]
+-----------------------------------------------
+                0.01    0.00       1/1           __do_global_ctors_aux [46]
+[45]     0.0    0.01    0.00       1         _GLOBAL__sub_I__ZN9ConfigSet8ReadFileESs [45]
+-----------------------------------------------
+                                                 <spontaneous>
+[46]     0.0    0.00    0.01                 __do_global_ctors_aux [46]
+                0.01    0.00       1/1           _GLOBAL__sub_I__ZN9ConfigSet8ReadFileESs [45]
+                0.00    0.00       1/1           _GLOBAL__sub_I__Z26rtIsoDiskCosmoCutoutRenderv [488]
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN6FilterD2Ev [496]
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN4BBox5EdgesEPSt6vectorI4LineSaIS1_EE [492]
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN18EmissionIntegrator14RequestSamplesEP7SamplerP6SamplePK5Scene [491]
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN12RendererTask3RunEv [489]
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN7SamplerD2Ev [497]
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN14TransferFunc1DC2EssRSt6vectorIfSaIfEERS0_I11RGBSpectrumSaIS4_EESs [490]
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN9Matrix4x4C2EPA4_f [498]
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN5TimerC2Ev [495]
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN5SceneC2EP12VolumeRegionP9ArepoMesh [494]
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN5Arepo4InitEPiPPPc [493]
+                0.00    0.00       1/1           _GLOBAL__sub_I__Z18init_clear_auxmeshP17tessellation_data [487]
+-----------------------------------------------
+[47]     0.0    0.00    0.00       7+46      <cycle 1 as a whole> [47]
+                0.00    0.00      34+189         ConfigSet::ReadFile(std::string) <cycle 1> [451]
+                0.00    0.00       6             bool ConfigSet::string_to_T<bool>(std::string const&) <cycle 1> [473]
+                0.00    0.00       5             std::vector<std::string, std::allocator<std::string> >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::string*, std::vector<std::string, std::allocator<std::string> > >, std::string const&) <cycle 1> [475]
+                0.00    0.00       4             float ConfigSet::string_to_T<float>(std::string const&) <cycle 1> [479]
+-----------------------------------------------
+                0.00    0.00   79211/237330      StratifiedSampler::GetMoreSamples(Sample*, RNG&) [42]
+                0.00    0.00  158119/237330      LatinHypercube(float*, unsigned int, unsigned int, RNG&) [441]
+[440]    0.0    0.00    0.00  237330         RNG::RandomUInt() const [440]
+-----------------------------------------------
+                0.00    0.00   79120/79120       StratifiedSampler::GetMoreSamples(Sample*, RNG&) [42]
+[441]    0.0    0.00    0.00   79120         LatinHypercube(float*, unsigned int, unsigned int, RNG&) [441]
+                0.00    0.00  158119/237330      RNG::RandomUInt() const [440]
+-----------------------------------------------
+                0.00    0.00   79120/79120       StratifiedSampler::GetMoreSamples(Sample*, RNG&) [42]
+[442]    0.0    0.00    0.00   79120         StratifiedSample2D(float*, int, int, RNG&, bool) [442]
+-----------------------------------------------
+                0.00    0.00   39566/39566       StratifiedSampler::GetMoreSamples(Sample*, RNG&) [42]
+[443]    0.0    0.00    0.00   39566         StratifiedSample1D(float*, int, RNG&, bool) [443]
+-----------------------------------------------
+                0.00    0.00   39535/39535       RendererTask::Run() [1]
+[444]    0.0    0.00    0.00   39535         Film::AddSample(CameraSample const&, RGBSpectrum const&) [444]
+-----------------------------------------------
+                0.00    0.00   39434/39434       RendererTask::Run() [1]
+[445]    0.0    0.00    0.00   39434         Sampler::ReportResults(Sample*, Ray const*, RGBSpectrum const*, int) [445]
+-----------------------------------------------
+                0.00    0.00   39404/39404       RendererTask::Run() [1]
+[446]    0.0    0.00    0.00   39404         OrthoCamera::GenerateRay(CameraSample const&, Ray*) const [446]
+-----------------------------------------------
+                0.00    0.00     256/256         Film::Film(int, int, Filter*, float const*, std::string const&, bool) [525]
+[447]    0.0    0.00    0.00     256         BoxFilter::Evaluate(float, float) const [447]
+-----------------------------------------------
+                0.00    0.00       2/63          Arepo::~Arepo() [529]
+                0.00    0.00       7/63          ConfigSet::~ConfigSet() [695]
+                0.00    0.00      54/63          std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_erase(std::_Rb_tree_node<std::pair<std::string const, std::string> >*) [545]
+[448]    0.0    0.00    0.00      63         MPI::Datatype::Create_contiguous(int) const [448]
+-----------------------------------------------
+                0.00    0.00       1/35          OrthoCamera::~OrthoCamera() [517]
+                0.00    0.00       2/35          Renderer::Render(Scene const*) [39]
+                0.00    0.00      32/35          RendererTask::Run() [1]
+[449]    0.0    0.00    0.00      35         FreeAligned(void*) [449]
+-----------------------------------------------
+                0.00    0.00       1/35          Film::Film(int, int, Filter*, float const*, std::string const&, bool) [525]
+                0.00    0.00      34/35          Sample::AllocateSampleMemory() [460]
+[450]    0.0    0.00    0.00      35         AllocAligned(unsigned long) [450]
+-----------------------------------------------
+                                 189             ConfigSet::ReadFile(std::string) <cycle 1> [451]
+                                   4             int ConfigSet::string_to_T<int>(std::string const&) <cycle 1> [480]
+                                   4             float ConfigSet::string_to_T<float>(std::string const&) <cycle 1> [479]
+                                   7             std::vector<std::string, std::allocator<std::string> >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::string*, std::vector<std::string, std::allocator<std::string> > >, std::string const&) <cycle 1> [475]
+                                  16             bool ConfigSet::string_to_T<bool>(std::string const&) <cycle 1> [473]
+                0.00    0.00       1/7           main [35]
+                0.00    0.00       2/7           loadDiscreteColorTable(std::string const&, std::vector<float, std::allocator<float> >*) [507]
+[451]    0.0    0.00    0.00      34+189     ConfigSet::ReadFile(std::string) <cycle 1> [451]
+                0.00    0.00      27/27          std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, std::string> >, std::pair<std::string const, std::string> const&) [454]
+                0.00    0.00      26/26          std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::find(std::string const&) const [455]
+                                   6             bool ConfigSet::string_to_T<bool>(std::string const&) <cycle 1> [473]
+                                   4             int ConfigSet::string_to_T<int>(std::string const&) <cycle 1> [480]
+                                   4             float ConfigSet::string_to_T<float>(std::string const&) <cycle 1> [479]
+                                   1             std::vector<std::string, std::allocator<std::string> >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::string*, std::vector<std::string, std::allocator<std::string> > >, std::string const&) <cycle 1> [475]
+                                 189             ConfigSet::ReadFile(std::string) <cycle 1> [451]
+-----------------------------------------------
+                0.00    0.00      32/32          Sample::Duplicate(int) const [466]
+[452]    0.0    0.00    0.00      32         std::vector<unsigned int, std::allocator<unsigned int> >::operator=(std::vector<unsigned int, std::allocator<unsigned int> > const&) [452]
+-----------------------------------------------
+                0.00    0.00       1/27          std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique(std::pair<std::string const, std::string> const&) [544]
+                0.00    0.00      26/27          std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, std::string> >, std::pair<std::string const, std::string> const&) [454]
+[453]    0.0    0.00    0.00      27         std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<std::string const, std::string> const&) [453]
+-----------------------------------------------
+                0.00    0.00      27/27          ConfigSet::ReadFile(std::string) <cycle 1> [451]
+[454]    0.0    0.00    0.00      27         std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, std::string> >, std::pair<std::string const, std::string> const&) [454]
+                0.00    0.00      26/27          std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<std::string const, std::string> const&) [453]
+                0.00    0.00       1/1           std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique(std::pair<std::string const, std::string> const&) [544]
+-----------------------------------------------
+                0.00    0.00      26/26          ConfigSet::ReadFile(std::string) <cycle 1> [451]
+[455]    0.0    0.00    0.00      26         std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::find(std::string const&) const [455]
+-----------------------------------------------
+                0.00    0.00       1/17          Renderer::~Renderer() [536]
+                0.00    0.00      16/17          RendererTask::Run() [1]
+[456]    0.0    0.00    0.00      17         StratifiedSampler::~StratifiedSampler() [456]
+-----------------------------------------------
+                0.00    0.00       1/17          Renderer::Render(Scene const*) [39]
+                0.00    0.00      16/17          RendererTask::Run() [1]
+[457]    0.0    0.00    0.00      17         Timer::Time() [457]
+-----------------------------------------------
+                0.00    0.00       1/17          Renderer::Render(Scene const*) [39]
+                0.00    0.00      16/17          RendererTask::Run() [1]
+[458]    0.0    0.00    0.00      17         Timer::Start() [458]
+-----------------------------------------------
+                0.00    0.00       1/17          Renderer::Render(Scene const*) [39]
+                0.00    0.00      16/17          RendererTask::Run() [1]
+[459]    0.0    0.00    0.00      17         Timer::Timer() [459]
+-----------------------------------------------
+                0.00    0.00       1/17          Sample::Sample(Sampler*, VolumeIntegrator*, Scene const*) [534]
+                0.00    0.00      16/17          Sample::Duplicate(int) const [466]
+[460]    0.0    0.00    0.00      17         Sample::AllocateSampleMemory() [460]
+                0.00    0.00      34/35          AllocAligned(unsigned long) [450]
+-----------------------------------------------
+                0.00    0.00      16/16          Renderer::Render(Scene const*) [39]
+[461]    0.0    0.00    0.00      16         RendererTask::~RendererTask() [461]
+                0.00    0.00      16/16          Task::~Task() [463]
+-----------------------------------------------
+                0.00    0.00      16/16          RendererTask::Run() [1]
+[462]    0.0    0.00    0.00      16         Film::UpdateDisplay(int, int, int, int, float) [462]
+-----------------------------------------------
+                0.00    0.00      16/16          RendererTask::~RendererTask() [461]
+[463]    0.0    0.00    0.00      16         Task::~Task() [463]
+-----------------------------------------------
+                0.00    0.00      16/16          RendererTask::Run() [1]
+[464]    0.0    0.00    0.00      16         RNG::Seed(unsigned int) const [464]
+-----------------------------------------------
+                0.00    0.00      15/15          RendererTask::Run() [1]
+[465]    0.0    0.00    0.00      15         StratifiedSampler::GetSubSampler(int, int) [465]
+                0.00    0.00      15/15          Sampler::ComputeSubWindow(int, int, int*, int*, int*, int*) const [467]
+-----------------------------------------------
+                0.00    0.00      15/15          RendererTask::Run() [1]
+[466]    0.0    0.00    0.00      15         Sample::Duplicate(int) const [466]
+                0.00    0.00      32/32          std::vector<unsigned int, std::allocator<unsigned int> >::operator=(std::vector<unsigned int, std::allocator<unsigned int> > const&) [452]
+                0.00    0.00      16/17          Sample::AllocateSampleMemory() [460]
+-----------------------------------------------
+                0.00    0.00      15/15          StratifiedSampler::GetSubSampler(int, int) [465]
+[467]    0.0    0.00    0.00      15         Sampler::ComputeSubWindow(int, int, int*, int*, int*, int*) const [467]
+-----------------------------------------------
+                0.00    0.00      14/14          RendererTask::Run() [1]
+[468]    0.0    0.00    0.00      14         StratifiedSampler::MaximumSampleCount() [468]
+-----------------------------------------------
+                0.00    0.00       2/13          TransferFunction::AddConstantDiscrete(int, std::string, float, float) [521]
+                0.00    0.00      11/13          ReadFloatFile(char const*, std::vector<float, std::allocator<float> >*) [503]
+[469]    0.0    0.00    0.00      13         std::vector<float, std::allocator<float> >::_M_insert_aux(__gnu_cxx::__normal_iterator<float*, std::vector<float, std::allocator<float> > >, float const&) [469]
+-----------------------------------------------
+                0.00    0.00      12/12          ArepoMesh::CalculateMidpoints() [537]
+[470]    0.0    0.00    0.00      12         std::vector<int, std::allocator<int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<int*, std::vector<int, std::allocator<int> > >, int const&) [470]
+-----------------------------------------------
+                                  10             TransferFunction::TransferFunction(RGBSpectrum const&) [471]
+                0.00    0.00       1/10          rtTestRenderScene(std::string) [37]
+                0.00    0.00       1/10          TransferFunction::AddConstantDiscrete(int, std::string, float, float) [521]
+                0.00    0.00       8/10          TransferFunction::AddParseString(std::string&) [520]
+[471]    0.0    0.00    0.00      10+10      TransferFunction::TransferFunction(RGBSpectrum const&) [471]
+                0.00    0.00       5/5           std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, int> >, std::pair<std::string const, int> const&) [478]
+                                  10             TransferFunction::TransferFunction(RGBSpectrum const&) [471]
+-----------------------------------------------
+                0.00    0.00       7/7           ArepoMesh::CalculateMidpoints() [537]
+[472]    0.0    0.00    0.00       7         std::vector<Vector, std::allocator<Vector> >::_M_insert_aux(__gnu_cxx::__normal_iterator<Vector*, std::vector<Vector, std::allocator<Vector> > >, Vector const&) [472]
+-----------------------------------------------
+                                   6             ConfigSet::ReadFile(std::string) <cycle 1> [451]
+[473]    0.0    0.00    0.00       6         bool ConfigSet::string_to_T<bool>(std::string const&) <cycle 1> [473]
+                                  16             ConfigSet::ReadFile(std::string) <cycle 1> [451]
+-----------------------------------------------
+                0.00    0.00       5/5           startTasks(std::vector<Task*, std::allocator<Task*> > const&) [500]
+[474]    0.0    0.00    0.00       5         std::vector<Task*, std::allocator<Task*> >::_M_insert_aux(__gnu_cxx::__normal_iterator<Task**, std::vector<Task*, std::allocator<Task*> > >, Task* const&) [474]
+-----------------------------------------------
+                                   1             ConfigSet::ReadFile(std::string) <cycle 1> [451]
+                0.00    0.00       4/7           TransferFunction::AddParseString(std::string&) [520]
+[475]    0.0    0.00    0.00       5         std::vector<std::string, std::allocator<std::string> >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::string*, std::vector<std::string, std::allocator<std::string> > >, std::string const&) <cycle 1> [475]
+                                   7             ConfigSet::ReadFile(std::string) <cycle 1> [451]
+-----------------------------------------------
+                0.00    0.00       5/5           ArepoMesh::CalculateMidpoints() [537]
+[476]    0.0    0.00    0.00       5         std::vector<std::pair<int, int>, std::allocator<std::pair<int, int> > >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::pair<int, int>*, std::vector<std::pair<int, int>, std::allocator<std::pair<int, int> > > >, std::pair<int, int> const&) [476]
+-----------------------------------------------
+                0.00    0.00       1/5           std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique(std::pair<std::string const, int> const&) [546]
+                0.00    0.00       4/5           std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, int> >, std::pair<std::string const, int> const&) [478]
+[477]    0.0    0.00    0.00       5         std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<std::string const, int> const&) [477]
+-----------------------------------------------
+                0.00    0.00       5/5           TransferFunction::TransferFunction(RGBSpectrum const&) [471]
+[478]    0.0    0.00    0.00       5         std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, int> >, std::pair<std::string const, int> const&) [478]
+                0.00    0.00       4/5           std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<std::string const, int> const&) [477]
+                0.00    0.00       1/1           std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique(std::pair<std::string const, int> const&) [546]
+-----------------------------------------------
+                                   4             ConfigSet::ReadFile(std::string) <cycle 1> [451]
+[479]    0.0    0.00    0.00       4         float ConfigSet::string_to_T<float>(std::string const&) <cycle 1> [479]
+                                   4             ConfigSet::ReadFile(std::string) <cycle 1> [451]
+-----------------------------------------------
+                                   4             ConfigSet::ReadFile(std::string) <cycle 1> [451]
+[480]    0.0    0.00    0.00       4         int ConfigSet::string_to_T<int>(std::string const&) <cycle 1> [480]
+                                   4             ConfigSet::ReadFile(std::string) <cycle 1> [451]
+-----------------------------------------------
+                0.00    0.00       4/4           _ZL14taskEntryPointPv [2]
+[481]    0.0    0.00    0.00       4         MutexLock::~MutexLock() [481]
+-----------------------------------------------
+                0.00    0.00       1/4           Orthographic(float, float) [501]
+                0.00    0.00       3/4           Camera::Camera(Transform const&, Transform const&, float const*, float, float, float, float, Film*) [533]
+[482]    0.0    0.00    0.00       4         Transform::operator*(Transform const&) const [482]
+-----------------------------------------------
+                0.00    0.00       1/3           CreateFilm(Filter*) [499]
+                0.00    0.00       2/3           OrthoCamera::~OrthoCamera() [517]
+[483]    0.0    0.00    0.00       3         BoxFilter::~BoxFilter() [483]
+-----------------------------------------------
+                0.00    0.00       2/2           Camera::Camera(Transform const&, Transform const&, float const*, float, float, float, float, Film*) [533]
+[484]    0.0    0.00    0.00       2         Scale(float, float, float) [484]
+-----------------------------------------------
+                0.00    0.00       2/2           VoronoiIntegrator::RequestSamples(Sampler*, Sample*, Scene const*) [523]
+[485]    0.0    0.00    0.00       2         std::vector<unsigned int, std::allocator<unsigned int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<unsigned int*, std::vector<unsigned int, std::allocator<unsigned int> > >, unsigned int const&) [485]
+-----------------------------------------------
+                0.00    0.00       2/2           ArepoMesh::CalculateMidpoints() [537]
+[486]    0.0    0.00    0.00       2         std::_Rb_tree<int, std::pair<int const, int>, std::_Select1st<std::pair<int const, int> >, std::less<int>, std::allocator<std::pair<int const, int> > >::_M_erase(std::_Rb_tree_node<std::pair<int const, int> >*) [486]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[487]    0.0    0.00    0.00       1         _GLOBAL__sub_I__Z18init_clear_auxmeshP17tessellation_data [487]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[488]    0.0    0.00    0.00       1         _GLOBAL__sub_I__Z26rtIsoDiskCosmoCutoutRenderv [488]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[489]    0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN12RendererTask3RunEv [489]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[490]    0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN14TransferFunc1DC2EssRSt6vectorIfSaIfEERS0_I11RGBSpectrumSaIS4_EESs [490]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[491]    0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN18EmissionIntegrator14RequestSamplesEP7SamplerP6SamplePK5Scene [491]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[492]    0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN4BBox5EdgesEPSt6vectorI4LineSaIS1_EE [492]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[493]    0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN5Arepo4InitEPiPPPc [493]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[494]    0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN5SceneC2EP12VolumeRegionP9ArepoMesh [494]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[495]    0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN5TimerC2Ev [495]
+                0.00    0.00       1/1           Mutex::Create() [530]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[496]    0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN6FilterD2Ev [496]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[497]    0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN7SamplerD2Ev [497]
+-----------------------------------------------
+                0.00    0.00       1/1           __do_global_ctors_aux [46]
+[498]    0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN9Matrix4x4C2EPA4_f [498]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[499]    0.0    0.00    0.00       1         CreateFilm(Filter*) [499]
+                0.00    0.00       1/1           Film::Film(int, int, Filter*, float const*, std::string const&, bool) [525]
+                0.00    0.00       1/3           BoxFilter::~BoxFilter() [483]
+-----------------------------------------------
+                0.00    0.00       1/1           Renderer::Render(Scene const*) [39]
+[500]    0.0    0.00    0.00       1         startTasks(std::vector<Task*, std::allocator<Task*> > const&) [500]
+                0.00    0.00       5/5           std::vector<Task*, std::allocator<Task*> >::_M_insert_aux(__gnu_cxx::__normal_iterator<Task**, std::vector<Task*, std::allocator<Task*> > >, Task* const&) [474]
+                0.00    0.00       1/1           TasksInit() [514]
+-----------------------------------------------
+                0.00    0.00       1/1           OrthoCamera::OrthoCamera(Transform const&, float const*, float, float, float, float, Film*) [516]
+[501]    0.0    0.00    0.00       1         Orthographic(float, float) [501]
+                0.00    0.00       1/4           Transform::operator*(Transform const&) const [482]
+-----------------------------------------------
+                0.00    0.00       1/1           Renderer::Render(Scene const*) [39]
+[502]    0.0    0.00    0.00       1         TasksCleanup() [502]
+-----------------------------------------------
+                0.00    0.00       1/1           loadDiscreteColorTable(std::string const&, std::vector<float, std::allocator<float> >*) [507]
+[503]    0.0    0.00    0.00       1         ReadFloatFile(char const*, std::vector<float, std::allocator<float> >*) [503]
+                0.00    0.00      11/13          std::vector<float, std::allocator<float> >::_M_insert_aux(__gnu_cxx::__normal_iterator<float*, std::vector<float, std::allocator<float> > >, float const&) [469]
+-----------------------------------------------
+                0.00    0.00       1/1           Renderer::Render(Scene const*) [39]
+[504]    0.0    0.00    0.00       1         numberOfCores() [504]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[505]    0.0    0.00    0.00       1         CreateBoxFilter() [505]
+-----------------------------------------------
+                0.00    0.00       1/1           Renderer::Render(Scene const*) [39]
+[506]    0.0    0.00    0.00       1         waitUntilAllTasksDone() [506]
+-----------------------------------------------
+                0.00    0.00       1/1           TransferFunc1D::TransferFunc1D(short, short, std::vector<float, std::allocator<float> >&, std::vector<RGBSpectrum, std::allocator<RGBSpectrum> >&, std::string) [519]
+[507]    0.0    0.00    0.00       1         loadDiscreteColorTable(std::string const&, std::vector<float, std::allocator<float> >*) [507]
+                0.00    0.00       2/7           ConfigSet::ReadFile(std::string) <cycle 1> [451]
+                0.00    0.00       1/1           ReadFloatFile(char const*, std::vector<float, std::allocator<float> >*) [503]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[508]    0.0    0.00    0.00       1         CreateStratifiedSampler(Film const*, Camera const*) [508]
+                0.00    0.00       1/1           Film::GetSampleExtent(int*, int*, int*, int*) const [542]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[509]    0.0    0.00    0.00       1         CreateOrthographicCamera(Transform const&, Film*) [509]
+                0.00    0.00       1/1           OrthoCamera::OrthoCamera(Transform const&, float const*, float, float, float, float, Film*) [516]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[510]    0.0    0.00    0.00       1         CreateVoronoiVolumeIntegrator() [510]
+-----------------------------------------------
+                0.00    0.00       1/1           Scene::Scene(VolumeRegion*, ArepoMesh*) [531]
+[511]    0.0    0.00    0.00       1         Union(BBox const&, BBox const&) [511]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[512]    0.0    0.00    0.00       1         LookAt(Point const&, Point const&, Vector const&) [512]
+                0.00    0.00       1/1           Inverse(Matrix4x4 const&) [513]
+-----------------------------------------------
+                0.00    0.00       1/1           LookAt(Point const&, Point const&, Vector const&) [512]
+[513]    0.0    0.00    0.00       1         Inverse(Matrix4x4 const&) [513]
+-----------------------------------------------
+                0.00    0.00       1/1           startTasks(std::vector<Task*, std::allocator<Task*> > const&) [500]
+[514]    0.0    0.00    0.00       1         TasksInit() [514]
+-----------------------------------------------
+                0.00    0.00       1/1           Camera::Camera(Transform const&, Transform const&, float const*, float, float, float, float, Film*) [533]
+[515]    0.0    0.00    0.00       1         Translate(Vector const&) [515]
+-----------------------------------------------
+                0.00    0.00       1/1           CreateOrthographicCamera(Transform const&, Film*) [509]
+[516]    0.0    0.00    0.00       1         OrthoCamera::OrthoCamera(Transform const&, float const*, float, float, float, float, Film*) [516]
+                0.00    0.00       1/1           Orthographic(float, float) [501]
+                0.00    0.00       1/1           Camera::Camera(Transform const&, Transform const&, float const*, float, float, float, float, Film*) [533]
+-----------------------------------------------
+                0.00    0.00       1/1           Renderer::~Renderer() [536]
+[517]    0.0    0.00    0.00       1         OrthoCamera::~OrthoCamera() [517]
+                0.00    0.00       2/3           BoxFilter::~BoxFilter() [483]
+                0.00    0.00       1/35          FreeAligned(void*) [449]
+-----------------------------------------------
+                0.00    0.00       1/1           TransferFunc1D::TransferFunc1D(short, short, std::vector<float, std::allocator<float> >&, std::vector<RGBSpectrum, std::allocator<RGBSpectrum> >&, std::string) [519]
+[518]    0.0    0.00    0.00       1         TransferFunc1D::CheckReverse() [518]
+-----------------------------------------------
+                0.00    0.00       1/1           TransferFunction::AddConstantDiscrete(int, std::string, float, float) [521]
+[519]    0.0    0.00    0.00       1         TransferFunc1D::TransferFunc1D(short, short, std::vector<float, std::allocator<float> >&, std::vector<RGBSpectrum, std::allocator<RGBSpectrum> >&, std::string) [519]
+                0.00    0.00       1/1           loadDiscreteColorTable(std::string const&, std::vector<float, std::allocator<float> >*) [507]
+                0.00    0.00       1/1           TransferFunc1D::CheckReverse() [518]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[520]    0.0    0.00    0.00       1         TransferFunction::AddParseString(std::string&) [520]
+                0.00    0.00       8/10          TransferFunction::TransferFunction(RGBSpectrum const&) [471]
+                0.00    0.00       4/7           std::vector<std::string, std::allocator<std::string> >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::string*, std::vector<std::string, std::allocator<std::string> > >, std::string const&) <cycle 1> [475]
+                0.00    0.00       1/1           TransferFunction::AddConstantDiscrete(int, std::string, float, float) [521]
+-----------------------------------------------
+                0.00    0.00       1/1           TransferFunction::AddParseString(std::string&) [520]
+[521]    0.0    0.00    0.00       1         TransferFunction::AddConstantDiscrete(int, std::string, float, float) [521]
+                0.00    0.00       2/13          std::vector<float, std::allocator<float> >::_M_insert_aux(__gnu_cxx::__normal_iterator<float*, std::vector<float, std::allocator<float> > >, float const&) [469]
+                0.00    0.00       1/1           TransferFunc1D::TransferFunc1D(short, short, std::vector<float, std::allocator<float> >&, std::vector<RGBSpectrum, std::allocator<RGBSpectrum> >&, std::string) [519]
+                0.00    0.00       1/1           std::vector<TransferFunc1D*, std::allocator<TransferFunc1D*> >::_M_insert_aux(__gnu_cxx::__normal_iterator<TransferFunc1D**, std::vector<TransferFunc1D*, std::allocator<TransferFunc1D*> > >, TransferFunc1D* const&) [543]
+                0.00    0.00       1/10          TransferFunction::TransferFunction(RGBSpectrum const&) [471]
+-----------------------------------------------
+                0.00    0.00       1/1           Renderer::Render(Scene const*) [39]
+[522]    0.0    0.00    0.00       1         VoronoiIntegrator::Preprocess(Scene const*, Camera const*, Renderer const*) [522]
+-----------------------------------------------
+                0.00    0.00       1/1           Sample::Sample(Sampler*, VolumeIntegrator*, Scene const*) [534]
+[523]    0.0    0.00    0.00       1         VoronoiIntegrator::RequestSamples(Sampler*, Sample*, Scene const*) [523]
+                0.00    0.00       2/2           std::vector<unsigned int, std::allocator<unsigned int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<unsigned int*, std::vector<unsigned int, std::allocator<unsigned int> > >, unsigned int const&) [485]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[524]    0.0    0.00    0.00       1         VoronoiIntegrator::~VoronoiIntegrator() [524]
+-----------------------------------------------
+                0.00    0.00       1/1           CreateFilm(Filter*) [499]
+[525]    0.0    0.00    0.00       1         Film::Film(int, int, Filter*, float const*, std::string const&, bool) [525]
+                0.00    0.00     256/256         BoxFilter::Evaluate(float, float) const [447]
+                0.00    0.00       1/35          AllocAligned(unsigned long) [450]
+-----------------------------------------------
+                0.00    0.00       1/1           main [35]
+[526]    0.0    0.00    0.00       1         Arepo::LoadSnapshot() [526]
+-----------------------------------------------
+                0.00    0.00       1/1           main [35]
+[527]    0.0    0.00    0.00       1         Arepo::Init(int*, char***) [527]
+-----------------------------------------------
+                0.00    0.00       1/1           main [35]
+[528]    0.0    0.00    0.00       1         Arepo::Cleanup() [528]
+-----------------------------------------------
+                0.00    0.00       1/1           main [35]
+[529]    0.0    0.00    0.00       1         Arepo::~Arepo() [529]
+                0.00    0.00       2/63          MPI::Datatype::Create_contiguous(int) const [448]
+-----------------------------------------------
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN5TimerC2Ev [495]
+[530]    0.0    0.00    0.00       1         Mutex::Create() [530]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[531]    0.0    0.00    0.00       1         Scene::Scene(VolumeRegion*, ArepoMesh*) [531]
+                0.00    0.00       1/1           Union(BBox const&, BBox const&) [511]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[532]    0.0    0.00    0.00       1         Scene::~Scene() [532]
+                0.00    0.00       1/1           ArepoMesh::~ArepoMesh() [540]
+-----------------------------------------------
+                0.00    0.00       1/1           OrthoCamera::OrthoCamera(Transform const&, float const*, float, float, float, float, Film*) [516]
+[533]    0.0    0.00    0.00       1         Camera::Camera(Transform const&, Transform const&, float const*, float, float, float, float, Film*) [533]
+                0.00    0.00       3/4           Transform::operator*(Transform const&) const [482]
+                0.00    0.00       2/2           Scale(float, float, float) [484]
+                0.00    0.00       1/1           Translate(Vector const&) [515]
+-----------------------------------------------
+                0.00    0.00       1/1           Renderer::Render(Scene const*) [39]
+[534]    0.0    0.00    0.00       1         Sample::Sample(Sampler*, VolumeIntegrator*, Scene const*) [534]
+                0.00    0.00       1/17          Sample::AllocateSampleMemory() [460]
+                0.00    0.00       1/1           VoronoiIntegrator::RequestSamples(Sampler*, Sample*, Scene const*) [523]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[535]    0.0    0.00    0.00       1         Renderer::Renderer(Sampler*, Camera*, VolumeIntegrator*) [535]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[536]    0.0    0.00    0.00       1         Renderer::~Renderer() [536]
+                0.00    0.00       1/17          StratifiedSampler::~StratifiedSampler() [456]
+                0.00    0.00       1/1           OrthoCamera::~OrthoCamera() [517]
+-----------------------------------------------
+                0.00    0.00       1/1           ArepoMesh::ArepoMesh(TransferFunction const*) [539]
+[537]    0.0    0.00    0.00       1         ArepoMesh::CalculateMidpoints() [537]
+                0.00    0.00      12/12          std::vector<int, std::allocator<int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<int*, std::vector<int, std::allocator<int> > >, int const&) [470]
+                0.00    0.00       7/7           std::vector<Vector, std::allocator<Vector> >::_M_insert_aux(__gnu_cxx::__normal_iterator<Vector*, std::vector<Vector, std::allocator<Vector> > >, Vector const&) [472]
+                0.00    0.00       5/5           std::vector<std::pair<int, int>, std::allocator<std::pair<int, int> > >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::pair<int, int>*, std::vector<std::pair<int, int>, std::allocator<std::pair<int, int> > > >, std::pair<int, int> const&) [476]
+                0.00    0.00       2/2           std::_Rb_tree<int, std::pair<int const, int>, std::_Select1st<std::pair<int const, int> >, std::less<int>, std::allocator<std::pair<int const, int> > >::_M_erase(std::_Rb_tree_node<std::pair<int const, int> >*) [486]
+-----------------------------------------------
+                0.00    0.00       1/1           ArepoMesh::ArepoMesh(TransferFunction const*) [539]
+[538]    0.0    0.00    0.00       1         ArepoMesh::ComputeQuantityBounds() [538]
+-----------------------------------------------
+                0.00    0.00       1/1           rtTestRenderScene(std::string) [37]
+[539]    0.0    0.00    0.00       1         ArepoMesh::ArepoMesh(TransferFunction const*) [539]
+                0.00    0.00       1/1           ArepoMesh::CalculateMidpoints() [537]
+                0.00    0.00       1/1           ArepoMesh::ComputeQuantityBounds() [538]
+-----------------------------------------------
+                0.00    0.00       1/1           Scene::~Scene() [532]
+[540]    0.0    0.00    0.00       1         ArepoMesh::~ArepoMesh() [540]
+-----------------------------------------------
+                0.00    0.00       1/1           main [35]
+[541]    0.0    0.00    0.00       1         ConfigSet::print() [541]
+-----------------------------------------------
+                0.00    0.00       1/1           CreateStratifiedSampler(Film const*, Camera const*) [508]
+[542]    0.0    0.00    0.00       1         Film::GetSampleExtent(int*, int*, int*, int*) const [542]
+-----------------------------------------------
+                0.00    0.00       1/1           TransferFunction::AddConstantDiscrete(int, std::string, float, float) [521]
+[543]    0.0    0.00    0.00       1         std::vector<TransferFunc1D*, std::allocator<TransferFunc1D*> >::_M_insert_aux(__gnu_cxx::__normal_iterator<TransferFunc1D**, std::vector<TransferFunc1D*, std::allocator<TransferFunc1D*> > >, TransferFunc1D* const&) [543]
+-----------------------------------------------
+                0.00    0.00       1/1           std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, std::string> >, std::pair<std::string const, std::string> const&) [454]
+[544]    0.0    0.00    0.00       1         std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique(std::pair<std::string const, std::string> const&) [544]
+                0.00    0.00       1/27          std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<std::string const, std::string> const&) [453]
+-----------------------------------------------
+                0.00    0.00       1/1           ConfigSet::~ConfigSet() [695]
+[545]    0.0    0.00    0.00       1         std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_erase(std::_Rb_tree_node<std::pair<std::string const, std::string> >*) [545]
+                0.00    0.00      54/63          MPI::Datatype::Create_contiguous(int) const [448]
+-----------------------------------------------
+                0.00    0.00       1/1           std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, int> >, std::pair<std::string const, int> const&) [478]
+[546]    0.0    0.00    0.00       1         std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique(std::pair<std::string const, int> const&) [546]
+                0.00    0.00       1/5           std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<std::string const, int> const&) [477]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+
+Index by function name
+
+   [9] InSphere_Errorbound   [515] Translate(Vector const&) [541] ConfigSet::print()
+  [13] InSphere_Exact        [516] OrthoCamera::OrthoCamera(Transform const&, float const*, float, float, float, float, Film*) [451] ConfigSet::ReadFile(std::string)
+  [33] InSphere_Gauss        [517] OrthoCamera::~OrthoCamera() [481] MutexLock::~MutexLock()
+  [15] InTetra                 [1] RendererTask::Run()   [446] OrthoCamera::GenerateRay(CameraSample const&, Ray*) const
+  [12] MY_mpz_mul_si         [461] RendererTask::~RendererTask() [28] TransferFunc1D::Lve(float const*) const
+  [10] MY_mpz_set_si         [518] TransferFunc1D::CheckReverse() [26] TransferFunction::Lve(float const*) const
+  [21] MY_mpz_sub_ui         [519] TransferFunc1D::TransferFunc1D(short, short, std::vector<float, std::allocator<float> >&, std::vector<RGBSpectrum, std::allocator<RGBSpectrum> >&, std::string) [3] VoronoiIntegrator::Li(Scene const*, Renderer const*, Ray const&, Sample const*, RNG&, RGBSpectrum*, int*, int) const
+  [17] Orient3d_Exact        [520] TransferFunction::AddParseString(std::string&) [448] MPI::Datatype::Create_contiguous(int) const
+  [30] Orient3d_Quick        [521] TransferFunction::AddConstantDiscrete(int, std::string, float, float) [440] RNG::RandomUInt() const
+ [487] _GLOBAL__sub_I__Z18init_clear_auxmeshP17tessellation_data (voronoi_3db.cpp) [471] TransferFunction::TransferFunction(RGBSpectrum const&) [464] RNG::Seed(unsigned int) const
+ [488] _GLOBAL__sub_I__Z26rtIsoDiskCosmoCutoutRenderv (ArepoRT.cpp) [465] StratifiedSampler::GetSubSampler(int, int) [44] BBox::IntersectP(Ray const&, float*, float*) const
+ [489] _GLOBAL__sub_I__ZN12RendererTask3RunEv [42] StratifiedSampler::GetMoreSamples(Sample*, RNG&) [542] Film::GetSampleExtent(int*, int*, int*, int*) const
+ [490] _GLOBAL__sub_I__ZN14TransferFunc1DC2EssRSt6vectorIfSaIfEERS0_I11RGBSpectrumSaIS4_EESs (transfer.cpp) [468] StratifiedSampler::MaximumSampleCount() [466] Sample::Duplicate(int) const
+ [491] _GLOBAL__sub_I__ZN18EmissionIntegrator14RequestSamplesEP7SamplerP6SamplePK5Scene [456] StratifiedSampler::~StratifiedSampler() [467] Sampler::ComputeSubWindow(int, int, int*, int*, int*, int*) const
+ [492] _GLOBAL__sub_I__ZN4BBox5EdgesEPSt6vectorI4LineSaIS1_EE (geometry.cpp) [522] VoronoiIntegrator::Preprocess(Scene const*, Camera const*, Renderer const*) [447] BoxFilter::Evaluate(float, float) const
+ [493] _GLOBAL__sub_I__ZN5Arepo4InitEPiPPPc [523] VoronoiIntegrator::RequestSamples(Sampler*, Sample*, Scene const*) [482] Transform::operator*(Transform const&) const
+ [494] _GLOBAL__sub_I__ZN5SceneC2EP12VolumeRegionP9ArepoMesh [524] VoronoiIntegrator::~VoronoiIntegrator() [455] std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::find(std::string const&) const
+ [495] _GLOBAL__sub_I__ZN5TimerC2Ev (util.cpp) [38] Film::WriteImage(float) [472] std::vector<Vector, std::allocator<Vector> >::_M_insert_aux(__gnu_cxx::__normal_iterator<Vector*, std::vector<Vector, std::allocator<Vector> > >, Vector const&)
+ [496] _GLOBAL__sub_I__ZN6FilterD2Ev (camera.cpp) [462] Film::UpdateDisplay(int, int, int, int, float) [543] std::vector<TransferFunc1D*, std::allocator<TransferFunc1D*> >::_M_insert_aux(__gnu_cxx::__normal_iterator<TransferFunc1D**, std::vector<TransferFunc1D*, std::allocator<TransferFunc1D*> > >, TransferFunc1D* const&)
+ [497] _GLOBAL__sub_I__ZN7SamplerD2Ev [444] Film::AddSample(CameraSample const&, RGBSpectrum const&) [474] std::vector<Task*, std::allocator<Task*> >::_M_insert_aux(__gnu_cxx::__normal_iterator<Task**, std::vector<Task*, std::allocator<Task*> > >, Task* const&)
+  [45] _GLOBAL__sub_I__ZN9ConfigSet8ReadFileESs (fileio.cpp) [525] Film::Film(int, int, Filter*, float const*, std::string const&, bool) [475] std::vector<std::string, std::allocator<std::string> >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::string*, std::vector<std::string, std::allocator<std::string> > >, std::string const&)
+ [498] _GLOBAL__sub_I__ZN9Matrix4x4C2EPA4_f (transform.cpp) [463] Task::~Task() [476] std::vector<std::pair<int, int>, std::allocator<std::pair<int, int> > >::_M_insert_aux(__gnu_cxx::__normal_iterator<std::pair<int, int>*, std::vector<std::pair<int, int>, std::allocator<std::pair<int, int> > > >, std::pair<int, int> const&)
+ [499] CreateFilm(Filter*)   [526] Arepo::LoadSnapshot() [469] std::vector<float, std::allocator<float> >::_M_insert_aux(__gnu_cxx::__normal_iterator<float*, std::vector<float, std::allocator<float> > >, float const&)
+  [43] WriteImage(std::string const&, float*, float*, int, int, int, int, int, int) [527] Arepo::Init(int*, char***) [470] std::vector<int, std::allocator<int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<int*, std::vector<int, std::allocator<int> > >, int const&)
+ [500] startTasks(std::vector<Task*, std::allocator<Task*> > const&) [528] Arepo::Cleanup() [485] std::vector<unsigned int, std::allocator<unsigned int> >::_M_insert_aux(__gnu_cxx::__normal_iterator<unsigned int*, std::vector<unsigned int, std::allocator<unsigned int> > >, unsigned int const&)
+ [449] FreeAligned(void*)    [529] Arepo::~Arepo()       [452] std::vector<unsigned int, std::allocator<unsigned int> >::operator=(std::vector<unsigned int, std::allocator<unsigned int> > const&)
+ [450] AllocAligned(unsigned long) [530] Mutex::Create() [453] std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<std::string const, std::string> const&)
+ [501] Orthographic(float, float) [531] Scene::Scene(VolumeRegion*, ArepoMesh*) [544] std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique(std::pair<std::string const, std::string> const&)
+ [502] TasksCleanup()        [532] Scene::~Scene()       [454] std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, std::string> >, std::pair<std::string const, std::string> const&)
+ [503] ReadFloatFile(char const*, std::vector<float, std::allocator<float> >*) [457] Timer::Time() [545] std::_Rb_tree<std::string, std::pair<std::string const, std::string>, std::_Select1st<std::pair<std::string const, std::string> >, std::less<std::string>, std::allocator<std::pair<std::string const, std::string> > >::_M_erase(std::_Rb_tree_node<std::pair<std::string const, std::string> >*)
+ [504] numberOfCores()       [458] Timer::Start()        [477] std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_(std::_Rb_tree_node_base const*, std::_Rb_tree_node_base const*, std::pair<std::string const, int> const&)
+ [441] LatinHypercube(float*, unsigned int, unsigned int, RNG&) [459] Timer::Timer() [546] std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique(std::pair<std::string const, int> const&)
+ [505] CreateBoxFilter()     [533] Camera::Camera(Transform const&, Transform const&, float const*, float, float, float, float, Film*) [478] std::_Rb_tree<std::string, std::pair<std::string const, int>, std::_Select1st<std::pair<std::string const, int> >, std::less<std::string>, std::allocator<std::pair<std::string const, int> > >::_M_insert_unique_(std::_Rb_tree_const_iterator<std::pair<std::string const, int> >, std::pair<std::string const, int> const&)
+  [11] insert_point_new(tessellation_data*, int, int) [460] Sample::AllocateSampleMemory() [486] std::_Rb_tree<int, std::pair<int const, int>, std::_Select1st<std::pair<int const, int> >, std::less<int>, std::allocator<std::pair<int const, int> > >::_M_erase(std::_Rb_tree_node<std::pair<int const, int> >*)
+  [37] rtTestRenderScene(std::string) [534] Sample::Sample(Sampler*, VolumeIntegrator*, Scene const*) [25] compute_circumcircles
+ [443] StratifiedSample1D(float*, int, RNG&, bool) [445] Sampler::ReportResults(Sample*, Ray const*, RGBSpectrum const*, int) [18] convex_edge_test
+ [442] StratifiedSample2D(float*, int, int, RNG&, bool) [39] Renderer::Render(Scene const*) [19] derefine_refine_get_triangles
+  [29] init_clear_auxmesh(tessellation_data*) [535] Renderer::Renderer(Sampler*, Camera*, VolumeIntegrator*) [40] get_circumcircle_exact
+ [506] waitUntilAllTasksDone() [536] Renderer::~Renderer() [27] get_tetra
+ [507] loadDiscreteColorTable(std::string const&, std::vector<float, std::allocator<float> >*) [5] ArepoMesh::subSampleCell(int, int, Vector&, float*, int) [34] get_tri_volume
+  [31] make_an_edge_split_new(tessellation_data*, int, int, int, int, int*) [32] ArepoMesh::LocateEntryCell(Ray const&, int*) [24] make_a_1_to_4_flip
+ [508] CreateStratifiedSampler(Film const*, Camera const*) [537] ArepoMesh::CalculateMidpoints() [16] make_a_2_to_3_flip
+   [6] compute_auxmesh_volumes(tessellation_data*, double*) [4] ArepoMesh::AdvanceRayOneCellNew(Ray const&, float*, float*, int, RGBSpectrum&, RGBSpectrum&, int) [20] make_a_3_to_2_flip
+ [509] CreateOrthographicCamera(Transform const&, Film*) [538] ArepoMesh::ComputeQuantityBounds() [23] make_a_4_to_4_flip
+ [510] CreateVoronoiVolumeIntegrator() [36] ArepoMesh::FindNearestGasParticle(Point&, int, double*) [22] set_integers_for_pointer
+   [7] derefine_refine_process_edge_new(tessellation_data*, double*, int, int, unsigned char*) [539] ArepoMesh::ArepoMesh(TransferFunction const*) [8] solve_linear_equations
+ [484] Scale(float, float, float) [540] ArepoMesh::~ArepoMesh() [41] test_tetra_orientation
+ [511] Union(BBox const&, BBox const&) [483] BoxFilter::~BoxFilter() [14] update_circumcircle
+ [512] LookAt(Point const&, Point const&, Vector const&) [473] bool ConfigSet::string_to_T<bool>(std::string const&) [47] <cycle 1>
+ [513] Inverse(Matrix4x4 const&) [479] float ConfigSet::string_to_T<float>(std::string const&)
+ [514] TasksInit()           [480] int ConfigSet::string_to_T<int>(std::string const&)

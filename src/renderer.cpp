@@ -6,7 +6,6 @@
 #include <unistd.h>
  
 #include "renderer.h"
-
 #include "transform.h"
 #include "arepo.h"
 #include "camera.h"

@@ -11,8 +11,6 @@
 #include "arepo.h"
 #include "util.h" // for numberOfCores()
 
-#ifdef ENABLE_AREPO
-
 // check for required Arepo compilation options
 
 #ifndef VORONOI
@@ -85,13 +83,58 @@ bool Arepo::LoadSnapshot()
 		// load snapshot (GAS ONLY)
 		read_ic(snapFilename.c_str(), 0x01);
 		
-		// call arepo: read snapshot, allocate storage for tree, 
-		//             initialize particle data, domain decomposition, initial HSML
-  	if (init() != SUNRISE_CODE) {
+		if( Config.nTreeNGB)
+		{
+			// sampling based on tree searches only, custom (minimal) init
+			int i, j;
+			
+			All.TotNumOfForces = 0;
+			All.TopNodeAllocFactor = 0.08;
+			All.TreeAllocFactor = 0.7;
+			All.NgbTreeAllocFactor = 0.7;
+			
+			if(All.ComovingIntegrationOn)	//  change to new velocity variable
+			{
+				for(i = 0; i < NumPart; i++)
+				{
+					for(j = 0; j < 3; j++)
+						P[i].Vel[j] *= sqrt(All.Time) * All.Time;	// for dm/gas particles, p = a^2 xdot
+				}
+			}
+			
+			domain_Decomposition();
+			set_softenings();
+			
+			// will build tree
+			Ngb_MaxPart = All.MaxPartSph;
+			Ngb_MaxNodes = (int) (All.NgbTreeAllocFactor * All.MaxPartSph) + NTopnodes;
+			ngb_treeallocate();
+			ngb_treebuild(NumGas);
+			
+			//setup_smoothinglengths(); // build grav tree
+			//cell density not set (by mesh), would need to include in snapshot file
+			//perhaps most (all) fields not accessed, chance to really kill P/SphP memory usage
+			//update_primitive_variables();	// to get pressure
+			printf("Arepo tree loaded, returning control.\n");
+		}
+		else
+		{
+			// Voronoi mesh based sampling: call full init
+			if (init() != SUNRISE_CODE) {
 				cout << "Arepo::LoadSnapshot() ERROR: Arepo did not return successfully." << endl;
 				return false;
+			}
 		}
 
+		// illustris fof0 log density/temp
+		cout << "Converting DENSITY TO LOG!" << endl;
+		cout << "Converting TEMPERATURE TO LOG!" << endl;
+		for(int i = 0; i < NumGas; i++)
+		{
+			SphP[i].Density = log10( SphP[i].Density );
+			SphP[i].Utherm = log10( SphP[i].Utherm );
+		}
+		
 #ifndef DEBUG
 		//TODO: switch between these automatically
 		//string fn = Config.imageFile + string(".out.txt");
@@ -153,15 +196,6 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		}
 #endif
 
-		// illustris fof0 log density/temp
-		cout << "Converting DENSITY TO LOG!" << endl;
-		cout << "Converting TEMPERATURE TO LOG!" << endl;
-		for(int i = 0; i < NumGas; i++)
-		{
-			SphP[i].Density = log10( SphP[i].Density );
-        		SphP[i].Utherm = log10( SphP[i].Utherm );
-		}
-		
 		// preprocessing
 		ArepoMesh::ComputeQuantityBounds();
 		//ArepoMesh::LimitCellDensities();
@@ -1247,5 +1281,3 @@ bool ArepoMesh::VoronoiEdges(const int i_face, vector<Line> *edges)
 		
 		return true;
 }
-
-#endif //ENABLE_AREPO

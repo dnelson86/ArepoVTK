@@ -28,9 +28,18 @@ void rtRenderFrames()
 
 	// constant setup		
 	TransferFunction *tf  = new TransferFunction(sig_a);
-	ArepoMesh *arepoMesh  = new ArepoMesh(tf);
-	Scene *scene          = new Scene(NULL, arepoMesh);
 	FrameManager *fm      = new FrameManager(Config.kfSet);
+	
+	// sampling based on tree only, or full mesh construction?
+	ArepoTree *arepoTree = NULL;
+	ArepoMesh *arepoMesh = NULL;
+	
+	if( Config.nTreeNGB )
+		arepoTree = new ArepoTree(tf);
+	else
+		arepoMesh = new ArepoMesh(tf);
+	
+	Scene *scene = new Scene(NULL, arepoMesh, arepoTree);
 	
 	// setup transfer function
 	for (unsigned int i=0; i < Config.tfSet.size(); i++)
@@ -47,9 +56,14 @@ void rtRenderFrames()
 	
 		// setup camera
 		Transform world2camera = fm->SetCamera();
-
+		VolumeIntegrator *vi = NULL;
+		
 		// recreate per frame
-		VolumeIntegrator *vi = CreateVoronoiVolumeIntegrator();	
+		if( Config.nTreeNGB )
+			vi = CreateTreeSearchVolumeIntegrator();
+		else
+			vi = CreateVoronoiVolumeIntegrator();
+
 		Filter *filter       = CreateBoxFilter();
 		Film *film           = CreateFilm(filter);
 		Camera *camera       = NULL;
@@ -145,7 +159,7 @@ void rtTestRenderScene(string filename)
 
 	// voronoi mesh
 	ArepoMesh *arepoMesh  = new ArepoMesh(tf);
-	Scene *scene          = new Scene(vr, arepoMesh);
+	Scene *scene          = new Scene(vr, arepoMesh, NULL);
 	
 	arepoTestOverrides(); // after mesh to override Voronoi gradients for cellgrad
 	
@@ -184,13 +198,28 @@ ConfigSet Config;
 
 int main (int argc, char* argv[])
 {
-	cout << "ArepoRT v" << AREPO_RT_VERSION << " (" << __DATE__ << ")\n" 
-			 << "--------------------------\n";
+
+	cout << "      ___           ___           ___           ___           ___                    ___           ___     \n"
+       << "     /\\  \\         /\\  \\         /\\  \\         /\\  \\         /\\  \\                  /\\  \\         /\\  \\    \n"
+			 << "    /::\\  \\       /::\\  \\       /::\\  \\       /::\\  \\       /::\\  \\                /::\\  \\        \\:\\  \\   \n"
+			 << "   /:/\\:\\  \\     /:/\\:\\  \\     /:/\\:\\  \\     /:/\\:\\  \\     /:/\\:\\  \\              /:/\\:\\  \\        \\:\\  \\  \n"
+			 << "  /::\\~\\:\\  \\   /::\\~\\:\\  \\   /::\\~\\:\\  \\   /::\\~\\:\\  \\   /:/  \\:\\  \\            /::\\~\\:\\  \\       /::\\  \\ \n"
+			 << " /:/\\:\\ \\:\\__\\ /:/\\:\\ \\:\\__\\ /:/\\:\\ \\:\\__\\ /:/\\:\\ \\:\\__\\ /:/__/ \\:\\__\\          /:/\\:\\ \\:\\__\\     /:/\\:\\__\\\n"
+			 << " \\/__\\:\\/:/  / \\/_|::\\/:/  / \\:\\~\\:\\ \\/__/ \\/__\\:\\/:/  / \\:\\  \\ /:/  /          \\/_|::\\/:/  /    /:/  \\/__/\n"
+			 << "      \\::/  /     |:|::/  /   \\:\\ \\:\\__\\        \\::/  /   \\:\\  /:/  /              |:|::/  /    /:/  /     \n"
+			 << "      /:/  /      |:|\\/__/     \\:\\ \\/__/         \\/__/     \\:\\/:/  /               |:|\\/__/     \\/__/      \n"
+			 << "     /:/  /       |:|  |        \\:\\__\\                      \\::/  /                |:|  |                  \n"
+			 << "     \\/__/         \\|__|         \\/__/                       \\/__/                  \\|__|                  ";
+
+
+	cout     << endl << endl
+	     << "   v" << AREPO_RT_VERSION << " (" << __DATE__      << ")"
+			 << ". Author: Dylan Nelson (dnelson@cfa.harvard.edu)" << endl << endl;
 	IF_DEBUG(cout << "DEBUGGING ENALBED.\n\n");
 	
 	// command line arguments
 	if (argc != 2 && argc != 3) {
-			cout << "usage: ArepoRT <configfile.txt>\n";
+			cout << "Usage: ArepoRT <configfile.txt> [snapNum]" << endl << endl;
 			return 0;
 	} else {
 			// read config
@@ -219,27 +248,23 @@ int main (int argc, char* argv[])
 	} 
 	
 	// init
-#ifdef ENABLE_AREPO
-    Timer timer;
-    timer.Start();
+  Timer timer;
+  timer.Start();
 
-    Arepo arepo = Arepo(Config.filename, Config.paramFilename);
+  Arepo arepo = Arepo(Config.filename, Config.paramFilename);
+  arepo.Init(&argc,&argv);
+  arepo.LoadSnapshot();
 
-    arepo.Init(&argc,&argv);
-    arepo.LoadSnapshot();
+  cout << endl << "Arepo Load, Init, Meshing: [" << (float)timer.Time() << "] seconds." << endl;
 
-    cout << endl << "Arepo Load, Init, Meshing: [" << (float)timer.Time() << "] seconds." << endl;
-#endif
-
+	// render
 	if ( Config.filename.substr(0,10) == "test/Arepo" )
 		rtTestRenderScene(Config.filename);
 	else
 		rtRenderFrames();
 	
 	// cleanup
-#ifdef ENABLE_AREPO
 	arepo.Cleanup();
-#endif
 
 	return 0;
 }

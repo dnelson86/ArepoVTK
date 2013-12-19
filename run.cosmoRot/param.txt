@@ -3,22 +3,15 @@
 %----  Relevant files 
 
 InitCondFile	      ./Arepo2
-OutputDir           ./output
+OutputDir           ./output/
+
 EnergyFile          energy.txt
 InfoFile            info.txt
 TimingsFile         timings.txt
 CpuFile             cpu.txt
 RestartFile         restart
+SnapshotFileBase    snap
 OutputListFilename  output_list.txt
-
-% -------------------------------------------------------------
-% ------------------- CHECK DM ENDING OR NOT ------------------
-% -------------------------------------------------------------
-
-%I455
-%SnapshotFileBase    cutout.I455.h0.sf20_DM
-%I1820
-SnapshotFileBase    cutout.I1820.h0.sf20_DM
 
 %---- File formats
 
@@ -34,7 +27,7 @@ ResubmitCommand           my-scriptfile
 
 %----- Memory alloction
 
-MaxMemSize        3200         % sets maximum memory use in MByte
+MaxMemSize        40000         % sets maximum memory use in MByte
 BufferSize        100          % in MByte
 BufferSizeGravity 100
 
@@ -57,18 +50,14 @@ CellShapingSpeed  0.5          % sets speed of CM correction
 
 TimeBegin           0.0        % Begin of the simulation
 TimeMax	            1.0        % End of the simulation
-
-%I455
-%BoxSize             3720.0
-%I1820
-BoxSize              3680.0
+BoxSize             20000.0
 
 %---- Basic code options that set the type of simulation
 
 ComovingIntegrationOn    0
 PeriodicBoundariesOn     1
-CoolingOn		 1
-StarformationOn		 1
+CoolingOn		 0
+StarformationOn		 0
 
 %---- Cosmological parameters
 
@@ -140,16 +129,12 @@ SofteningBulgeMaxPhys     0
 SofteningStarsMaxPhys     0
 SofteningBndryMaxPhys     0
 
-%---- Parameters for star formation model
-CritPhysDensity      0       % critical physical density for star formation(in cm^(-3))
-MaxSfrTimescale      2.27    % in internal time units (1.5)
-CritOverDensity      57.7    % overdensity threshold value
-TempSupernova        5.73e7  % in Kelvin (1.0e8)
-TempClouds           1000.0  % in Kelvin
-FactorSN             0.1     % changed internally
-FactorEVP            573.0   % (1000.0)
-TemperatureThresh    0
-TreecoolFile         ../Arepo/data/TREECOOL_fg_dec11
+% SPECIAL_BOUNDARY
+BoundaryLayerScaleFactor    0.002
+SpecialBoundarySpeed  1.2566
+SpecialBoundaryMotion 4
+SpecialBoundaryType   1
+OutflowPressure       0
 
 % End
 
