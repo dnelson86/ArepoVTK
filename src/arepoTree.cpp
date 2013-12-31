@@ -30,9 +30,6 @@ ArepoTree::ArepoTree(const TransferFunction *tf)
 		if (Config.verbose)
 				cout << "[" << ThisTask << "] ArepoMesh: NumGas = " << NumGas << " NumPart = " << NumPart << endl << endl;
 		
-		// boxsize
-		extent = BBox(Point(0.0,0.0,0.0),Point(All.BoxSize,All.BoxSize,All.BoxSize));
-		
 		// allocate variable size tree search return list
 		//int numLists = numberOfCores();
 		//for(int i = 0; i < numLists; i++)
@@ -40,7 +37,15 @@ ArepoTree::ArepoTree(const TransferFunction *tf)
 			
 		//varNGBList = new int[Config.nTreeNGB * NGB_LIST_FAC]; //OLD
 		
-		IF_DEBUG(extent.print(" ArepoTree extent "));
+		// boxsize
+		extent = BBox(Point(0.0,0.0,0.0),Point(All.BoxSize,All.BoxSize,All.BoxSize));
+		
+		if( !All.BoxSize ) {
+			cout << "Error: All.BoxSize=0, likely structure mismatch." << endl;
+			exit(1180);
+		}		
+		
+		IF_DEBUG(extent.print(" ArepoTree extent "));		
 }
 
 ArepoTree::~ArepoTree()
