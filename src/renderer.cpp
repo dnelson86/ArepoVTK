@@ -188,7 +188,7 @@ void Renderer::RasterizeStage(const Scene *scene)
     vector<Line> edges;
 		
 		// testing: rasterize edges of AM tetra
-		if (Config.drawTetra) {
+		if (Config.drawTetra && scene->arepoMesh) {
 				Spectrum Ltetra	= Spectrum::FromRGB(Config.rgbTetra);
 				for (int i = 0; i < scene->arepoMesh->Ndt; i++) {
 						edges.clear();
@@ -205,7 +205,7 @@ void Renderer::RasterizeStage(const Scene *scene)
 		} 
 
     // testing: rasterize Voronoi faces of AM
-		if (Config.drawVoronoi) {
+		if (Config.drawVoronoi && scene->arepoMesh) {
 				edges.clear();
 				Spectrum Lvor   = Spectrum::FromRGB(Config.rgbVoronoi);
 				
@@ -230,7 +230,14 @@ void Renderer::RasterizeStage(const Scene *scene)
 				edges.clear();
 				Spectrum Ledge  = Spectrum::FromRGB(Config.rgbLine);
 				
-				if (scene->arepoMesh->WorldBound().Edges(&edges)) {
+				bool renderEdges = false;
+				
+				if( scene->arepoMesh )
+					renderEdges = scene->arepoMesh->WorldBound().Edges(&edges);
+				if( scene->arepoTree )
+					renderEdges = scene->arepoTree->WorldBound().Edges(&edges);
+					
+				if (renderEdges) {
 						for (unsigned int i = 0; i < edges.size(); ++i) {
 								// rasterize individual line segment
 								camera->RasterizeLine(edges[i].p1,edges[i].p2,Ledge);
