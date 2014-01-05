@@ -98,14 +98,21 @@ Version Roadmap:
     construction and memory overhead
 
  +v0.42
-  - Watson-Sambridge NNI
-  - Liang-Hale NNI
+  - calculate raw line integrals (do not apply TF) in addition to images
+  - goal: rendering 1820^3 box
+   - custom read_ic() with selective loading of only particles in camera frustrum
+   - split camera/image into subchunks, each handled by a separate instance
+   - maskfile approach to precompute which particles each instance needs to load
+  
+ +v0.42
   - keyframe transfer function settings
-
- +v0.43
   - time navigation (multiple snapshots, time interpolation)
   - movie pipeline
-   - frame metadata (XML/MKV container?)
+   - frame metadata (XML/MKV container?)  
+
+ +v0.43
+  - Watson-Sambridge NNI
+  - Liang-Hale NNI
 
  +v0.44
   - load group catalogs, merger trees

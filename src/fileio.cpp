@@ -64,32 +64,39 @@ void ConfigSet::ReadFile(string cfgfile)
 				}
 		}
 		
-		// fill public data members
+		// Input/Output
 		imageFile     = readValue<string>("imageFile",  "frame.tga");
 		rawRGBFile    = readValue<string>("rawRGBFile", "frame.raw.txt");
 		filename      = readValue<string>("filename");
 		paramFilename = readValue<string>("paramFilename");
 		
+		// General
 		nTasks        = readValue<int> ("nTasks",        1);
 		nCores        = readValue<int> ("nCores",        0);
 		quickRender   = readValue<bool>("quickRender",   false);
 		openWindow    = readValue<bool>("openWindow",    false);
 		verbose       = readValue<bool>("verbose",       false);
+		totNumJobs    = readValue<int>   ("totNumJobs", 0);
+		curJobNum     = -1; // read from commandline
+		maskFileBase  = readValue<string>("maskFileBase", "");
+		maskPadFac    = readValue<float> ("maskPadFac", 0.0f);
 		
+		// Frame/Camera
 		imageXPixels  = readValue<int>  ("imageXPixels", 500);
 		imageYPixels  = readValue<int>  ("imageYPixels", 500);
 		swScale       = readValue<float>("swScale",      1.0f);
-
 		cameraFOV     = readValue<float>("cameraFOV",    0.0f); // 0 = ortho
 		splitStrArray( readValue<string>("cameraPosition") , &cameraPosition[0]   );
 		splitStrArray( readValue<string>("cameraLookAt")   , &cameraLookAt[0] );
 		splitStrArray( readValue<string>("cameraUp")       , &cameraUp[0] );
 	
+	  // Animation
 		startFrame    = readValue<int>("startFrame",     0);	
 		numFrames     = readValue<int>("numFrames",      1);
 		timePerFrame  = readValue<float>("timePerFrame", 1.0);
-	        maxInv        = -1;
+	  maxInv        = -1;
 	
+		// Render
 		drawBBox      = readValue<bool>("drawBBox",      true);
 		drawTetra     = readValue<bool>("drawTetra",     true);	
 		drawVoronoi   = readValue<bool>("drawVoronoi",   false);
@@ -116,6 +123,10 @@ void ConfigSet::ReadFile(string cfgfile)
 		if (!useDensGradients && viStepSize) {
 				cout << "Config: ERROR! Nonzero stepsize set but no density gradients requested?" << endl;
 				exit(1125);
+		}
+		if (totNumJobs < 0 || totNumJobs > 16*16) {
+				cout << "Config: ERROR! Strange totNumJobs value, should be >=0 and <256" << endl;
+				exit(1169);
 		}
 }
 
@@ -385,14 +396,7 @@ void WriteImage(const string &name, float *pixels, float *alpha, int xRes,
 {
     if (name.size() >= 5) {
         uint32_t suffixOffset = name.size() - 4;
-#ifdef HAVE_OPENEXR
-        if (!strcmp(name.c_str() + suffixOffset, ".exr") ||
-            !strcmp(name.c_str() + suffixOffset, ".EXR")) {
-             WriteImageEXR(name, pixels, alpha, xRes, yRes, totalXRes,
-                           totalYRes, xOffset, yOffset);
-             return;
-        }
-#endif
+				
         if (!strcmp(name.c_str() + suffixOffset, ".tga") ||
             !strcmp(name.c_str() + suffixOffset, ".TGA")) {
             WriteImageTGA(name, pixels, alpha, xRes, yRes, totalXRes,

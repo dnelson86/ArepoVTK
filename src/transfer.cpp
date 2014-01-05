@@ -218,9 +218,13 @@ Spectrum TransferFunc1D::Lve(const float *vals) const
 				// lerp alpha and each rgb channel separately
 				float alpha = Lerp(t,colorTableVals[left*4+3],colorTableVals[right*4+3]);
 				
-				rgb[0] = 1.0 * alpha * vals[TF_VAL_DENS] * Lerp(t,colorTableVals[left*4+0],colorTableVals[right*4+0]);
-				rgb[1] = 1.0 * alpha * vals[TF_VAL_DENS] * Lerp(t,colorTableVals[left*4+1],colorTableVals[right*4+1]);
-				rgb[2] = 1.0 * alpha * vals[TF_VAL_DENS] * Lerp(t,colorTableVals[left*4+2],colorTableVals[right*4+2]);
+				// TODO: note below
+				//float prefactor = 1.0 * alpha * vals[TF_VAL_DENS];
+				float prefactor = 1.0 * alpha * log(vals[TF_VAL_DENS]/1e-11);
+				
+				rgb[0] = prefactor * Lerp(t,colorTableVals[left*4+0],colorTableVals[right*4+0]);
+				rgb[1] = prefactor * Lerp(t,colorTableVals[left*4+1],colorTableVals[right*4+1]);
+				rgb[2] = prefactor * Lerp(t,colorTableVals[left*4+2],colorTableVals[right*4+2]);
 		}
 		
 		// gaussian (discrete color table)

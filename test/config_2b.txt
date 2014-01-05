@@ -14,16 +14,17 @@ nTasks         = 128                 % number of tasks/threads to run (0=auto)
 quickRender    = false               % unused
 openWindow     = false               % unused
 verbose        = true                % report more information
+totNumJobs     = 1                    % set >1 to split single image render across multiple jobs
+maskFileBase   = mask                 % create/use maskfile for job based frustrum culling
+maskPadFac     = 0.0                  % frustrum padding factor in code spatial units
 
-% Frame
-% -----
+% Frame/Camera
+% ------------
 imageXPixels   = 800                 % frame resolution (X), e.g. 1024, 1920
 imageYPixels   = 800                 % frame resolution (Y), e.g. 768,  1080
 swScale        = 0.52                % screenWindow mult factor * [-1,1]
                                      % 0.52 ortho face, 0.80 angled above, boxsize/2 in
                                      % general if centering camera at [boxsize/2,boxsize/2,0]
-% Camera
-% ------
 cameraFOV      = 0.0                 % degrees (0=orthographic camera)
 cameraPosition = 0.5 0.5 0.0         % (XYZ) camera position in world coord system
 cameraLookAt   = 0.5 0.5 0.5         % (XYZ) point centered in camera FOV

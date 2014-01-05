@@ -130,11 +130,11 @@ SofteningStarsMaxPhys     0
 SofteningBndryMaxPhys     0
 
 % SPECIAL_BOUNDARY
-BoundaryLayerScaleFactor    0.002
-SpecialBoundarySpeed  1.2566
-SpecialBoundaryMotion 4
-SpecialBoundaryType   1
-OutflowPressure       0
+%BoundaryLayerScaleFactor    0.002
+%SpecialBoundarySpeed  1.2566
+%SpecialBoundaryMotion 4
+%SpecialBoundaryType   1
+%OutflowPressure       0
 
 % End
 

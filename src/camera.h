@@ -40,7 +40,7 @@ public:
         : xResolution(xres), yResolution(yres) {
 				IF_DEBUG(cout << "Film(" << xres << ", " << yres << ") constructor." << endl);
     }
-    Film(int xres, int yres, Filter *filt, const float crop[4],
+    Film(int xres, int yres, Filter *filt, const double crop[4],
               const string &filename, bool openWindow);
     ~Film() {
         delete pixels;
@@ -57,13 +57,14 @@ public:
     void WriteImage(int frameNum, float splatScale = 1.f);
 		void WriteRawRGB();
 		
+		void CalculateScreenWindow(float *screen, int jobNum);
 		bool DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L);
 
     // data
     const int xResolution, yResolution;
 private:
     Filter *filter;
-    float cropWindow[4];
+    double cropWindow[4];
     string filename;
     int xPixelStart, yPixelStart, xPixelCount, yPixelCount;
 		

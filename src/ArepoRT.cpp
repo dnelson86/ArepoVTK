@@ -3,6 +3,7 @@
  * dnelson
  */
  
+#include <unistd.h>
 #include "ArepoRT.h"
 
 #include "sampler.h"
@@ -218,34 +219,85 @@ int main (int argc, char* argv[])
 	IF_DEBUG(cout << "DEBUGGING ENALBED.\n\n");
 	
 	// command line arguments
-	if (argc != 2 && argc != 3) {
-			cout << "Usage: ArepoRT <configfile.txt> [snapNum]" << endl << endl;
-			return 0;
-	} else {
-			// read config
-			Config.ReadFile( argv[1] );
-
-			// second argument? input snapshot and output frame number
-			if( argc == 3 )
+	int c;
+	int curJobNum = -1;
+	string snapNum = "";
+	
+	opterr = 0;
+	
+	while ((c = getopt( argc, argv, "s:j:")) != -1 )
+		switch (c)
+		{
+			case 'j':
 			{
-			string num = argv[2];
-			const char padChar = '0';
-
-			if( num.size() < 3 ) // snapshot file number
-			num.insert(0, 3-num.size(), padChar);
-			size_t start_pos = Config.filename.find("NUM");
-			Config.filename.replace(start_pos, 3, num);
-
-      if( num.size() < 4 ) // output image numbering
-      num.insert(0, 4-num.size(), padChar);
-			start_pos = Config.imageFile.find("NUMM");
-			Config.imageFile.replace(start_pos, 4, num);
+				string num = optarg;
+				istringstream( num ) >> curJobNum;
+				
+				break;
 			}
+			case 's':
+			{
+				string snapNum = optarg;
 
-      if (Config.verbose)
-        Config.print();
+				break;
+			}
+			default:
+				cout << "When does this happen?" << endl;
+				return 0;
+		}
+	
+	// should be one non-option, the configuration file parameter
+	if( optind != argc - 1 ) {
+		cout << "Usage: ArepoRT <configfile.txt> [-s snapNum] [-j jobNum]" << endl << endl;
+		return 0;
+	}
+	
+	// read config
+	Config.ReadFile( argv[optind] );
+	
+	// process 'j' input
+	if( curJobNum != -1 )
+	{
+		Config.curJobNum = curJobNum;
+		// require that the current job number is reasonable given the total number of jobs
+		if( curJobNum < 0 || curJobNum >= Config.totNumJobs ) {
+			cout << "ERROR: Specified curJobNum [" << curJobNum << "] but Config.totNumJobs is [" << Config.totNumJobs << "]" << endl;
+			return 0;
+		} else {
+			cout << "Executing job number [" << curJobNum+1 << "] of [" << Config.totNumJobs << "]." << endl;
+		}
+	} else {
+		// require that we have not specified the current job number in this case
+		if( Config.totNumJobs > 0 ) {
+			cout << "Error: Have totNumJobs > 0 but the current job number is unspecified!" << endl;
+			return 0;
+		}	
+	}
+	
+	// process 's' input
+	if( snapNum != "" )
+	{
+		const char padChar = '0';
 
-	} 
+		 // snapshot file number
+		if( snapNum.size() < 3 )
+			snapNum.insert(0, 3-snapNum.size(), padChar);
+		size_t start_pos = Config.filename.find("NUM");
+		if( start_pos == string::npos ) {
+			cout << "ERROR: Snapshot specified but no wildcard 'NUM' in path string." << endl;
+			return 0;
+		}
+		Config.filename.replace(start_pos, 3, snapNum);
+
+		 // output image numbering
+		if( snapNum.size() < 4 )
+			snapNum.insert(0, 4-snapNum.size(), padChar);
+			
+		Config.imageFile += "_" + snapNum;
+	}
+	
+	if (Config.verbose)
+		Config.print();
 	
 	// init
   Timer timer;

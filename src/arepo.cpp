@@ -10,6 +10,7 @@
 
 #include "arepo.h"
 #include "util.h" // for numberOfCores()
+#include "snapio.h"
 
 // check for required Arepo compilation options
 
@@ -50,9 +51,8 @@ bool Arepo::LoadSnapshot()
 {
     IF_DEBUG(cout << "Arepo::LoadSnapshot(" << snapFilename << ")." << endl);
 		
-#ifndef DEBUG
-		//freopen("/dev/null","w",stdout); //hide arepo stdout
-#endif		
+		if( !Config.verbose )
+			freopen("/dev/null","w",stdout); //hide arepo stdout	
 		
 		// set startup options
 		WriteMiscFiles = 0;
@@ -80,10 +80,16 @@ bool Arepo::LoadSnapshot()
 				terminate("1140");
 		}
 		
-		// load snapshot (GAS ONLY)
-		read_ic(snapFilename.c_str(), 0x01);
+		if( Config.totNumJobs >= 1 ) {
+			// custom selective load snapshot, make/use maskfile for job splitting
+			ArepoSnapshot arepoSnap( snapFilename );
+			arepoSnap.read_ic();
+		} else {		
+			// load snapshot (GAS ONLY) with Arepo function
+			read_ic(snapFilename.c_str(), 0x01);
+		}
 		
-		if( Config.nTreeNGB)
+		if( Config.nTreeNGB )
 		{
 			// sampling based on tree searches only, custom (minimal) init
 			int i, j;
@@ -125,22 +131,24 @@ bool Arepo::LoadSnapshot()
 				return false;
 			}
 		}
+		
+		if( !Config.verbose ) { // restore stdout
+			//TODO: switch between these automatically
+			freopen("/dev/tty","w",stdout);
+			
+			//string fn = Config.imageFile + string(".out.txt");
+			//freopen(fn.c_str(),"a",stdout); //return stdout to a file (SLURM)
+		}		
 
 		// illustris fof0 log density/temp
+		/*
 		cout << "Converting DENSITY TO LOG!" << endl;
 		cout << "Converting TEMPERATURE TO LOG!" << endl;
 		for(int i = 0; i < NumGas; i++)
 		{
 			SphP[i].Density = log10( SphP[i].Density );
 			SphP[i].Utherm = log10( SphP[i].Utherm );
-		}
-		
-#ifndef DEBUG
-		//TODO: switch between these automatically
-		//string fn = Config.imageFile + string(".out.txt");
-		//freopen("/dev/tty","w",stdout); //return stdout to terminal (test only)
-		//freopen(fn.c_str(),"a",stdout); //return stdout to a file (LSF)
-#endif
+		} */
 
 		if (Config.verbose) {
 				cout << endl << "Arepo Init Finished, Memory Report:" << endl;
@@ -184,6 +192,11 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		// boxsize
 		extent = BBox(Point(0.0,0.0,0.0),Point(All.BoxSize,All.BoxSize,All.BoxSize));
 		
+		if( !All.BoxSize ) {
+			cout << "Error: All.BoxSize=0, likely structure mismatch." << endl;
+			exit(1179);
+		}
+		
 		IF_DEBUG(extent.print(" ArepoMesh extent "));
 
 #ifdef SPECIAL_BOUNDARY
@@ -194,8 +207,8 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 			if( P[i].ID == -2 )
 				SphP[i].Density = 1000.0;
 		}
-#endif
-
+#endif		
+		
 		// preprocessing
 		ArepoMesh::ComputeQuantityBounds();
 		//ArepoMesh::LimitCellDensities();
@@ -208,7 +221,8 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		unitConversions[TF_VAL_UTHERM] = All.UnitEnergy_in_cgs;
 		
 		IF_DEBUG(cout << "unitConv[dens]   = " << unitConversions[TF_VAL_DENS] << endl);
-		IF_DEBUG(cout << "unitConv[utherm] = " << unitConversions[TF_VAL_UTHERM] << endl);
+		IF_DEBUG(cout << "unitConv[utherm] = " << unitConversions[TF_VAL_UTHERM] << endl);		
+		
 }
 
 ArepoMesh::~ArepoMesh()
@@ -798,7 +812,6 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 			ray.task  = DP[qmin_dp].task;
 			ray.prev_index = ray.index;
 			ray.index = qmin;
-			//ray.min_t = Clamp(min_t + *t0,ray.min_t,ray.max_t);
 			ray.min_t = Clamp(min_t,ray.min_t,ray.max_t);
 			
 			IF_DEBUG(cout << " updated ray new task = " << ray.task << " index = " << ray.index 

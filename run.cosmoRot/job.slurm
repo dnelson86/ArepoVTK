@@ -5,7 +5,7 @@
 #SBATCH -J render
 #SBATCH -o run.txt
 #SBATCH -e run.txt
-#SBATCH -t 360 # 6 hour in min
+#SBATCH -t 0-12 # 12 hours
 #SBATCH --mem=22000
 ##SBATCH --mem-per-cpu=3900 # MB per cpu
 ##SBATCH --exclusive

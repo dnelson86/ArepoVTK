@@ -23,11 +23,11 @@ INCL     = -I ./Arepo/
 CC       = mpic++
 LIBS     = -fopenmp -lm 
 
-CFLAGS   = $(OPTIMIZE)
-CPPFLAGS = $(OPT) $(INCL)
+CFLAGS   = $(OPTIMIZE) -DH5_USE_16_API
+##CPPFLAGS = $(OPT) $(INCL)
 
-OBJS = ArepoRT.o camera.o fileio.o geometry.o integrator.o keyframe.o renderer.o sampler.o transfer.o transform.o util.o volume.o
-HEAD = ArepoRT.h camera.h fileio.h geometry.h integrator.h keyframe.h renderer.h sampler.h spectrum.h transfer.h transform.h util.h volume.h
+OBJS = ArepoRT.o camera.o fileio.o geometry.o integrator.o keyframe.o renderer.o sampler.o transfer.o transform.o util.o volume.o snapio.o
+HEAD = ArepoRT.h camera.h fileio.h geometry.h integrator.h keyframe.h renderer.h sampler.h spectrum.h transfer.h transform.h util.h volume.h snapio.h
 MISC_RM = frame.raw.txt frame.tga
 
 # ENABLE_AREPO

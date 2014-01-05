@@ -18,6 +18,11 @@
 
 #define MSUN_PER_PC3_IN_CGS 6.769e-23
 
+// for selective load (temporary)
+#define READ_PARTTYPE 0
+#define TILESIZE      256
+#define FILL_NUMPART  1000
+
 // behavior options
 
 //#define USE_LINEALGO_BRESENHAM
@@ -74,13 +79,16 @@
 #include <math.h>
 #include <sys/time.h>
 #include <stdint.h>
+#include <malloc.h> //memalign
 
+#include <typeinfo>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
 
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 #include <fstream>
 using namespace std;
 
@@ -89,8 +97,6 @@ using std::string;
 #include <vector>
 using std::vector;
 #include <map>
-
-#include <malloc.h> //memalign
 
 #include "fileio.h" //Config
 
@@ -124,6 +130,7 @@ struct Sample;
 class Arepo;
 class ArepoMesh;
 class ArepoTree;
+class ArepoSnapshot;
 class Scene;
 class VolumeRegion;
 class DensityRegion;
@@ -133,6 +140,14 @@ class VolumeIntegrator;
 class VoronoiIntegrator;
 class TreeSearchIntegrator;
 class Timer;
+
+// util functions
+template <typename T> string toStr(T num)
+{
+	stringstream ss;
+	ss << num;
+	return ss.str();
+}
 
 // global inlines
 inline float Lerp(float t, float v1, float v2) {
@@ -162,10 +177,10 @@ inline int Clamp(int val, int low, int high) {
     else return val;
 }
 inline unsigned int RoundUpPowerOfTwo(int val) {
-		val--;
-		val |= val >> 1; val |= val >> 2; val |= val >> 4; val |= val >> 8; val |= val >> 16;
-		val++;
-		return val;
+    val--;
+    val |= val >> 1; val |= val >> 2; val |= val >> 4; val |= val >> 8; val |= val >> 16;
+    val++;
+    return val;
 }
 
 #endif

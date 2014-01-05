@@ -2,7 +2,7 @@
 
 % Input/Output
 % ------------
-imageFile      = frames_rotDens/frame_test.tga            % output: TGA image filename
+imageFile      = frames_rotDens/frame_test            % output: TGA image filename
 rawRGBFile     = frame.raw.txt        % output: raw dump of floats (debug only)
 filename       = snapdir_130_fb256/snap_130             % input: simulation snapshot (no extension)
 paramFilename  = param.txt            % input: Arepo parameter file
@@ -14,15 +14,15 @@ nTasks         = 512                  % number of tasks/threads to run (0=auto)
 quickRender    = false                % unused
 openWindow     = false                % unused
 verbose        = false                % report more information
+totNumJobs     = 0                    % set >=1 to split single image render across multiple jobs (0=disable)
+maskFileBase   = mask                 % create/use maskfile for job based frustrum culling
+maskPadFac     = 0.0                  % frustrum padding factor in code spatial units
 
-% Frame
-% -----
-imageXPixels   = 1920                % frame resolution (X), e.g. 1024, 1920
-imageYPixels   = 1080                % frame resolution (Y), e.g. 768,  1080
-swScale        = 1.0                 % screenWindow mult factor * [-1,1]
-
-% Camera
-% ------
+% Frame/Camera
+% ------------
+imageXPixels   = 1920                    % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 1080                    % frame resolution (Y), e.g. 768,  1080
+swScale        = 1.0                     % screenWindow mult factor * [-1,1]
 cameraFOV      = 20.0                    % degrees (0=orthographic camera)
 cameraPosition = 30000 82000 12000       % (XYZ) camera position in world coord system
 cameraLookAt   = 10000 10000 10000       % (XYZ) point centered in camera FOV
@@ -61,7 +61,7 @@ addKF = 0.0 13.0 rotXY 6.2831853 linear
 % ------
 drawBBox         = true              % draw simulation bounding box
 drawTetra        = false             % draw delaunay tetrahedra
-drawVoronoi      = false             % DO NOT CHANGE
+drawVoronoi      = false             % draw voronoi polyhedra faces
 projColDens      = false             % integrate quantities (density, etc) along each path 
                                      % length, to make e.g. a "projected column density" image
 useDensGradients = true              % use density gradient within cells
