@@ -14,20 +14,20 @@ nTasks         = 256                  % number of tasks/threads to run (0=auto)
 quickRender    = false                % unused
 openWindow     = false                % unused
 verbose        = true                 % report more information
+totNumJobs     = 1                    % set >1 to split single image render across multiple jobs
+maskFileBase   = mask                 % create/use maskfile for job based frustrum culling
+maskPadFac     = 0.0                  % frustrum padding factor in code spatial units
 
-% Frame
-% -----
+% Frame/Camera
+% ------------
 imageXPixels   = 1920                % frame resolution (X), e.g. 1024, 1920
 imageYPixels   = 1080                % frame resolution (Y), e.g. 768,  1080
 swScale        = 1.0                 % screenWindow mult factor * [-1,1]
-
-% Camera
-% ------
 % want to plot (x,z) or (y,z)
-cameraFOV      = 20.0           % degrees (0=orthographic camera)
-cameraPosition = -3.0 0.5 0.5   % (XYZ) camera position in world coord system
-cameraLookAt   = 1.5 0.5 0.5    % (XYZ) point centered in camera FOV
-cameraUp       = 0.0 0.0 1.0    % (XYZ) camera "up" vector
+cameraFOV      = 20.0                % degrees (0=orthographic camera)
+cameraPosition = -3.0 0.5 0.5        % (XYZ) camera position in world coord system
+cameraLookAt   = 1.5 0.5 0.5         % (XYZ) point centered in camera FOV
+cameraUp       = 0.0 0.0 1.0         % (XYZ) camera "up" vector
 
 % Transfer Function
 % -----------------

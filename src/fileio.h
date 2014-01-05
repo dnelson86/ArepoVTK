@@ -8,9 +8,6 @@
 
 #include "ArepoRT.h"
 
-#include <sstream>
-#include <fstream>
-
 // configuration options
 class ConfigSet {
 public:
@@ -29,26 +26,35 @@ public:
 		
 		void splitStrArray(const string str, float *rgb); // size 3
 
-    // data for public access
+    // General
     string imageFile, rawRGBFile;
 		string filename, paramFilename;
 		
     int nTasks, nCores;
     bool quickRender, verbose, openWindow;
 		
+		int totNumJobs, curJobNum;
+		string maskFileBase;
+		float maskPadFac;
+		
+		// Frame/Camera
 		int imageXPixels, imageYPixels;
 		float swScale; // screenWindow mult factor * [-1,1]
 		
 		float cameraFOV;
 		float cameraPosition[3], cameraLookAt[3], cameraUp[3];
 		
-		vector<string> tfSet; // transfer functions
+		// Transfer Functions
+		vector<string> tfSet;
+		
+		// Animation
 		vector<string> kfSet; // key frames
 		
 		int startFrame, numFrames;
 		float timePerFrame;
 		float maxInv; // inverse of maximum pixel value for first frame
 		
+		// Render
 		bool drawBBox, drawTetra, drawVoronoi;
 		bool projColDens, useDensGradients;		
 		

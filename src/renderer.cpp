@@ -82,8 +82,16 @@ void RendererTask::Run(int threadNum) {
 
 		float time = (float)timer2.Time();
 		
-		cout << " [Thread=" << setw(2) << threadNum << " Task=" << setw(3) << taskNum 
-		    << "] Raytracing phase: [" << setw(6) << time << "] seconds." << endl;
+		if( Config.verbose ) {
+			cout << " [Thread=" << setw(2) << threadNum << " Task=" << setw(3) << taskNum 
+					<< "] Raytracing phase: [" << setw(6) << time << "] seconds." << endl;
+		}
+		else {
+			cout << ".";
+			if( taskNum % 80 == 0 )
+				cout << "]" << endl << " [";
+			fflush(stdout);
+		}
 		
     // Clean up after _SamplerRendererTask_ is done with its image region
     camera->film->UpdateDisplay(sampler->xPixelStart, sampler->yPixelStart, 
@@ -145,6 +153,8 @@ void Renderer::Render(const Scene *scene, int frameNum)
 		// if not verbose, start single-line progress bar
 		//if ( !Config.verbose )
 		//	writeStatusBar(0, Config.nTasks);
+		if( !Config.verbose )
+			cout << " [";
 		
 		// add render tasks to queue
 		vector<Task *> renderTasks;
@@ -162,6 +172,9 @@ void Renderer::Render(const Scene *scene, int frameNum)
 		// free tasks when all done
 		for (unsigned int i=0; i < renderTasks.size(); i++)
 				delete renderTasks[i];
+		
+		if( !Config.verbose )
+			cout << "]" << endl;
 		
 		// do rasterization stage with just one task
 		if (Config.drawTetra || Config.drawVoronoi || Config.drawBBox)

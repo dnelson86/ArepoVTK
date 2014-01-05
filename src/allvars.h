@@ -91,6 +91,8 @@ extern MyDouble boxSize, boxHalf; // NOTE: this is maybe not the boxSize global 
 #define NEAREST_Z(x) (x)
 #endif
 
+#define ALLOC_TOLERANCE 0.1
+
 /* file pointers */
 
 extern FILE *FdInfo,            /**< file handle for info.txt log-file. */
@@ -502,6 +504,8 @@ extern "C" {
 void begrun1(void);
 void endrun(int);
 int init(void); 
+void allocate_memory(void);
+void set_cosmo_factors_for_current_time(void);
 void read_ic(const char *fname, int); 
 void determine_compute_nodes(void);
  

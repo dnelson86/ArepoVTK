@@ -15,14 +15,11 @@ quickRender    = false                % unused
 openWindow     = false                % unused
 verbose        = true                 % report more information
 
-% Frame
-% -----
-imageXPixels   = 1440                % frame resolution (X), e.g. 1024, 1920
-imageYPixels   = 1440                % frame resolution (Y), e.g. 768,  1080
-swScale        = 1820.0              % screenWindow mult factor * [-1,1]
-
-% Camera
-% ------
+% Frame/Camera
+% ------------
+imageXPixels   = 1440                    % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 1440                    % frame resolution (Y), e.g. 768,  1080
+swScale        = 1820.0                  % screenWindow mult factor * [-1,1]
 cameraFOV      = 0.0                     % degrees (0=orthographic camera)
 cameraUp       = 0.0 1.0 0.0             % (XYZ) camera "up" vector
 cameraPosition = 1840 1840 20            % (XYZ) camera position in world coord system

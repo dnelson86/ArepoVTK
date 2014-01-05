@@ -30,20 +30,20 @@ BoxFilter *CreateBoxFilter()
 
 // Film
 
-Film::Film(int xres, int yres, Filter *filt, const float crop[4], const string &fn, bool openWindow)
+Film::Film(int xres, int yres, Filter *filt, const double crop[4], const string &fn, bool openWindow)
     : xResolution(xres), yResolution(yres)
 {
 		IF_DEBUG(cout << "Film(" << xres << ", " << yres << ", ...) constructor." << endl);
 		
     filter = filt;
-    memcpy(cropWindow, crop, 4 * sizeof(float));
+    memcpy(cropWindow, crop, 4 * sizeof(double));
     filename = fn;
 		
     // Compute film image extent
-    xPixelStart = (int)ceilf(xResolution * cropWindow[0]);
-    xPixelCount = max(1, (int)ceilf(xResolution * cropWindow[1]) - xPixelStart);
-    yPixelStart = (int)ceilf(yResolution * cropWindow[2]);
-    yPixelCount = max(1, (int)ceilf(yResolution * cropWindow[3]) - yPixelStart);
+    xPixelStart = (int)ceil(xResolution * cropWindow[0]);
+    xPixelCount = max(1, (int)ceil(xResolution * cropWindow[1]) - xPixelStart);
+    yPixelStart = (int)ceil(yResolution * cropWindow[2]);
+    yPixelCount = max(1, (int)ceil(yResolution * cropWindow[3]) - yPixelStart);
 
 		IF_DEBUG(cout << " xPixelStart = " << xPixelStart << " xPixelCount = " << xPixelCount
 									<< " yPixelStart = " << yPixelStart << " yPixelCount = " << yPixelCount << endl);
@@ -521,20 +521,153 @@ void Film::UpdateDisplay(int x0, int y0, int x1, int y1, float splatScale)
 		IF_DEBUG(cout << "Film::UpdateDisplay()" << endl);
 }
 
+void Film::CalculateScreenWindow(float *screen, int jobNum)
+{
+	float frame = float(xResolution)/float(yResolution);
+
+	// OLD LOGIC: use unmodified for Camera/Film construction
+	if( jobNum == -1 )
+	{
+	  if (frame > 1.0f) {
+        screen[0] = -frame;
+        screen[1] =  frame;
+        screen[2] = -1.0f;
+        screen[3] =  1.0f;
+    }
+    else {
+        screen[0] = -1.0f;
+        screen[1] =  1.0f;
+        screen[2] = -1.0f / frame;
+        screen[3] =  1.0f / frame;
+    }
+		
+    for (int i=0; i < 4; i++)
+		  screen[i] *= Config.swScale;
+			
+		return;
+	}
+	
+	// NEW LOGIC: subdivide camera for multiple jobs (use for frustrum calculation in mask creation)
+	// currently implementation is very restrictive
+	if (Config.cameraFOV)	{
+		cout << "Error: Non-zero FoV (perspective camera) with image plane job division." << endl;
+		exit(1182);
+	}
+	//if( xResolution != yResolution ) {
+	//	cout << "Error: Non-square image with image plane job division." << endl;
+	//	exit(1184);
+	//}	
+	
+	// numbering: by row left to right, then by column top to bottom, e.g.
+	// 0  1  2  3
+	// 4  5  6  7
+	// 8  9  10 11
+	// 12 13 14 15
+	int nJobDivisionsXY = sqrt( Config.totNumJobs );
+	int jRow = floor( jobNum / nJobDivisionsXY );
+	int jCol = floor( jobNum % nJobDivisionsXY );
+	
+	float xSize = 2.0 / nJobDivisionsXY;
+	float ySize = 2.0 / nJobDivisionsXY;
+	
+	float xCen  = -1.0 + jCol * xSize + xSize*0.5;
+	float yCen  = +1.0 - jRow * ySize - ySize*0.5;
+	
+	//if( Config.verbose )
+	//	cout << " job [" << jobNum << "] jRow = " << jRow << " jCol = " << jCol << endl;
+	
+	if( nJobDivisionsXY*nJobDivisionsXY != Config.totNumJobs ) {
+		cout << "Error: Square root of totNumJobs is not an integer." << endl;
+		exit(1185);
+	}
+	if( xResolution % nJobDivisionsXY != 0 || yResolution % nJobDivisionsXY != 0 ) {
+		cout << "Error: Image pixel size is not divisible by number of linear job divisions of image." << endl;
+		exit(1186);
+	}
+	if( xResolution % TILESIZE != 0 || (xResolution/nJobDivisionsXY) % TILESIZE != 0 ||
+	    yResolution % TILESIZE != 0 || (yResolution/nJobDivisionsXY) % TILESIZE != 0 ) {
+		cout << "Error: Image pixel size (of whole or job division subparts) will not be divisible by tile size." << endl;
+		exit(1187);
+	}
+	
+	// calculate screenwindow	
+	screen[0] = xCen - xSize*0.5;
+	screen[1] = xCen + xSize*0.5;
+	screen[2] = yCen - ySize*0.5;
+	screen[3] = yCen + ySize*0.5;
+	
+	if( frame > 1.0 ) { // handle non-square aspect ratio
+		screen[0] *= frame;
+		screen[1] *= frame;
+	} else {
+		screen[2] /= frame;
+		screen[3] /= frame;
+	}
+	
+	//if( Config.verbose )
+	//	cout << " screen: " << screen[0] << " " << screen[1] << " " << screen[2] << " " << screen[3] << endl;
+	
+	for (int i=0; i < 4; i++)
+		screen[i] *= Config.swScale;
+		
+	//if( Config.verbose )
+	//	cout << " screen: " << screen[0] << " " << screen[1] << " " << screen[2] << " " << screen[3] << endl;
+}
+
 Film *CreateFilm(Filter *filter)
 {
+		double crop[4];
+		
     string filename = Config.imageFile;
     if (filename == "")
-#ifdef HAVE_OPENEXR
-        filename = "frame.exr";
-#else
-        filename = "frame.tga";
-#endif
+			filename = "frame";
 
-    int xres = Config.imageXPixels;
-    int yres = Config.imageYPixels;
-    bool openwin = Config.openWindow;
-		float crop[4] = { 0, 1, 0, 1 }; // get from Config
+		// prepend "_curJob_totJobs"
+		if( Config.totNumJobs >= 1 )
+			filename += "_" + toStr(Config.curJobNum) + "_" + toStr(Config.totNumJobs);
+			
+		filename += ".tga";
+			
+		// do not modify Film resolution for job subdivisions
+		int xres = Config.imageXPixels;
+		int yres = Config.imageYPixels;
+			
+		// instead modify the crop window (also reduces the pixel/sampling rays count)
+    if( Config.totNumJobs >= 1 )
+		{
+			// y increasing from 0 downwards from the top
+			// x increasing from 0 rightwards from the left (flipped from job tile ordering)
+			int nJobDivisionsXY = sqrt( Config.totNumJobs );
+			int jRow = floor( Config.curJobNum / nJobDivisionsXY );
+			int jCol = floor( Config.curJobNum % nJobDivisionsXY );
+			
+			double xySize = 1.0 / nJobDivisionsXY;
+			
+			double xCen  = 1.0 - jCol * xySize - xySize*0.5;
+			double yCen  = 0.0 + jRow * xySize + xySize*0.5;
+			
+			crop[0] = xCen - xySize*0.5;
+			crop[1] = xCen + xySize*0.5;
+			crop[2] = yCen - xySize*0.5;
+			crop[3] = yCen + xySize*0.5;
+			
+#ifdef DEBUG
+				cout << " job [" << Config.curJobNum << "] jRow = " << jRow << " jCol = " << jCol
+						 << " xySize = " << xySize << " xCen = " << xCen << " yCen = " << yCen << endl;
+				cout << " crop: " << crop[0] << " " << crop[1] << " " << crop[2] << " " << crop[3] << endl;
+#endif
+			
+			//float crop[4] = { 0.5, 1.0, 0, 0.5 }; // j0 of 2x2
+			//float crop[4] = { 0.0, 0.5, 0.0, 0.5 }; // j1 of 2x2
+		} else {
+			// default, old behavior
+			crop[0] = 0.0; // xmin
+			crop[1] = 1.0; // xmax
+			crop[2] = 0.0; // ymin
+			crop[3] = 1.0; // ymax
+		}
+		
+		bool openwin = Config.openWindow;
 		
     return new Film(xres, yres, filter, crop, filename, openwin);
 }
@@ -665,7 +798,6 @@ float OrthoCamera::GenerateRay(const CameraSample &sample, Ray *ray) const
     CameraToWorld(*ray, ray);
 				
 		IF_DEBUG(ray->printRay(" genray W "));
-				 
     return 1.0f;
 }
 
@@ -717,29 +849,13 @@ float PerspectiveCamera::GenerateRay(const CameraSample &sample, Ray *ray) const
 OrthoCamera *CreateOrthographicCamera(const Transform &cam2world, Film *film)
 {
 		// Config
-    float shutteropen = 0.0f;
-    float shutterclose = 1.0f;
-
-    float lensradius = 0.0f;
+    float shutteropen   = 0.0f;
+    float shutterclose  = 1.0f;
+    float lensradius    = 0.0f;
     float focaldistance = 1e30f;
-    float frame = float(film->xResolution)/float(film->yResolution);
+		
     float screen[4];
-		
-    if (frame > 1.0f) {
-        screen[0] = -frame;
-        screen[1] =  frame;
-        screen[2] = -1.0f;
-        screen[3] =  1.0f;
-    }
-    else {
-        screen[0] = -1.0f;
-        screen[1] =  1.0f;
-        screen[2] = -1.0f / frame;
-        screen[3] =  1.0f / frame;
-    }
-		
-    for (int i=0; i < 4; i++)
-		  screen[i] *= Config.swScale;
+    film->CalculateScreenWindow(screen, -1);
 				
     return new OrthoCamera(cam2world, screen, shutteropen, shutterclose,
         lensradius, focaldistance, film);
@@ -748,29 +864,13 @@ OrthoCamera *CreateOrthographicCamera(const Transform &cam2world, Film *film)
 PerspectiveCamera *CreatePerspectiveCamera(const Transform &cam2world, Film *film)
 {
     // Config
-    float shutteropen = 0.0f;
-    float shutterclose = 1.0f;
-
-    float lensradius = 0.0f;
+    float shutteropen   = 0.0f;
+    float shutterclose  = 1.0f;
+    float lensradius    = 0.0f;
     float focaldistance = 1e30f;
-    float frame = float(film->xResolution)/float(film->yResolution);
+		
     float screen[4];
-		
-    if (frame > 1.0f) {
-        screen[0] = -frame;
-        screen[1] =  frame;
-        screen[2] = -1.0f;
-        screen[3] =  1.0f;
-    }
-    else {
-        screen[0] = -1.0f;
-        screen[1] =  1.0f;
-        screen[2] = -1.0f / frame;
-        screen[3] =  1.0f / frame;
-    }
-		
-    for (int i=0; i < 4; i++)
-		  screen[i] *= Config.swScale;
+		film->CalculateScreenWindow(screen, -1);
 			
     float fov = Config.cameraFOV;
 		
