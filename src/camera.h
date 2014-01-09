@@ -44,17 +44,19 @@ public:
               const string &filename, bool openWindow);
     ~Film() {
         delete pixels;
+				delete integrals;
         delete filter;
         delete[] filterTable;
     }
 		
 		// methods
-    void AddSample(const CameraSample &sample, const Spectrum &L);
+    void AddSample(const CameraSample &sample, const Spectrum &L, const Ray &ray, int threadNum);
     void Splat(const CameraSample &sample, const Spectrum &L);
     void GetSampleExtent(int *xstart, int *xend, int *ystart, int *yend) const;
     void GetPixelExtent(int *xstart, int *xend, int *ystart, int *yend) const;
     void UpdateDisplay(int x0, int y0, int x1, int y1, float splatScale = 1.f);
     void WriteImage(int frameNum, float splatScale = 1.f);
+		void WriteIntegrals();
 		void WriteRawRGB();
 		
 		void CalculateScreenWindow(float *screen, int jobNum);
@@ -70,7 +72,8 @@ private:
 		
     struct Pixel {
         Pixel() {
-            for (int i = 0; i < 3; ++i) Lxyz[i] = splatXYZ[i] = 0.0f;
+            for (int i = 0; i < 3; ++i)
+							Lxyz[i] = splatXYZ[i] = 0.0f;
             weightSum = 0.0f;
         }
         float Lxyz[3];
@@ -78,8 +81,18 @@ private:
         float splatXYZ[3];
         float pad;
     };
+		struct RawPixel {
+        RawPixel() {
+            for (int i = 0; i < TF_NUM_VALS; ++i)
+							raw_vals[i] = 0.0f;
+            weightSum = 0.0f;
+        }
+			float raw_vals[TF_NUM_VALS];
+			float weightSum;
+		};
 		
     BlockedArray<Pixel> *pixels;
+		BlockedArray<RawPixel> *integrals;
     float *filterTable;
 };
 

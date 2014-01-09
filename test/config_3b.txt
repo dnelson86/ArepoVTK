@@ -14,7 +14,7 @@ nTasks         = 8                   % number of tasks/threads to run (0=auto)
 quickRender    = false               % unused
 openWindow     = false               % unused
 verbose        = true                % report more information
-totNumJobs     = 1                   % set >1 to split single image render across multiple jobs
+totNumJobs     = 0                   % set >1 to split single image render across multiple jobs
 maskFileBase   = mask                % create/use maskfile for job based frustrum culling
 maskPadFac     = 0.0                 % frustrum padding factor in code spatial units
 
@@ -29,6 +29,11 @@ cameraFOV      = 0.0                 % degrees (0=orthographic camera)
 cameraPosition = 0.5 0.5 0.0         % (XYZ) camera position in world coord system
 cameraLookAt   = 0.5 0.5 0.5         % (XYZ) point centered in camera FOV
 cameraUp       = 0.0 0.0 1.0         % (XYZ) camera "up" vector
+
+% Data Processing
+% ---------------
+recenterBoxCoords     = -1 -1 -1         % (XYZ) shift all points for new center (-1 tuple=disable)
+convertUthermToKelvin = false            % convert SphP.Utherm field to temp in Kelvin
 
 % Transfer Function
 % -----------------
@@ -52,7 +57,6 @@ drawTetra        = false             % draw delaunay tetrahedra
 drawVoronoi      = false             % draw voronoi polyhedra faces
 projColDens      = false             % integrate quantities (density, etc) along each path 
                                      % length, to make e.g. a "projected column density" image
-useDensGradients = true              % use density gradient within cells
 viStepSize       = 0.01              % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
 rayMaxT          = 0.0               % maximum ray integration parametric length

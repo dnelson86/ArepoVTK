@@ -7,10 +7,45 @@
 #define VORONOI_3DB_H
  
 #include "ArepoRT.h"
- 
+// otherwise this file doesn't seem to know about the preprocessor definitions from Config.sh
+#include "../Arepo/build/arepoconfig.h"
+
+#ifndef SPECIAL_BOUNDARY
+#ifndef LONGIDS
+typedef unsigned int MyIDType;
+#define MPI_MYIDTYPE MPI_UNSIGNED
+#else
+typedef unsigned long long MyIDType;
+#define MPI_MYIDTYPE MPI_UNSIGNED_LONG_LONG
+#endif
+#else
+#ifndef LONGIDS
+typedef int MyIDType;
+#define MPI_MYIDTYPE MPI_INT
+#else
+typedef long long MyIDType;
+#define MPI_MYIDTYPE MPI_LONG_LONG_INT
+#endif
+#endif
+
+#ifndef DOUBLEPRECISION         // default is single-precision
 typedef float MyFloat;
 typedef float MyDouble;
-typedef int MyIDType;
+#define MPI_MYFLOAT MPI_FLOAT
+#define MPI_MYDOUBLE MPI_FLOAT
+#else
+#if (DOUBLEPRECISION == 2)      // mixed precision
+typedef float MyFloat;
+typedef double MyDouble;
+#define MPI_MYFLOAT MPI_FLOAT
+#define MPI_MYDOUBLE MPI_DOUBLE
+#else // everything double-precision
+typedef double MyFloat;
+typedef double MyDouble;
+#define MPI_MYFLOAT MPI_DOUBLE
+#define MPI_MYDOUBLE MPI_DOUBLE
+#endif
+#endif
 
 #define MAXGRADIENTS 5
 

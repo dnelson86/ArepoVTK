@@ -61,7 +61,7 @@ bool Arepo::LoadSnapshot()
 
 		strcpy(ParameterFile,paramFilename.c_str());
 
-		// call arepo: run setup
+		// call arepo: run setup (also sets units)
 		begrun1();
 		open_logfiles();
 		
@@ -150,6 +150,20 @@ bool Arepo::LoadSnapshot()
 			SphP[i].Utherm = log10( SphP[i].Utherm );
 		} */
 
+		// Data Processing (temporary spot)
+		float gamma = 5.0 / 3.0;
+		
+		for( int i=0; i < NumGas; i++ )
+		{
+			// calculate entropy (leave in code units) (Pressure/prim vars set in init())
+			SphP[i].OldMass = SphP[i].Pressure * All.cf_a3inv / pow(SphP[i].Density * All.cf_a3inv, gamma);
+			
+			if( SphP[i].OldMass < 0.0 ) {
+				cout << "Error: Calculated [" << i << "] entropy = " << SphP[i].OldMass << endl;
+				exit(1206);
+			}
+		}
+		
 		if (Config.verbose) {
 				cout << endl << "Arepo Init Finished, Memory Report:" << endl;
 				dump_memory_table();
@@ -165,12 +179,11 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		
 		// transfer function and sampling setup
 		transferFunction = tf;
-		viStepSize       = Config.viStepSize;
 		
 		sampleWt = 1.0f; //All.BoxSize / pow(NumGas,0.333);
 		
-		if (viStepSize)
-			sampleWt *= viStepSize;
+		if (Config.viStepSize)
+			sampleWt *= Config.viStepSize;
 		
 		// set pointers into Arepo data structures
 		T   = &Mesh;
@@ -217,11 +230,11 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		ArepoMesh::precomputeTetraGrads();
 		
 		// TODO: temp units
-		unitConversions[TF_VAL_DENS]   = All.UnitDensity_in_cgs / MSUN_PER_PC3_IN_CGS;
-		unitConversions[TF_VAL_UTHERM] = All.UnitEnergy_in_cgs;
+		unitConversions[TF_VAL_DENS] = All.UnitDensity_in_cgs / MSUN_PER_PC3_IN_CGS;
+		unitConversions[TF_VAL_TEMP] = All.UnitEnergy_in_cgs;
 		
 		IF_DEBUG(cout << "unitConv[dens]   = " << unitConversions[TF_VAL_DENS] << endl);
-		IF_DEBUG(cout << "unitConv[utherm] = " << unitConversions[TF_VAL_UTHERM] << endl);		
+		IF_DEBUG(cout << "unitConv[utherm] = " << unitConversions[TF_VAL_TEMP] << endl);		
 		
 }
 
@@ -415,6 +428,30 @@ void ArepoMesh::LocateEntryTetra(const Ray &ray, int *prevEntryTetra)
 		*prevEntryTetra = tt;
 }
 
+void addValsContribution( vector<float> &vals, int SphP_ind, double weight )
+{
+		if( weight < 0.0 )
+			weight = 0.0;
+		
+		vals[TF_VAL_DENS]    += SphP[SphP_ind].Density * weight;
+		vals[TF_VAL_TEMP]    += SphP[SphP_ind].Utherm * weight;
+		vals[TF_VAL_VMAG]    += sqrt( P[SphP_ind].Vel[0] * P[SphP_ind].Vel[0] + 
+														    	P[SphP_ind].Vel[1] * P[SphP_ind].Vel[1] + 
+																	P[SphP_ind].Vel[2] * P[SphP_ind].Vel[2] ) * weight;
+		vals[TF_VAL_ENTROPY] += SphP[SphP_ind].OldMass * weight;
+		vals[TF_VAL_METAL]   += SphP[SphP_ind].Metallicity * weight;
+		// SZ y-parameter (no constants, not real units)
+		// line integral of: n_e*T = (x_e*rho*T) = (x_e*rho*(U/mu))
+		// require/assume: Utherm is temperature in units of Kelvin already
+		vals[TF_VAL_SZY]     += (SphP[SphP_ind].Density * P[SphP_ind].OldAcc) * 
+												    SphP[SphP_ind].Utherm * weight;
+		// Xray (no constants, not real units): line integral of n^2 * Lambda(T)
+		// no additional weighting as with (Temp,Vmag,Ent,Metal)
+		// assume: Utherm is temperature in units of Kelvin already (restriction: hot gas only, >1e6)
+		vals[TF_VAL_XRAY]    +=  sqrt( SphP[SphP_ind].Utherm ) *
+														 pow( SphP[SphP_ind].Density * P[SphP_ind].OldAcc, 2 ) * weight;
+}
+
 int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
 {
 	// based on ngbtree_walk.c:ngb_treefind_variable() (no MPI)
@@ -557,7 +594,7 @@ inline int ArepoMesh::getSphPID(int dpInd)
 		return sphInd;
 }
 
-void ArepoMesh::checkCurCellTF(bool *addFlag, int sphInd, float *vals)
+void ArepoMesh::checkCurCellTF(bool *addFlag, int sphInd, vector<float> &vals)
 {	
 	// check if TF evaluates to zero at this cell midpoint
 /*
@@ -568,8 +605,8 @@ void ArepoMesh::checkCurCellTF(bool *addFlag, int sphInd, float *vals)
 			//       cells, not just the one in the ray direction
 			if (qmin != -1) {
 					float vals_next[TF_NUM_VALS];
-					vals_next[TF_VAL_DENS]        = (float) SphP[qmin].Density;
-					vals_next[TF_VAL_UTHERM]      = (float) SphP[qmin].Utherm;
+					vals_next[TF_VAL_DENS] = (float) SphP[qmin].Density;
+					vals_next[TF_VAL_TEMP] = (float) SphP[qmin].Utherm;
 					
 					if (!transferFunction->InRange(vals_next))
 							addFlag = false;
@@ -695,16 +732,9 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 			addFlag = false;
 		
 		// pack cell-center values to test TF
-		float vals[TF_NUM_VALS];
+		vector<float> vals( TF_NUM_VALS, 0.0 );
 		
-		vals[TF_VAL_DENS]        = (float) SphP[SphP_ID].Density;
-		vals[TF_VAL_UTHERM]      = (float) SphP[SphP_ID].Utherm;
-		vals[TF_VAL_PRES]        = (float) SphP[SphP_ID].Pressure;
-		vals[TF_VAL_ENERGY]      = (float) SphP[SphP_ID].Energy;
-		
-		vals[TF_VAL_VEL_X]       = (float) P[SphP_ID].Vel[0];
-		vals[TF_VAL_VEL_Y]       = (float) P[SphP_ID].Vel[1];
-		vals[TF_VAL_VEL_Z]       = (float) P[SphP_ID].Vel[2];
+		addValsContribution( vals, SphP_ID, 1.0 );
 		
 		// if TF evaluates to zero at this cell midpoint, and at all neighboring cell midpoints, 
 		// then we are guaranteed that nowhere in this cell will be important, so jump onwards
@@ -715,14 +745,12 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 		{
 			// clamp min_t to avoid integrating outside the box
 			IF_DEBUG(cout << " have exit: min_t = " << min_t << " (t1=" << *t1 << " t0=" << *t0 << ") addFlag = " << addFlag << endl);
-			//min_t = Clamp(min_t,0.0,(*t1-*t0));
 			min_t = Clamp(min_t,*t0,*t1);
 			
 			if (addFlag)
 			{
 				// entry and exit points for this cell
 				Point hitcell  = ray(ray.min_t);
-				//Point exitcell = ray(*t0 + min_t);
 				Point exitcell = ray(min_t);
 					
 				// cell gradient information
@@ -733,13 +761,12 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 				IF_DEBUG(exitcell.print("  ecell "));
 				IF_DEBUG(sphCen.print("  dpCen "));
 									
-				const Vector norm = exitcell - hitcell;
+				Vector norm = exitcell - hitcell;
 					
 				// compute total path length through cell
 				double len = norm.Length();
 					
 				// find interpolated density at midpoint of line segment through voronoi cell
-				//Vector midpt = Vector(hitcell) + 0.5 * norm;
 				Vector midpt(hitcell[0] + 0.5 * norm[0],hitcell[1] + 0.5 * norm[1],hitcell[2] + 0.5 * norm[2]);
 				midpt -= sphCen;
 
@@ -748,24 +775,38 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 				stepTau += transferFunction->sigma_t() * (SphP[SphP_ID].Density + Dot(sphDensGrad,midpt)) * len;
 				//Tr *= Exp(-stepTau); // reduce transmittance for optical depth
 					
-				// TODO: sub-step length should be adaptive based on gradients
-
-				// if not sub-stepping then set default
-				if (!viStepSize)
-					viStepSize = len;
-						
-				// sub-stepping: variable 
-				//int nSamples = (int)ceilf(len_sample / viStepSize);
-				//double fracstep = 1.0 / nSamples;
-				//double halfstep = 0.5 / nSamples;
+				// setup sampling for this cell
+				Point prev_sample_pt = hitcell;
+				int nSamples;
+				float stepSize;
+				
+				if( Config.viStepSize > 0.0 )
+				{
+					stepSize = Config.viStepSize;
 					
-				// setup sub-stepping: strict in world space
-				Vector prev_sample_pt(ray(*t0 + ray.depth * viStepSize));
-				Vector norm_sample(exitcell - prev_sample_pt);
+					// sub-stepping: strict in world space
+					prev_sample_pt = ray(*t0 + ray.depth * stepSize);
+					norm = exitcell - prev_sample_pt;
 
-				int nSamples = (int)floorf(norm_sample.Length() / viStepSize);
-				norm_sample = Normalize(norm_sample);
-					
+					nSamples = (int)floor(norm.Length() / stepSize);
+					norm = Normalize(norm);
+				}
+				else if( Config.viStepSize < 0.0 )
+				{
+					// sub-stepping: adaptive based on cell size (could include gradients as well)
+					// in this case -Config.viStepSize is the NUMBER of samples per cell
+					stepSize = len / -Config.viStepSize;
+					nSamples = (int)floor(len / stepSize);
+					prev_sample_pt = hitcell + 0.5 * stepSize * norm; // all samples interior to faces
+					// UNTESTED
+				}
+				else
+				{
+					// not sub-stepping, then do single sample at midpoint of line through cell
+					nSamples = 1;
+					stepSize = 0.5 * len;
+				}
+				
 				IF_DEBUG(prev_sample_pt.print("  prev_sample_pt "));
 					
 				IF_DEBUG(cout << " sub-stepping len = " << len << " nSamples = " << nSamples 
@@ -774,34 +815,53 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 				for (int i = 0; i < nSamples; ++i)
 				{
 					// where are we inside the cell?
-					Vector midpt(prev_sample_pt[0] + ((i+1)*viStepSize) * norm_sample[0],
-											 prev_sample_pt[1] + ((i+1)*viStepSize) * norm_sample[1],
-											 prev_sample_pt[2] + ((i+1)*viStepSize) * norm_sample[2]);
+					Vector samplept(prev_sample_pt[0] + ((i+1)*stepSize) * norm[0],
+											    prev_sample_pt[1] + ((i+1)*stepSize) * norm[1],
+											    prev_sample_pt[2] + ((i+1)*stepSize) * norm[2]);
 					
 #if defined(DTFE_INTERP) || defined(NNI_WATSON_SAMBRIDGE) || defined(NNI_LIANG_HALE)
-					locateCurrentTetra(ray, midpt);
+					locateCurrentTetra(ray, samplept);
 #endif
 																							
 					// subsample (replace fields in vals by interpolated values)
-					int status = subSampleCell(ray, midpt, &vals[0], threadNum);
+					int status = subSampleCell(ray, samplept, vals, threadNum);
 							
 #ifdef DEBUG
 					double fracstep = 1.0 / nSamples;
 					cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
 							<< (i*fracstep)+fracstep << "] rho = " << SphP[SphP_ID].Density
 							<< " rho subSample = " << vals[TF_VAL_DENS];
-					midpt.print(" ");
+					samplept.print(" ");
 #endif
-							
-					// apply TF to integrated (total) quantities (only appropriate for constant?)
-					if (Config.projColDens) {
-						terminate("1299"); // best check this
-						vals[TF_VAL_DENS] *= len;
-					}
 					
 					// compute emission-only source term using transfer function
 					if(status)
 					  Lv += Tr * transferFunction->Lve(vals) * sampleWt;
+							
+					// update raw column density integrals
+					if( Config.projColDens ) {
+						// ensure positivity of integral weights
+						if( vals[TF_VAL_DENS] < 0.0 )
+							vals[TF_VAL_DENS] = 0.0;
+							
+						// same weighting procedure as in voronoi_makeimage_new()
+						// e.g. weight (Temp,Vmag,Ent,Metal) by rho*len and then normalize out at the end
+						float weight = vals[TF_VAL_DENS] * len;
+						
+						// column density
+						ray.raw_vals[0] += vals[TF_VAL_DENS] * len;
+						
+						// mass-weighted values
+						ray.raw_vals[1] += vals[TF_VAL_TEMP] * weight;
+						ray.raw_vals[2] += vals[TF_VAL_VMAG] * weight;
+						ray.raw_vals[3] += vals[TF_VAL_ENTROPY] * weight;
+						ray.raw_vals[4] += vals[TF_VAL_METAL] * weight;
+						
+						// un-weighted line integrals
+						ray.raw_vals[5] += vals[TF_VAL_SZY] * len;
+						if( vals[TF_VAL_TEMP] >= 1e6 ) // xray restriction: hot gas only (Temp > 1e6 K)
+							ray.raw_vals[6] += vals[TF_VAL_XRAY] * len;
+					}
 							
 					// update previous sample point marker
 					ray.depth++;
@@ -906,37 +966,17 @@ void ArepoMesh::ComputeQuantityBounds()
 		valBounds[TF_VAL_DENS*3 + 1] = pmax;
 		valBounds[TF_VAL_DENS*3 + 2] = pmean / NumGas;
 		
-		valBounds[TF_VAL_UTHERM*3 + 0] = umin;
-		valBounds[TF_VAL_UTHERM*3 + 1] = umax;
-		valBounds[TF_VAL_UTHERM*3 + 2] = umean / NumGas;
+		valBounds[TF_VAL_TEMP*3 + 0] = umin;
+		valBounds[TF_VAL_TEMP*3 + 1] = umax;
+		valBounds[TF_VAL_TEMP*3 + 2] = umean / NumGas;
 		
 		cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0] 
 									<< " max = " << valBounds[TF_VAL_DENS*3 + 1] 
 									<< " mean = " << valBounds[TF_VAL_DENS*3 + 2] << endl;
 									
-		cout << " Utherm  min = " << valBounds[TF_VAL_UTHERM*3 + 0] 
-									<< " max = " << valBounds[TF_VAL_UTHERM*3 + 1] 
-									<< " mean = " << valBounds[TF_VAL_UTHERM*3 + 2] << endl;
-			
-/*			
-		for (int i = 0; i < NumGas; i++) {
-				//SphP[i].Density /= valBounds[TF_VAL_DENS*3 + 0];
-				//SphP[i].Utherm  /= valBounds[TF_VAL_UTHERM*3 + 0];
-				//SphP[i].Density = log(SphP[i].Density);
-				//SphP[i].Utherm  = log(SphP[i].Utherm);
-				SphP[i].Density = 1.0;
-				SphP[i].Utherm  = 1.0;
-		}
-	*/	
-
-	/*
-		float invMaxMinusMin = 1.0f / (valBounds[TF_VAL_DENS*3 + 1] - valBounds[TF_VAL_DENS*3 + 0]);
-	
-		for (int i = 0; i < NumGas; i++) {
-				SphP[i].Density = (SphP[i].Density - valBounds[TF_VAL_DENS*3 + 0]) * invMaxMinusMin;
-		}	
-		
-		*/
+		cout << " Temp  min = " << valBounds[TF_VAL_TEMP*3 + 0] 
+							 << " max = " << valBounds[TF_VAL_TEMP*3 + 1] 
+							 << " mean = " << valBounds[TF_VAL_TEMP*3 + 2] << endl;
 }
 
 int ArepoMesh::ComputeVoronoiEdges()
@@ -1161,7 +1201,7 @@ void ArepoMesh::DumpMesh()
 														 << " p[1] = " << SphP[i].Momentum[1]
 														 << " p[2] = " << SphP[i].Momentum[2]
 														 << " vol = " << SphP[i].Volume
-														 << " oldmass = " << SphP[i].OldMass << endl;		
+														 << " oldmass/entr = " << SphP[i].OldMass << endl;		
 		}
 
 		cout << endl << "Delaunay Tetra [" << Ndt << "] [DIMS=" << DIMS << "]:" << endl;

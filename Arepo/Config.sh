@@ -21,15 +21,15 @@ VORONOI_MESHOUTPUT # for write_voronoi_mesh
 
 # for ArepoVTK only (not Arepo projection)
 NUM_THREADS=4
-#SPECIAL_BOUNDARY # for test.spoon, doesn't hurt otherwise (allows negative IDs)
-#LONGIDS # for run.illustris.box
+#SPECIAL_BOUNDARY # for run.spoon only
+DOUBLEPRECISION=2 # for run.illustris.box (mixed)
+#LONGIDS # for run.illustris.box (unnecessary) (causes problems)
 #AREPOVTK_MINMEM_TREEONLY # NOT IMPLEMENTED FULLY # P/SphP only contain: Pos,Utherm,Density (all that is loaded)
 
 # illustris.fof0 (for Arepo projection, not ArepoVTK)
 #VORONOI_NEW_IMAGE
-#COOLING
+#COOLING # add SphP.Ne
 #USE_SFR
 #METALS
 #SELECTIVE_LOAD=1000 # NOT IMPLEMENTED FULLY
-  #1000 ckpc/h (code units) padding, selectively load only what is in the projection frustum
 

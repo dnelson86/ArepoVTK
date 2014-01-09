@@ -17,6 +17,8 @@
 #include <omp.h>
 #endif
 
+void addValsContribution( vector<float> &vals, int SphP_ind, double weight );
+
 // Arepo: main interface with Arepo to load a snapshot, create data structures, and return
 class Arepo
 {
@@ -79,11 +81,11 @@ public:
 		
 		inline int getSphPID(int dpInd);
 		void locateCurrentTetra(const Ray& ray, Vector &pt);
-		void checkCurCellTF(bool *addFlag, int sphInd, float *vals);
+		void checkCurCellTF(bool *addFlag, int sphInd, vector<float> &vals);
 		
 		// fluid data introspection
 		float calcNeighborHSML(int sphInd, Vector &pt);
-		int subSampleCell(const Ray &ray, Vector &pt, float *vals, int threadNum);
+		int subSampleCell(const Ray &ray, Vector &pt, vector<float> &vals, int threadNum);
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
 		// NNI_WATSON_SAMBRIDGE
@@ -107,7 +109,7 @@ private:
     // rendering
 		BBox extent;
     const TransferFunction *transferFunction;
-		float viStepSize, sampleWt;
+		float sampleWt;
 		
 		// units, etc
 		float valBounds[TF_NUM_VALS*3];     // min,max,mean for each non-derived quantity

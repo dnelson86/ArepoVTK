@@ -9,7 +9,7 @@
 #include "util.h"
 #include "geometry.h"
 #include "transform.h"
-#include "camera.h"
+#include "camera.h"	
 
 void ArepoSnapshot::read_ic()
 {
@@ -44,7 +44,7 @@ void ArepoSnapshot::read_ic()
 		}
 		
 		for( i=0; i < numFiles[0]; i++ )
-		  snapFilenames.push_back( fileBase + toStr(i) + ".hdf5" );
+		  snapFilenames.push_back( fileBase + "." + toStr(i) + ".hdf5" );
 
 	}
 	
@@ -57,7 +57,9 @@ void ArepoSnapshot::read_ic()
 										 "-" + toStr(Config.cameraPosition[1]) + "-" + toStr(Config.cameraPosition[2]) + "_" + 
 										 toStr(Config.swScale) + "-" + toStr(Config.cameraLookAt[0]) + "-" + toStr(Config.cameraLookAt[1]) + "-" + 
 										 toStr(Config.cameraLookAt[2]) + "_" + toStr(Config.cameraUp[0]) + "-" + toStr(Config.cameraUp[1]) + 
-										 "-" + toStr(Config.cameraUp[2]) + "_" + toStr(float(Config.imageXPixels)/float(Config.imageYPixels));
+										 "-" + toStr(Config.cameraUp[2]) + "_" + toStr(float(Config.imageXPixels)/float(Config.imageYPixels)) + 
+										 "-" + toStr(Config.recenterBoxCoords[0]) + "_" + toStr(Config.recenterBoxCoords[1]) + "_" + 
+										 toStr(Config.recenterBoxCoords[2]);
 		
 		maskFileName = Config.maskFileBase + "_" + toStr(hash_djb2(hashKey)) + ".hdf5";
 	
@@ -98,11 +100,29 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 	
 	allocate_memory();	
 	
-	// loop over each chunk
+	// buffers
 	vector<int> jobIndList;
-	vector<float> quantity;	
-	vector<int> quantity_id;
-	
+	vector<float> quantity;
+	//vector<int> quantity_id;
+	vector<float> nelec; // ConvertUthermToKelvin
+#ifdef DOUBLEPRECISION
+	vector<double> pos;
+#endif
+
+	// check snapshot field types vs requested
+	int posBits = getDatasetTypeSize( snapFilenames[0], "PartType" + toStr(READ_PARTTYPE), "Coordinates" );
+
+#ifdef DOUBLEPRECISION
+	if( posBits != 64 )
+		cout << endl << " -- WARNING: DOUBLEPRECISION > 0 but snapshot 'Coordinates' field has [" 
+				 << posBits << "] bits!" << endl << endl;
+#else
+	if( posBits != 32 )
+		cout << endl << " -- WARNING: DOUBLEPRECISION = 0 but snapshot 'Coordinates' field has [" 
+				 << posBits << "] bits!" << endl << endl;
+#endif
+
+	// loop over each chunk
 	for( i=0; i < snapFilenames.size(); i++ )
 	{
 		jobIndList.clear();
@@ -131,7 +151,12 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 		// reserve enough space for indice list and float quantity buffer
 		jobIndList.reserve( partCounts[Config.curJobNum] );
 		quantity.reserve( partCounts[Config.curJobNum] );
-		quantity_id.reserve( partCounts[Config.curJobNum] );
+		//quantity_id.reserve( partCounts[Config.curJobNum] );
+		if( Config.convertUthermToKelvin )
+			nelec.reserve( partCounts[Config.curJobNum] );
+#ifdef DOUBLEPRECISION
+		pos.reserve( partCounts[Config.curJobNum] );
+#endif
 		
 		if( Config.verbose )
 			cout << "File [" << i << ": " << snapFilenames[i] << "] loading [" << partCounts[Config.curJobNum] << "] indices." << endl;
@@ -166,23 +191,31 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 		// Coordinates (X)
 		for( k=0; k < 3; k++ )
 		{
+			
+#ifdef DOUBLEPRECISION
+			// Coordinates in float64 (in P, hopefully also in snapshot)
+			readGroupDatasetSelect( snapFilenames[i], groupName, "Coordinates", coord, k, pos );
+			
+			recenterBoxCoords( pos, k );
+						
+			for( j=0; j < pos.size(); j++ )
+				P[offset + j].Pos[k] = pos[j];
+#else
+			// Coordinates in float32
 			readGroupDatasetSelect( snapFilenames[i], groupName, "Coordinates", coord, k, quantity );
 			
-			if( Config.verbose ) {
-				cout << " pos_" << k << ".size() = " << quantity.size();
-				cout << " min = " << *min_element(quantity.begin(), quantity.end());
-				cout << " max = " << *max_element(quantity.begin(), quantity.end()) << endl;
-			}
-			
+			recenterBoxCoords( quantity, k );
+						
 			for( j=0; j < quantity.size(); j++ )
 				P[offset + j].Pos[k] = quantity[j];
+#endif
 		}
 		
-		// ParticleIDs
-		readGroupDatasetSelect( snapFilenames[i], groupName, "ParticleIDs", coord, -1, quantity_id );
+		// ParticleIDs (not needed)
+		//readGroupDatasetSelect( snapFilenames[i], groupName, "ParticleIDs", coord, -1, quantity_id );
 		
-		for( j=0; j < quantity_id.size(); j++ )
-			P[offset + j].ID = quantity_id[j];
+		//for( j=0; j < quantity_id.size(); j++ )
+		//	P[offset + j].ID = quantity_id[j];
 		
 		// Velocities
 		for( k=0; k < 3; k++ )
@@ -208,8 +241,51 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 		// Utherm
 		readGroupDatasetSelect( snapFilenames[i], groupName, "InternalEnergy", coord, -1, quantity );
 		
+		// Convert to temperature in Kelvin? if so load electron number density
+		if( Config.convertUthermToKelvin ) {
+			if( !groupExists(snapFilenames[i], groupName, "ElectronAbundance") ) {
+				cout << "Error: Cannot convert Utherm to Kelvin, ElectronAbundance (Ne) does not exist!" << endl;
+				exit(1205);
+			}
+			
+			readGroupDatasetSelect( snapFilenames[i], groupName, "ElectronAbundance", coord, -1, nelec );
+			
+			convertUthermToKelvin( quantity, nelec );
+		}
+		
 		for( j=0; j < quantity.size(); j++ )
 			SphP[offset + j].Utherm = quantity[j];
+			
+		// ElectrunAbundance (Ne)
+		if( groupExists(snapFilenames[i], groupName, "ElectronAbundance") )
+		{
+			if( !nelec.size() ) // lazy load in case we already have it
+				readGroupDatasetSelect( snapFilenames[i], groupName, "ElectronAbundance", coord, -1, nelec );
+				
+			for( j=0; j < nelec.size(); j++ )
+				P[offset + j].OldAcc = nelec[i];
+		} else {
+			for( j=0; j < nelec.size(); j++ )
+				P[offset + j].OldAcc = 0.0;
+		}
+
+		// Metallicity
+		string metalObjName = "";
+		if( groupExists(snapFilenames[i], groupName, "Metallicity") )
+			metalObjName = "Metallicity";
+		if( groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
+			metalObjName = "GFM_Metallicity";
+			
+		if( metalObjName != "" )
+		{
+			readGroupDatasetSelect( snapFilenames[i], groupName, metalObjName, coord, -1, quantity );
+			
+			for( j=0; j < quantity.size(); j++ )
+				SphP[offset + j].Metallicity = quantity[j];
+		} else {
+			for( j=0; j < quantity.size(); j++ )
+				SphP[offset + j].Metallicity = 0.0;
+		}
 
 		// increment global snapshot offset as we move to next chunk
 		offset += partCounts[Config.curJobNum];
@@ -265,6 +341,65 @@ void ArepoSnapshot::calcSubCamera(struct cameraParams &cP, int jobNum)
 	delete film;
 }
 
+template<typename T> void ArepoSnapshot::recenterBoxCoords(vector<T> &pos_xyz, int index)
+{
+	// negative first coordinate indicates false
+	if( Config.recenterBoxCoords[0] < 0 )
+		return;
+	if( index != 0 && index != 1 && index != 2 ) {
+		cout << "Error: Expected index in [0,1,2]." << endl;
+		exit(1191);
+	}
+	
+	unsigned int i, j;
+	
+	double xyzShift[3];
+	for( j=0; j < 3; j++ )
+		xyzShift[j] = All.BoxSize*0.5 - Config.recenterBoxCoords[j];
+	
+	for( i=0; i < pos_xyz.size(); i++ )
+	{
+		pos_xyz[i] += xyzShift[index];
+		
+		// handle periodic
+		if( pos_xyz[i] > All.BoxSize )
+			pos_xyz[i] -= All.BoxSize;
+		if( pos_xyz[i] < 0.0 )
+			pos_xyz[i] += All.BoxSize;
+	}
+	
+}
+
+void ArepoSnapshot::convertUthermToKelvin(vector<float> &utherm, vector<float> &nelec)
+{
+	unsigned int i;
+	double meanmolwt;
+	
+	// constants/unit system
+	double gamma = 5.0 / 3.0; // adiabatic index
+	double hmassfrac = 0.76; // X_hydrogen (solar)
+	double mass_proton = 1.672622e-24; // cgs
+	double boltzmann = 1.380650e-16; // cgs (erg/K)
+
+	if( utherm.size() != nelec.size() ) {
+		cout << "Error: Cannot convert Utherm to Kelvin: utherm and nelec have different sizes." << endl;
+		exit(1199);
+	}
+	
+	double factor1 = 4.0 * mass_proton;
+	double factor2 = 1.0 + 3.0 * hmassfrac;
+	double factor3 = (gamma-1.0) / boltzmann * All.UnitEnergy_in_cgs / All.UnitMass_in_g;
+	
+	for( i=0; i < utherm.size(); i++ )
+	{
+		// calculate mean molecular weight
+		meanmolwt =  factor1 / (factor2 + 4.0 * hmassfrac * nelec[i]);
+		
+		// replace utherm with temperature (Kelvin)
+		utherm[i] = factor3 * utherm[i] * meanmolwt;
+	}
+}
+
 void ArepoSnapshot::makeNewMaskFile( string maskFileName, vector<string> snapFilenames )
 {
 	unsigned int i, j, k;
@@ -298,6 +433,7 @@ void ArepoSnapshot::makeNewMaskFile( string maskFileName, vector<string> snapFil
 	// get total particle counts in all files
 	vector<unsigned long long> numPartTotal_low, numPartTotal_high, numPartTotal;
 	unsigned long long numReadTot = 0;
+	unsigned long long globalCount = 0;
 	
 	readGroupAttribute( snapFilenames[0], "Header", "NumPart_Total", numPartTotal_low );
 	readGroupAttribute( snapFilenames[0], "Header", "NumPart_Total_HighWord", numPartTotal_high );
@@ -326,13 +462,25 @@ void ArepoSnapshot::makeNewMaskFile( string maskFileName, vector<string> snapFil
 	
 	// allocate space for approximate size of Coordinates per chunk
 	vector<float> pos_x, pos_y, pos_z;
+
 	int allocNum = round(numPartTotal[READ_PARTTYPE] / snapFilenames.size() * 1.5);
 	
 	pos_x.reserve( allocNum );
 	pos_y.reserve( allocNum );
 	pos_z.reserve( allocNum );
 	
-	int fillDivisor = floor( numPartTotal[READ_PARTTYPE] * snapFilenames.size() / FILL_NUMPART );
+	float fillNumPart;
+	
+	if( numPartTotal[READ_PARTTYPE] <= pow(128,3) )
+		fillNumPart = 1000;
+	else if( numPartTotal[READ_PARTTYPE] <= pow(512,3) )
+		fillNumPart = 10000;
+	else if( numPartTotal[READ_PARTTYPE] <= pow(1024,3) )
+		fillNumPart = 100000;
+	else
+		fillNumPart = 250000;
+	
+	int fillDivisor = floor( numPartTotal[READ_PARTTYPE] * snapFilenames.size() / fillNumPart );
 	cout << " fillDivisor: " << fillDivisor << endl;
 	
 	// loop over each snapshot chunk
@@ -350,6 +498,10 @@ void ArepoSnapshot::makeNewMaskFile( string maskFileName, vector<string> snapFil
 		count_x = readGroupDataset( snapFilenames[i], groupName, "Coordinates", 0, pos_x );
 		count_y = readGroupDataset( snapFilenames[i], groupName, "Coordinates", 1, pos_y );
 		count_z = readGroupDataset( snapFilenames[i], groupName, "Coordinates", 2, pos_z );
+	
+		recenterBoxCoords( pos_x, 0 );
+		recenterBoxCoords( pos_y, 1 );
+		recenterBoxCoords( pos_z, 2 );
 	
 		if( count_x != count_y || count_x != count_z ) {
 			cout << "Error: readCoordinatesAllFiles: Different number of elements read for x,y,z!" << endl;
@@ -387,7 +539,8 @@ void ArepoSnapshot::makeNewMaskFile( string maskFileName, vector<string> snapFil
 				// z-coordinate (periodic)
 				pc_z = Dot(v, Z);
 				
-				int fillCheck = k % fillDivisor;
+				int fillCheck = globalCount % fillDivisor;
+				globalCount++;
 				
 				if( (pc_z < camParams[j].zMin || pc_z > camParams[j].zMax) && 
 				    (pc_z - All.BoxSize < camParams[j].zMin || pc_z - All.BoxSize > camParams[j].zMax) &&
@@ -484,6 +637,28 @@ template<typename T> hid_t ArepoSnapshot::getDataType( void )
 	exit(1166);
 }
 
+bool ArepoSnapshot::groupExists( string fileName, string groupName, string objName )
+{
+	// open file and group
+  HDF_FileID = H5Fopen( fileName.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT );
+	HDF_GroupID = H5Gopen( HDF_FileID, groupName.c_str() );
+
+  // dataset did not exist or was empty
+  if( HDF_FileID < 0 || HDF_GroupID < 0)
+	{
+		H5Fclose( HDF_FileID );
+    cout << "groupExists: group [" << groupName << "does not exist/is empty" << endl;
+		exit(1204);
+  }
+	
+	htri_t check = H5Lexists( HDF_GroupID, objName.c_str(), H5P_DEFAULT );
+	
+	H5Gclose( HDF_GroupID );
+  H5Fclose( HDF_FileID );
+
+	return (bool) check;
+}
+
 void ArepoSnapshot::getDatasetExtent( string fileName,
 																			string groupName,
 																			string objName,
@@ -524,6 +699,35 @@ void ArepoSnapshot::getDatasetExtent( string fileName,
   H5Dclose( HDF_DatasetID );
 	H5Gclose( HDF_GroupID );
   H5Fclose( HDF_FileID );
+}
+
+int ArepoSnapshot::getDatasetTypeSize( string fileName, string groupName, string objName )
+{
+	// open file and group
+  HDF_FileID = H5Fopen( fileName.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT );
+	HDF_GroupID = H5Gopen( HDF_FileID, groupName.c_str() );
+
+  // open dataset
+  HDF_DatasetID = H5Dopen( HDF_GroupID, objName.c_str() );
+
+  // dataset did not exist or was empty
+  if( HDF_FileID < 0 || HDF_GroupID < 0 || HDF_DatasetID < 0 )
+	{
+		H5Fclose( HDF_FileID );
+    cout << "getDatasetElemSize: dataset [" << groupName << "/" << objName 
+		     << "] does not exist/is empty" << endl;
+		exit(1200);
+  }
+
+  // get space associated with dataset
+  HDF_Type = H5Dget_type( HDF_DatasetID );
+
+  H5Dclose( HDF_DatasetID );
+	H5Gclose( HDF_GroupID );
+  H5Fclose( HDF_FileID );
+	
+	return H5Tget_precision(HDF_Type);
+
 }
 
 template<typename T> void ArepoSnapshot::readGroupAttribute( string fileName,
@@ -764,20 +968,30 @@ template<typename T> int ArepoSnapshot::readGroupDatasetSelect( string fileName,
 template<typename T> int ArepoSnapshot::writeGroupDataset( string fileName,
 																													 string groupName,
 																													 string objName,
-																													 vector<T> &Data )
+																													 vector<T> &Data,
+																													 int flag2d )
 {
 	HDF_Type = getDataType<T>();
 	
 	// open file and groups (make if necessary)
 	HDF_FileID = H5Fopen( fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT );
 	HDF_GroupID = H5Gopen( HDF_FileID, groupName.c_str() );
-	
-	//if( HDF_GroupID < 0 )
-	//	HDF_GroupID = H5Gcreate( HDF_FileID, groupName.c_str(), 0 );
 		
 	// make spaces
-  HDF_Dims = Data.size();
-  HDF_DataspaceID = H5Screate_simple(1, &HDF_Dims, NULL);
+	if( !flag2d ) {
+		HDF_Dims = Data.size();
+		HDF_DataspaceID = H5Screate_simple(1, &HDF_Dims, NULL);
+	} else {
+		HDF_Dims_2D[0] = HDF_Dims_2D[1] = sqrt( Data.size() );
+		if( HDF_Dims_2D[0] * HDF_Dims_2D[0] != Data.size() ) {
+			cout << "Error: writeGroupDataset requested in 2D with non-square Data." << endl;
+			cout << " [" << groupName << "/" << objName << "] Data.size() = " << Data.size() << endl;
+			exit(1198);
+		}
+		
+		HDF_DataspaceID = H5Screate_simple(2, &HDF_Dims_2D[0], NULL);
+	}
+	
   HDF_DatasetID = H5Dcreate( HDF_GroupID, objName.c_str(), HDF_Type, HDF_DataspaceID, H5P_DEFAULT );
 				
   if( HDF_FileID < 0 || HDF_GroupID < 0 || HDF_DatasetID < 0 ){
@@ -797,6 +1011,13 @@ template<typename T> int ArepoSnapshot::writeGroupDataset( string fileName,
 
 	return (HDF_Err>=0 ? 1 : 0);
 } 
+
+// explicit instantiation of templated function for <float> usage in WriteIntegrals()
+template int ArepoSnapshot::writeGroupDataset<float>( string fileName,
+																					 string groupName,
+																					 string objName,
+																					 vector<float> &Data,
+																					 int flag2d );	
 
 void ArepoSnapshot::createNewFile( string fileName )
 {

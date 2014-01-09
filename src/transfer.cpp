@@ -171,7 +171,7 @@ void TransferFunc1D::CheckReverse()
 		}		
 }
 
-bool TransferFunc1D::InRange(const float *vals)
+bool TransferFunc1D::InRange(const vector<float> &vals)
 {
 		//IF_DEBUG(cout << "TF1D InRange(" << range[0] << "," << range[1] << ") test = " << vals[valNum] << endl);
 		
@@ -181,7 +181,7 @@ bool TransferFunc1D::InRange(const float *vals)
 		return true;
 }
 
-Spectrum TransferFunc1D::Lve(const float *vals) const
+Spectrum TransferFunc1D::Lve(const vector<float> &vals) const
 {
 		float rgb[3];
 		rgb[0] = 0; rgb[1] = 0; rgb[2] = 0;
@@ -263,10 +263,12 @@ TransferFunction::TransferFunction(const Spectrum &sig_a)
 		
 		// value name -> index number map
 		valNums["Density"] = 0;
-		valNums["Utherm"]  = 1;
-		valNums["Vel_X"]   = 2;
-		valNums["Vel_Y"]   = 3;
-		valNums["Vel_Z"]   = 4;
+		valNums["Temp"]    = 1;
+		valNums["VelMag"]  = 2;
+		valNums["Entropy"] = 3;
+		valNums["Metal"]   = 4;
+		valNums["SzY"]     = 5;
+		valNums["XRay"]    = 6;
 		
 		// scattering
 		sig_s = 0.0f;
@@ -284,7 +286,7 @@ TransferFunction::~TransferFunction()
 		}
 }
 
-Spectrum TransferFunction::Lve(const float *vals) const
+Spectrum TransferFunction::Lve(const vector<float> &vals) const
 {
 		Spectrum Lve(0.0f);
 		
@@ -301,7 +303,7 @@ Spectrum TransferFunction::Lve(const float *vals) const
 		return Lve;
 }
 
-bool TransferFunction::InRange(const float *vals) const
+bool TransferFunction::InRange(const vector<float> &vals) const
 {
 		bool flag = false;
 		
@@ -491,7 +493,7 @@ bool TransferFunction::AddParseString(string &addTFstr)
 		}
 		
 		// check that code was compiled with necessary flags to support this value name
-		if (p[1] == "Metallicity") {
+		if (p[1] == "Metal") {
 #ifndef METALS
 				cout << "ERROR: TF on value 'Metallicity' requires METALS compile option in Arepo." << endl;
 				exit(1124);

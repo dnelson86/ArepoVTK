@@ -3,6 +3,8 @@
  * dnelson
  */
 
+#include <algorithm> // min_element/max_element
+ 
 #include "ArepoRT.h"
 #include "geometry.h"
 #include "transform.h"
@@ -10,6 +12,7 @@
 #include "fileio.h" 
 #include "camera.h"
 #include "spectrum.h"
+#include "snapio.h"
 
 // Filter
 
@@ -49,7 +52,8 @@ Film::Film(int xres, int yres, Filter *filt, const double crop[4], const string 
 									<< " yPixelStart = " << yPixelStart << " yPixelCount = " << yPixelCount << endl);
 		
     // Allocate film image storage
-    pixels = new BlockedArray<Pixel>(xPixelCount, yPixelCount);
+    pixels    = new BlockedArray<Pixel>(xPixelCount, yPixelCount);
+		integrals = new BlockedArray<RawPixel>(xPixelCount, yPixelCount);
 
     // Precompute filter weight table
     filterTable = new float[FILTER_TABLE_SIZE * FILTER_TABLE_SIZE];
@@ -73,7 +77,7 @@ Film::Film(int xres, int yres, Filter *filt, const double crop[4], const string 
 }
 
 
-void Film::AddSample(const CameraSample &sample, const Spectrum &L)
+void Film::AddSample(const CameraSample &sample, const Spectrum &L, const Ray &ray, int threadNum)
 {				 
     // Compute sample's raster extent
     float dimageX = sample.imageX - 0.5f;
@@ -134,12 +138,27 @@ void Film::AddSample(const CameraSample &sample, const Spectrum &L)
             float filterWt = filterTable[offset];
 
             // Update pixel values with filtered sample contribution
-            Pixel &pixel = (*pixels)(x - xPixelStart, y - yPixelStart);
+            Pixel &pixel    = (*pixels)(x - xPixelStart, y - yPixelStart);
+						RawPixel &rawpx = (*integrals)(x - xPixelStart, y - yPixelStart);
+						
             if (!syncNeeded) {
+								// image pixel
                 pixel.Lxyz[0] += filterWt * xyz[0];
                 pixel.Lxyz[1] += filterWt * xyz[1];
                 pixel.Lxyz[2] += filterWt * xyz[2];
                 pixel.weightSum += filterWt;
+								
+								// raw pixel
+								for( int i=0; i < TF_NUM_VALS; i++ ) {
+									//rawpx.raw_vals[i] += filterWt * ray.raw_vals[i];
+									rawpx.raw_vals[i] = ray.raw_vals[i];
+									rawpx.weightSum += filterWt;
+								}
+								
+								// DEBUG
+								//rawpx.raw_vals[2] = ray.min_t;
+								//rawpx.raw_vals[3] = ray.max_t;
+								//rawpx.raw_vals[4] = ray.depth;
             }
             else {
                 // Safely update _Lxyz_ and _weightSum_ even with concurrency
@@ -482,6 +501,106 @@ void Film::WriteImage(int frameNum, float splatScale)
     delete[] rgb;
 }
 
+void Film::WriteIntegrals()
+{
+	if( !Config.projColDens )
+		return;
+		
+	IF_DEBUG(cout << "Film:WriteIntegrals() nx = " << xPixelCount << " ny = " << yPixelCount << endl);
+	
+	ArepoSnapshot hdf5( Config.imageFile ); // just for hdf5 writing functions
+		
+	// construct hdf5 filename
+	string filename = Config.imageFile;
+	if (filename == "")
+		filename = "frame";
+
+	// prepend "_curJob_totJobs"
+	if( Config.totNumJobs >= 1 )
+		filename += "_" + toStr(Config.curJobNum) + "_" + toStr(Config.totNumJobs);
+		
+	filename += ".hdf5";
+	
+	// make hdf5 file and groups for different fields
+	hdf5.createNewFile( filename );
+	
+	hdf5.createNewGroup( filename, "Density" );
+	hdf5.createNewGroup( filename, "Temp" );
+	hdf5.createNewGroup( filename, "VelMag" );
+	hdf5.createNewGroup( filename, "Entropy" );
+	hdf5.createNewGroup( filename, "Metal" );
+	hdf5.createNewGroup( filename, "SzY" );
+	hdf5.createNewGroup( filename, "XRay" );	
+		
+	// convert blockedarray of raw pixels into float vector
+	int nPix = xPixelCount * yPixelCount;
+	
+	vector<float> q_dens, q_temp, q_vmag, q_entr, q_metal, q_szy, q_xray;
+		
+	q_dens.reserve( nPix );
+	q_temp.reserve( nPix );
+	q_vmag.reserve( nPix );
+	q_entr.reserve( nPix );
+	q_metal.reserve( nPix );
+	q_szy.reserve( nPix );
+	q_xray.reserve( nPix );
+		
+	for (int y = 0; y < yPixelCount; ++y) {
+		for (int x = 0; x < xPixelCount; ++x) {
+			// verify weighting (one sample per pixel)
+			float wt = (*integrals)(x, y).weightSum;
+			
+			if( fabs(wt-TF_NUM_VALS) > INSIDE_EPS )
+				cout << "WARNING: wt = " << wt << endl;
+
+			// add values into vectors
+			float val_dens  = (*integrals)(x, y).raw_vals[0];
+			float invWeight = 1.0 / val_dens;
+			
+			float val_temp  = (*integrals)(x, y).raw_vals[1] * invWeight;
+			float val_vmag  = (*integrals)(x, y).raw_vals[2] * invWeight;
+			float val_entr  = (*integrals)(x, y).raw_vals[3] * invWeight;
+			float val_metal = (*integrals)(x, y).raw_vals[4] * invWeight;
+			
+			float val_szy   = (*integrals)(x, y).raw_vals[5];
+			float val_xray  = (*integrals)(x, y).raw_vals[6];
+
+			q_dens.push_back(  val_dens );
+			q_temp.push_back(  val_temp );
+			q_vmag.push_back(  val_vmag );
+			q_entr.push_back(  val_entr );
+			q_metal.push_back( val_metal );
+			q_szy.push_back(   val_szy );
+			q_xray.push_back(  val_xray );
+		}
+	}
+	
+	/*
+	cout << " Dens: max = " << *max_element(q_dens.begin(), q_dens.end()) << " min = "
+	     << *min_element(q_dens.begin(), q_dens.end()) << endl;
+	cout << " Temp: max = " << *max_element(q_temp.begin(), q_temp.end()) << " min = "
+	     << *min_element(q_temp.begin(), q_temp.end()) << endl;
+	cout << " VelMag(min_t): max = " << *max_element(q_vmag.begin(), q_vmag.end()) << " min = "
+	     << *min_element(q_vmag.begin(), q_vmag.end()) << endl;
+	cout << " Entropy(max_t): max = " << *max_element(q_entr.begin(), q_entr.end()) << " min = "
+	     << *min_element(q_entr.begin(), q_entr.end()) << endl;
+	cout << " Metal(depth): max = " << *max_element(q_metal.begin(), q_metal.end()) << " min = "
+	     << *min_element(q_metal.begin(), q_metal.end()) << endl;
+  */
+	
+	// add datasets to hdf5 file
+	hdf5.writeGroupDataset( filename, "Density", "Array", q_dens,  1 );
+	hdf5.writeGroupDataset( filename, "Temp",    "Array", q_temp,  1 );
+	hdf5.writeGroupDataset( filename, "VelMag",  "Array", q_vmag,  1 );
+	hdf5.writeGroupDataset( filename, "Entropy", "Array", q_entr,  1 );
+	hdf5.writeGroupDataset( filename, "Metal",   "Array", q_metal, 1 );
+	hdf5.writeGroupDataset( filename, "SzY",     "Array", q_szy,   1 );
+	hdf5.writeGroupDataset( filename, "XRay",    "Array", q_xray,  1 );
+	
+	if( Config.verbose )
+		cout << " Wrote: [" << filename << "]." << endl << endl;
+}
+
 void Film::WriteRawRGB()
 {
 		IF_DEBUG(cout << "Film:WriteRawRGB()" << endl);
@@ -784,6 +903,9 @@ float OrthoCamera::GenerateRay(const CameraSample &sample, Ray *ray) const
 		IF_DEBUG(Pras.print(" sample (raster): "));
 		IF_DEBUG(Pcamera.print(" sample (camera): "));
     *ray = Ray(Pcamera, Vector(0,0,1), 0.0f, INFINITY);
+		
+		for( int i=0; i < TF_NUM_VALS; i++ )
+			ray->raw_vals[i] = 0.0;		
 		
     if (lensRadius > 0.0) {
 				// Modify ray for depth of field

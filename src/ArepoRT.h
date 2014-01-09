@@ -7,7 +7,7 @@
 #define AREPO_RT_H
 
 // defines
-#define AREPO_RT_VERSION    0.41
+#define AREPO_RT_VERSION    0.42
 #define L1_CACHE_LINE_SIZE  64
 #define FILTER_TABLE_SIZE   16
 #define TASK_MULT_FACT      8 //32
@@ -15,13 +15,13 @@
 #define INFINITY            FLT_MAX
 #define INSIDE_EPS          1.0e-6
 #define AUXMESH_ALLOC_SIZE  1000
+#define TF_NUM_VALS         7 // see transfer.h
 
 #define MSUN_PER_PC3_IN_CGS 6.769e-23
 
 // for selective load (temporary)
 #define READ_PARTTYPE 0
 #define TILESIZE      256
-#define FILL_NUMPART  1000
 
 // behavior options
 
@@ -32,11 +32,12 @@
 
 //#define NATURAL_NEIGHBOR_INTERP
 //#define NATURAL_NEIGHBOR_IDW
-#define NATURAL_NEIGHBOR_SPHKERNEL
+//#define NATURAL_NEIGHBOR_SPHKERNEL
 //#define NNI_WATSON_SAMBRIDGE
 //#define NNI_LIANG_HALE
 //#define DTFE_INTERP
-//#define CELL_GRADIENTS_ONLY
+#define CELL_GRADIENTS_DENS
+//#define CELL_PIECEWISE_CONSTANT
 
 /* interpolation method options */
 
@@ -148,6 +149,8 @@ template <typename T> string toStr(T num)
 	ss << num;
 	return ss.str();
 }
+
+#define  terminate(...) {char termbuf1[1000], termbuf2[1000]; sprintf(termbuf1, "Code termination, function %s(), file %s, line %d", __FUNCTION__, __FILE__, __LINE__); sprintf(termbuf2, __VA_ARGS__); printf("%s:\n %s\n", termbuf1, termbuf2); fflush(stdout); exit(0);}
 
 // global inlines
 inline float Lerp(float t, float v1, float v2) {

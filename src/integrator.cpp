@@ -130,7 +130,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		Spectrum Tr(1.0f);
 		
 		// propagate ray to arepo box, set exit point
-		ray.min_t = t0 /*+ 0.0*/;
+		ray.min_t = t0;
 		ray.max_t = t1;
 		
 #ifdef DEBUG
@@ -171,6 +171,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 				 << " Tr.y = " << Tr.y() << " ray.x = " << setw(5) << p.x 
 				 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl;
 #endif			 
+
 		while( true ) {
 #ifdef DEBUG
 				count++;
@@ -189,8 +190,8 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 				if (!scene->arepoMesh->AdvanceRayOneCellNew(ray, &t0, &t1, Lv, Tr, threadNum) )
 						break;
 				
-        // roulette terminate ray marching if transmittance is small
-        if (Tr.y() < 1e-3) {
+        // roulette terminate ray marching if transmittance is small (only if not doing raw integrals)
+        if (!Config.projColDens && Tr.y() < 1e-3) {
             const float continueProb = 0.5f;
 						
 #ifdef DEBUG
@@ -203,6 +204,7 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
             Tr /= continueProb;
         }
 		}
+		
 #ifdef DEBUG
 		p = ray(ray.min_t);
 		cout << " VoronoiIntegrator::Li(done_f) Lv.y = " << setw(6) << Lv.y()
@@ -258,7 +260,7 @@ Spectrum TreeSearchIntegrator::Li(const Scene *scene, const Renderer *renderer, 
 		Spectrum Tr(1.0f);
 		
 		// propagate ray to arepo box, set exit point
-		ray.min_t = t0 /*+ 0.0*/;
+		ray.min_t = t0;
 		ray.max_t = t1;
 		
 #ifdef DEBUG
@@ -304,8 +306,8 @@ Spectrum TreeSearchIntegrator::Li(const Scene *scene, const Renderer *renderer, 
 				if (!scene->arepoTree->AdvanceRayOneStep(ray, &t0, &t1, Lv, Tr, threadNum) )
 						break;
 				
-        // roulette terminate ray marching if transmittance is small
-        if (Tr.y() < 1e-3) {
+        // roulette terminate ray marching if transmittance is small (only if not doing raw integrals)
+        if (!Config.projColDens && Tr.y() < 1e-3) {
             const float continueProb = 0.5f;
 						
 #ifdef DEBUG

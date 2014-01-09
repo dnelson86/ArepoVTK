@@ -412,23 +412,22 @@ double ArepoMesh::ccVolume(double *ci, double *cj, double *ck, double *ct)
 #endif
 
 // interpolate scalar fields at position pt inside Voronoi cell SphP_ID (various methods)
-int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int threadNum)
+int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, vector<float> &vals, int threadNum)
 {
 	int sphInd = ray.index;
+	
+	// zero vals we will override in this function
+	for( unsigned int i=0; i < vals.size(); i++ )
+		vals[i] = 0.0;	
 	
 	// check degenerate point in R3, immediate return
 	if (fabs(pt.x - P[sphInd].Pos[0]) <= INSIDE_EPS &&
 			fabs(pt.y - P[sphInd].Pos[1]) <= INSIDE_EPS &&
 			fabs(pt.z - P[sphInd].Pos[2]) <= INSIDE_EPS)
 	{
-			vals[TF_VAL_DENS]   = SphP[sphInd].Density;
-			vals[TF_VAL_UTHERM] = SphP[sphInd].Utherm;
+			addValsContribution( vals, sphInd, 1.0 );
 			return 1;
 	}
-				
-	// zero vals we will override in this function
-	vals[TF_VAL_DENS]   = 0.0;
-	vals[TF_VAL_UTHERM] = 0.0;			
 				
 #if defined(NATURAL_NEIGHBOR_IDW) || defined(NATURAL_NEIGHBOR_SPHKERNEL)
 
@@ -523,8 +522,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 #endif
 				weightsum += weight;
 				
-				vals[TF_VAL_DENS]   += SphP[ DC[inner_edge].index ].Density * weight;
-				vals[TF_VAL_UTHERM] += SphP[ DC[inner_edge].index ].Utherm * weight;
+				addValsContribution( vals, DC[inner_edge].index, weight );
 			
 			  if(inner_edge == inner_last_edge)
 					break;
@@ -545,8 +543,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 #endif
 			weightsum += weight;
 				
-			vals[TF_VAL_DENS]   += SphP[ sphp_neighbor ].Density * weight;
-			vals[TF_VAL_UTHERM] += SphP[ sphp_neighbor ].Utherm * weight;
+			addValsContribution( vals, sphp_neighbor, weight );
 
 #endif // NATURAL_NEIGHBOR_INNER
 			
@@ -579,8 +576,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 #endif
 		weightsum += weight;
 		
-		vals[TF_VAL_DENS]   += SphP[sphInd].Density * weight;
-		vals[TF_VAL_UTHERM] += SphP[sphInd].Utherm * weight;
+		addValsContribution( vals, sphInd, weight );
 #ifdef NO_GHOST_CONTRIBS
 		}
 #endif
@@ -602,15 +598,16 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 #endif
 			weightsum += weight;
 				
-			vals[TF_VAL_DENS]   += SphP[ sphp_neighbor ].Density * weight;
-			vals[TF_VAL_UTHERM] += SphP[ sphp_neighbor ].Utherm * weight;
+			addValsContribution( vals, sphp_neighbor, weight );
 		}
 			
 #endif // BRUTE_FORCE
 
 		// normalize weights
-		vals[TF_VAL_DENS]   /= weightsum;
-		vals[TF_VAL_UTHERM] /= weightsum;
+		weightsum = 1.0 / weightsum;
+		
+		for( unsigned int i=0; i < vals.size(); i++ )
+			vals[i] *= weightsum;
 			
 #endif // NATURAL_NEIGHBOR_IDW or NATURAL_NEIGHBOR_SPHKERNEL
 
@@ -745,8 +742,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 			weight = dp_old_vol[k] - dp_new_vol[k];
 			weightsum += weight;
 			
-			vals[TF_VAL_DENS]   += SphP[sphp_neighbor].Density * weight;
-			vals[TF_VAL_UTHERM] += SphP[sphp_neighbor].Utherm * weight;
+			addValsContribution( vals, sphp_neighbor, weight );
 			
 			k++;
 			
@@ -766,8 +762,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 		weight = dp_old_vol[AuxMeshes[threadNum].Ndp-2] - dp_new_vol[AuxMeshes[threadNum].Ndp-2];
 		weightsum += weight;
 		
-		vals[TF_VAL_DENS]   += SphP[sphInd].Density * weight;
-		vals[TF_VAL_UTHERM] += SphP[sphInd].Utherm * weight;
+		addValsContribution( vals, sphInd, weight );
 
 		IF_DEBUG(cout << "   weightsum = " << weightsum << " inserted vol = " << dp_new_vol[AuxMeshes[threadNum].Ndp-1] << endl);
 		
@@ -776,8 +771,10 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 		//  terminate("NNI weight error is large.");
 		
 		// normalize by volume of last added cell (around interp point)
-		vals[TF_VAL_DENS]   /= dp_new_vol[AuxMeshes[threadNum].Ndp-1];
-		vals[TF_VAL_UTHERM] /= dp_new_vol[AuxMeshes[threadNum].Ndp-1];
+		float invWeight = 1.0 / dp_new_vol[AuxMeshes[threadNum].Ndp-1];
+		
+		for( int i=0; i < vals.size(); i++ )
+			vals[i] *= invWeight;
 
 #endif // NATURAL_NEIGHBOR_INTERP
 
@@ -801,8 +798,9 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 		pt -= p0cen; // make relative to p[0] position (not Voronoi center)
 
 		// apply the (linear) gradient to the sampling point
-		vals[TF_VAL_DENS]   = SphP[tt0_SphPID].Density + Dot(tetraGrad,pt);
-		vals[TF_VAL_UTHERM] = SphP[sphInd].Utherm; // TODO
+		addValsContribution( vals, tt0_SphPID, 1.0 );
+		vals[TF_VAL_DENS] += Dot(tetraGrad,pt);
+		// dtfe gradients for values other than density not available
 		
 #ifdef DEBUG
 		cout << "  dtfe: tt = " << ray.tetra << " p0 = " << tt0_DPID << " sph0 = " << tt0_SphPID << endl;
@@ -907,8 +905,8 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 	for ( int i=0; i < nNode; i++ )
 	{
 	  int sphInd = getSphPID(DP[node_inds[i]].index);
-		vals[TF_VAL_DENS]   += SphP[sphInd].Density * DP_vols[ node_inds[i] ];
-		vals[TF_VAL_UTHERM] += SphP[sphInd].Utherm  * DP_vols[ node_inds[i] ];
+		
+		addValsContribution( vals, sphInd, DP_vols[ node_inds[i] ] );
 		
 		IF_DEBUG(cout << "   add node [i " << setw(2) << i << "] [sphInd " << setw(3) << sphInd
 									<< "] Dens = " << SphP[sphInd].Density 
@@ -925,8 +923,10 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 	//if ( fabs(wt_total - vol_sum)/vol_sum > 1e-1 )
 	//  terminate("Watson-Sambridge weights failed to sum up to total volume (%g %g %g).",pt.x,pt.y,pt.z);
 	
-	vals[TF_VAL_DENS]   /= vol_sum;
-	vals[TF_VAL_UTHERM] /= vol_sum;
+	vol_sum = 1.0 / vol_sum;
+	
+	for( int i=0; i < vals.size(); i++ )
+		vals[i] *= vol_sum;
 
 #endif
 
@@ -938,17 +938,31 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, float *vals, int thread
 
 /* -------------------------------------------------------------------------------------- */
 
-#ifdef CELL_GRADIENTS_ONLY
-		// old:
-    pt -= Vector( P[sphInd].Pos );	// make relative to cell center	
+#ifdef CELL_GRADIENTS_DENS
+		// add piecewise constant (nearest cell) values (most other gradients not available)
+		addValsContribution( vals, sphInd, 1.0 );
 		
-		// Voronoi stencil-based linear gradient
+		// periodic displacement between sample point and cell center
+		Vector offset;
+		
+		float xtmp,ytmp,ztmp;
+		offset[0] = NGB_PERIODIC_LONG_X(P[ sphInd ].Pos[0] - pt.x);
+		offset[1] = NGB_PERIODIC_LONG_Y(P[ sphInd ].Pos[1] - pt.y);
+		offset[2] = NGB_PERIODIC_LONG_Z(P[ sphInd ].Pos[2] - pt.z);		
+		
+		// apply Voronoi stencil-based linear gradient (available for density)
+		// TODO: also available for velocity, pressure (and utherm if we enable MATERIALS/DEREFINE_GENTLY)
 		Vector sphDensGrad( SphP[sphInd].Grad.drho );
-		
-		vals[TF_VAL_DENS]   = SphP[sphInd].Density + Dot(sphDensGrad,pt);
-		vals[TF_VAL_UTHERM] = SphP[sphInd].Utherm; // no utherm gradient unless MATERIALS
-		
-#endif // CELL_GRADIENTS_ONLY
+
+		vals[TF_VAL_DENS] += Dot(sphDensGrad,offset);
+
+#endif // CELL_GRADIENTS_DENS
+
+/* -------------------------------------------------------------------------------------- */
+
+#ifdef CELL_PIECEWISE_CONSTANT
+		addValsContribution( vals, sphInd, 1.0 );
+#endif
 
 		return 1;
 }

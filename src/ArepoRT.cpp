@@ -83,6 +83,12 @@ void rtRenderFrames()
 	}	
 	
 	delete scene;
+	
+	for( int i=0; i < NumGas; i++ )
+		if( SphP[i].OldMass < 0.0 ) {
+			cout << "Error: After finished, found [" << i << "] entropy = " << SphP[i].OldMass << endl;
+			exit(1207);
+		}
 }
 
 void arepoTestOverrides()
