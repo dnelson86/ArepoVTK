@@ -33,7 +33,7 @@ MISC_RM = frame.raw.txt frame.tga
 # ENABLE_AREPO
 OBJS += arepo.o arepoTree.o arepoInterp.o voronoi_3db.o
 HEAD += arepo.h arepoTree.h
-LIBS += -lgsl -lgslcblas -lgmp -lhdf5 -pthread -L ./Arepo/ -larepo
+LIBS += -lgsl -lgslcblas -lgmp -lhdf5 -lhwloc -pthread -L ./Arepo/ -larepo
 
 OBJS := $(addprefix build/,$(OBJS))
 INCL := $(addprefix src/,$(INCL))

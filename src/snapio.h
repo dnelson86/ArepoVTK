@@ -18,7 +18,41 @@ public:
 
     // methods
     void read_ic();
+		template<typename T> void recenterBoxCoords(vector<T> &pos_xyz, int index);
 
+		// HDF5 helpers
+		template<typename T> hid_t getDataType( void );		
+		bool groupExists( string fileName, string groupName, string objName );
+		void getDatasetExtent( string fileName,
+                           string groupName,
+													 string objName,
+													 vector<int> &Extent );
+		int getDatasetTypeSize( string fileName,
+                            string groupName,
+					  						    string objName );
+		template<typename T> void readGroupAttribute( string fileName,
+                                                  string groupName,
+																									string objName,
+																									vector<T> &Data );
+		template<typename T> int readGroupDataset( string fileName,
+                                               string groupName,
+														  								 string objName,
+																							 int objVectorIndex,
+																							 vector<T> &Data );
+		template<typename T> int readGroupDatasetSelect( string fileName,
+																										 string groupName,
+																										 string objName,
+																										 vector<hsize_t> indList,
+																										 int objVectorIndex,
+																										 vector<T> &Data );														 
+		template<typename T> int writeGroupDataset( string fileName,
+                                                string groupName,
+														  								  string objName,
+																							  vector<T> &Data,
+																							  int flag2d = 0);																		 
+		void createNewFile( string fileName );
+		void createNewGroup( string fileName, string groupName);
+		
 private:
 		// methods	
 		unsigned long hash_djb2( string str )
@@ -45,34 +79,7 @@ private:
 		};
 		
 		void calcSubCamera( struct cameraParams &cP, int jobNum );
-		
-		// HDF5 helpers
-		template<typename T> hid_t getDataType( void );
-		void getDatasetExtent( string fileName,
-                           string groupName,
-													 string objName,
-													 vector<int> &Extent );
-		template<typename T> void readGroupAttribute( string fileName,
-                                                  string groupName,
-																									string objName,
-																									vector<T> &Data );
-		template<typename T> int readGroupDataset( string fileName,
-                                               string groupName,
-														  								 string objName,
-																							 int objVectorIndex,
-																							 vector<T> &Data );
-		template<typename T> int readGroupDatasetSelect( string fileName,
-																										 string groupName,
-																										 string objName,
-																										 vector<hsize_t> indList,
-																										 int objVectorIndex,
-																										 vector<T> &Data );														 
-		template<typename T> int writeGroupDataset( string fileName,
-                                               string groupName,
-														  								 string objName,
-																							 vector<T> &Data );																		 
-		void createNewFile( string fileName );
-		void createNewGroup( string fileName, string groupName);
+		void convertUthermToKelvin( vector<float> &utherm, vector<float> &nelec );
 		
 		// data
 		string fileBase;
@@ -87,6 +94,7 @@ private:
 		hid_t HDF_MemspaceID;
 		
 		hsize_t HDF_Dims;
+		hsize_t HDF_Dims_2D[2];
 };
 
 #endif

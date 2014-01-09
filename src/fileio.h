@@ -44,6 +44,10 @@ public:
 		float cameraFOV;
 		float cameraPosition[3], cameraLookAt[3], cameraUp[3];
 		
+		// Data Processing
+		float recenterBoxCoords[3];
+		bool convertUthermToKelvin;
+		
 		// Transfer Functions
 		vector<string> tfSet;
 		
@@ -56,7 +60,7 @@ public:
 		
 		// Render
 		bool drawBBox, drawTetra, drawVoronoi;
-		bool projColDens, useDensGradients;		
+		bool projColDens;		
 		
 		int nTreeNGB;
 		float viStepSize;

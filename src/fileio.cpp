@@ -90,6 +90,10 @@ void ConfigSet::ReadFile(string cfgfile)
 		splitStrArray( readValue<string>("cameraLookAt")   , &cameraLookAt[0] );
 		splitStrArray( readValue<string>("cameraUp")       , &cameraUp[0] );
 	
+		// Data Processing
+		splitStrArray( readValue<string>("recenterBoxCoords", "-1 -1 -1") , &recenterBoxCoords[0] );
+		convertUthermToKelvin = readValue<bool>("convertUthermToKelvin", false);
+	
 	  // Animation
 		startFrame    = readValue<int>("startFrame",     0);	
 		numFrames     = readValue<int>("numFrames",      1);
@@ -101,8 +105,7 @@ void ConfigSet::ReadFile(string cfgfile)
 		drawTetra     = readValue<bool>("drawTetra",     true);	
 		drawVoronoi   = readValue<bool>("drawVoronoi",   false);
 
-		projColDens      = readValue<bool>("projColDens",     false);
-		useDensGradients = readValue<bool>("useDensGradients", true);
+		projColDens      = readValue<bool>("projColDens",     false); // write raw values
 
 		nTreeNGB         = readValue<int>("nTreeNGB",             0); // disabled by default
 		viStepSize       = readValue<float>("viStepSize",      0.0f); // disabled by default
@@ -112,22 +115,25 @@ void ConfigSet::ReadFile(string cfgfile)
 		splitStrArray( readValue<string>("rgbLine",     "0.1  0.1  0.1")  , &rgbLine[0]    );
 		splitStrArray( readValue<string>("rgbTetra",    "0.01 0.01 0.01") , &rgbTetra[0]   );
 		splitStrArray( readValue<string>("rgbVoronoi",  "0.0  0.05 0.0")  , &rgbVoronoi[0] );
-
 		splitStrArray( readValue<string>("rgbAbsorb",   "0.0  0.05 0.0")  , &rgbAbsorb[0]  );
 		
 		// basic validation
-		if (projColDens && viStepSize) {
-				cout << "Config: ERROR! projColDens and viStepSize are incompatible options!" << endl;
-				exit(1120);
-		}
-		if (!useDensGradients && viStepSize) {
-				cout << "Config: ERROR! Nonzero stepsize set but no density gradients requested?" << endl;
-				exit(1125);
-		}
-		if (totNumJobs < 0 || totNumJobs > 16*16) {
-				cout << "Config: ERROR! Strange totNumJobs value, should be >=0 and <256" << endl;
-				exit(1169);
-		}
+		if (projColDens && !totNumJobs)
+			terminate("Config: ERROR! projColDens only with totNumJobs>0 (custom load).");
+		if (totNumJobs < 0 || totNumJobs > 16*16)
+			terminate("Config: ERROR! Strange totNumJobs value, should be >=0 and <256");
+		if (convertUthermToKelvin && !totNumJobs)
+			terminate("Config: ERROR! convertUthermToKelvin only with totNumJobs>0 (custom load).");
+		if (recenterBoxCoords[0] > 0 && !totNumJobs)
+			terminate("Config: ERROR! Currently can only recenter box with totNumJobs>0 (custom load).");
+		if (!convertUthermToKelvin && projColDens)
+			terminate("Config: ERROR! Cannot write raw field of SZ_Y without assuming Utherm is in Kelvin.");
+		if (!viStepSize && nTreeNGB)
+			terminate("Config: ERROR! Need to specify viStepSize>0 if nTreeNGB>0.");
+#if !defined(NATURAL_NEIGHBOR_IDW) && !defined(NATURAL_NEIGHBOR_SPHKERNEL)
+		if (nTreeNGB)
+			terminate("Config: ERROR! Must enable IDW or SPHKERNEL for nTreeNGB>0.");
+#endif
 }
 
 void ConfigSet::print()
@@ -147,10 +153,8 @@ template<class T> T ConfigSet::readValue(const string &key) const
 		// no default value = required key, die if missing
 		map_ci pi = parsedParams.find(key);
 		
-		if( pi == parsedParams.end() ) {
-				cout << " ERROR: Required parameter [" << key << "] missing from configuration file." << endl;
-				exit(1114);
-		}
+		if( pi == parsedParams.end() )
+			terminate(" ERROR: Required parameter [%s] missing from configuration file.",key.c_str());
 		
 		return string_to_T<T>( pi->second );
 }

@@ -1,0 +1,80 @@
+% Sample ArepoVTK Configuration File
+
+% Input/Output
+% ------------
+imageFile      = output/1820_64_16k_cellgrad/frame_1820  % output: TGA image filename
+rawRGBFile     = frame.raw.txt                           % output: raw dump of floats (debug only)
+filename       = output/snapdir_135_1820/snap_135        % input: snapshot file
+paramFilename  = param_1820.txt                          % input: Arepo parameter file
+
+% General
+% -------
+nCores         = 16                   % number of cores to use (0=all)
+nTasks         = 128                  % number of tasks/threads to run (0=auto)
+quickRender    = false                % unused
+openWindow     = false                % unused
+verbose        = true                 % report more information
+totNumJobs     = 64                   % set >=1 to split single image render across multiple jobs (0=disable)
+maskFileBase   = output/mask1820_64   % create/use maskfile for job based frustrum culling
+maskPadFac     = 500.0                % frustrum padding factor in code spatial units
+
+% Frame/Camera
+% ------------
+imageXPixels   = 16384                   % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 16384                   % frame resolution (Y), e.g. 768,  1080
+swScale        = 37500.0                 % screenWindow mult factor * [-1,1]
+cameraFOV      = 0.0                     % degrees (0=orthographic camera)
+cameraPosition = 37500 37500 30000       % (XYZ) camera position in world coord system
+cameraLookAt   = 37500 37500 37500       % (XYZ) point centered in camera FOV
+cameraUp       = 0.0 1.0 0.0             % (XYZ) camera "up" vector
+
+% Data Processing
+% ---------------
+recenterBoxCoords     = 931.088 26254.336 18358.875  % (XYZ) shift all points for new center (false=disable)
+convertUthermToKelvin = true                         % convert SphP.Utherm field to temp in Kelvin
+
+% Transfer Function
+% -----------------
+% old (cosmo 1Mpc density)
+%addTF_01 = gaussian Density 1e-8 2e-9 0.0 0.0 0.1
+%addTF_02 = gaussian Density 6e-8 3e-9 0.2 0.0 0.0
+%addTF_03 = gaussian Density 1e-7 1e-8 0.0 0.3 0.0
+%addTF_04 = gaussian Density 1e-6 1e-7 0.1 0.1 0.1
+% cosmo fullbox density:
+%addTF_01 = gaussian_table Density cubehelix_1_50 1e-8 1e-7 1.5e-8 2e-9
+%addTF_02 = gaussian_table Density cubehelix_1_50 1e-8 1e-7 4e-8 5e-9
+%addTF_03 = gaussian_table Density cubehelix_1_50 1e-8 1e-7 6e-8 1e-8
+%addTF_04 = gaussian_table Density cubehelix_1_50 1e-8 1e-7 9e-8 1e-8
+% cosmo fullbox utherm:
+%addTF_01 = gaussian_table Temp idl_33_blue-red 600 90000 1000 100
+%addTF_02 = gaussian_table Temp idl_33_blue-red 600 90000 10000 1000
+%addTF_03 = gaussian_table Temp idl_33_blue-red 600 90000 20000 2000
+%addTF_04 = gaussian_table Temp idl_33_blue-red 600 90000 40000 3000
+%addTF_05 = gaussian_table Temp idl_33_blue-red 600 90000 60000 4000
+%addTF_06 = gaussian_table Temp idl_33_blue-red 600 90000 80000 5000
+
+% jobtest
+addTF_01 = constant_table Density idl_13_rainbow 5e-10 1e-8
+
+% Animation
+% ---------
+numFrames        = 1                 % total number of frames
+timePerFrame     = 1.0               % establish unit system of time/frame
+
+% Render
+% ------
+drawBBox         = false             % draw simulation bounding box
+drawTetra        = false             % draw delaunay tetrahedra
+drawVoronoi      = false             % draw voronoi polyhedra faces
+projColDens      = true              % calculate/save raw line integrals
+nTreeNGB         = 0                 % use tree-based search integrator instead of mesh (0=disabled)
+viStepSize       = 0.0               % volume integration sub-stepping size (0=disabled)
+                                     % in (Arepo) code units
+rayMaxT          = 15000.0           % maximum ray integration parametric length
+rgbLine          = 5.0 5.0 5.0       % (RGB) bounding box
+rgbTetra         = 0.01 0.01 0.01    % (RGB) tetra edges
+rgbVoronoi       = 0.0 0.05 0.0      % (RGB) voronoi edges
+rgbAbsorb        = 0.0 0.0 0.0       % (RGB) absorption
+
+% End.
+

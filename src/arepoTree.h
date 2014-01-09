@@ -29,7 +29,7 @@ public:
     }
 		
 		// tree search traversal
-		bool FindNeighborList(Point &pt, float hsml, int *numngb_int, float *vals);
+		bool FindNeighborList(Point &pt, float hsml, int *numngb_int, vector<float> &vals);
 		
 		// sampling / interpolation
 		bool AdvanceRayOneStep(const Ray &ray, double *t0, double *t1, Spectrum &Lv, Spectrum &Tr, int threadNum);

@@ -25,41 +25,46 @@ cameraUp       = 0.0 1.0 0.0             % (XYZ) camera "up" vector
 cameraPosition = 1860 1860 40            % (XYZ) camera position in world coord system
 cameraLookAt   = 1860 1860 1860          % (XYZ) point centered in camera FOV
 
+% Data Processing
+% ---------------
+recenterBoxCoords     = -1 -1 -1         % (XYZ) shift all points for new center (-1 tuple=disable)
+convertTempToKelvin = true             % convert SphP.Temp field to temp in Kelvin
+
 % Transfer Function
 % -----------------
 
 % illustris.fof0 temp config2:
-%addTF_01 = gaussian_table Utherm idl_3_red-temp 6.8 8.2 7.6 0.005  %tvir, yellow
-%addTF_02 = gaussian_table Utherm idl_3_red-temp 6.8 8.2 7.9 0.005  %2tvir, orange-red
-%addTF_03 = gaussian_table Utherm idl_3_red-temp 6.8 8.2 8.1 0.005  %red
-%addTF_04 = gaussian_table Utherm idl_3_red-temp 6.8 8.2 7.4 0.005  %tvir/2, green
+%addTF_01 = gaussian_table Temp idl_3_red-temp 6.8 8.2 7.6 0.005  %tvir, yellow
+%addTF_02 = gaussian_table Temp idl_3_red-temp 6.8 8.2 7.9 0.005  %2tvir, orange-red
+%addTF_03 = gaussian_table Temp idl_3_red-temp 6.8 8.2 8.1 0.005  %red
+%addTF_04 = gaussian_table Temp idl_3_red-temp 6.8 8.2 7.4 0.005  %tvir/2, green
 
 % illustris.fof0 temp config3:
-%addTF_01 = gaussian_table Utherm idl_3_red-temp 7.3 8.2 7.6 0.005  %orange
-%addTF_02 = gaussian_table Utherm idl_3_red-temp 7.3 8.2 7.9 0.005  %orange-white
-%addTF_03 = gaussian_table Utherm idl_3_red-temp 7.3 8.2 8.2 0.005  %white
-%addTF_04 = gaussian_table Utherm idl_3_red-temp 7.3 8.2 7.4 0.005  %red
-%addTF_05 = gaussian_table Utherm idl_3_red-temp 7.3 8.2 7.5 0.005   %red-orange
+%addTF_01 = gaussian_table Temp idl_3_red-temp 7.3 8.2 7.6 0.005  %orange
+%addTF_02 = gaussian_table Temp idl_3_red-temp 7.3 8.2 7.9 0.005  %orange-white
+%addTF_03 = gaussian_table Temp idl_3_red-temp 7.3 8.2 8.2 0.005  %white
+%addTF_04 = gaussian_table Temp idl_3_red-temp 7.3 8.2 7.4 0.005  %red
+%addTF_05 = gaussian_table Temp idl_3_red-temp 7.3 8.2 7.5 0.005   %red-orange
 
 % illustris.fof0 temp config4:
-%addTF_01 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 7.9 0.005
-%addTF_02 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 8.2 0.005
-%addTF_03 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 7.3 0.005
-%addTF_04 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 7.6 0.005
+%addTF_01 = gaussian_table Temp idl_3_red-temp 7.1 8.2 7.9 0.005
+%addTF_02 = gaussian_table Temp idl_3_red-temp 7.1 8.2 8.2 0.005
+%addTF_03 = gaussian_table Temp idl_3_red-temp 7.1 8.2 7.3 0.005
+%addTF_04 = gaussian_table Temp idl_3_red-temp 7.1 8.2 7.6 0.005
 
 % ilustris.fof0 temp config5c
-%addTF_01 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 7.8 0.005
-%addTF_02 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 8.2 0.005
-%addTF_03 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 7.3 0.002
-%addTF_04 = gaussian_table Utherm idl_3_red-temp 7.4 7.55 7.5 0.005
-%addTF_05 = gaussian Utherm 5.5 0.01 0.0 0.0 0.2 
+%addTF_01 = gaussian_table Temp idl_3_red-temp 7.1 8.2 7.8 0.005
+%addTF_02 = gaussian_table Temp idl_3_red-temp 7.1 8.2 8.2 0.005
+%addTF_03 = gaussian_table Temp idl_3_red-temp 7.1 8.2 7.3 0.002
+%addTF_04 = gaussian_table Temp idl_3_red-temp 7.4 7.55 7.5 0.005
+%addTF_05 = gaussian Temp 5.5 0.01 0.0 0.0 0.2 
 
 % ilustris.fof0 temp config5g
-addTF_01 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 8.2 0.005
-addTF_02 = gaussian_table Utherm idl_3_red-temp 7.1 8.2 7.3 0.0015
-addTF_03 = gaussian_table Utherm idl_3_red-temp 7.4 7.6 7.56 0.0015
-addTF_04 = gaussian_table Utherm idl_33_blue-red 5.2 7.4 5.3 0.006
-addTF_05 = gaussian_table Utherm idl_33_blue-red 5.2 7.4 5.7 0.004
+addTF_01 = gaussian_table Temp idl_3_red-temp 7.1 8.2 8.2 0.005
+addTF_02 = gaussian_table Temp idl_3_red-temp 7.1 8.2 7.3 0.0015
+addTF_03 = gaussian_table Temp idl_3_red-temp 7.4 7.6 7.56 0.0015
+addTF_04 = gaussian_table Temp idl_33_blue-red 5.2 7.4 5.3 0.006
+addTF_05 = gaussian_table Temp idl_33_blue-red 5.2 7.4 5.7 0.004
 
 % illustris.fof0 density config1:
 %addTF_01 = gaussian_table Density nclR_WhiteBlueGreenYellowRed -7.1 -5.5 -7.0 0.005
@@ -97,7 +102,6 @@ drawTetra        = false             % draw delaunay tetrahedra
 drawVoronoi      = false             % DO NOT CHANGE
 projColDens      = false             % integrate quantities (density, etc) along each path 
                                      % length, to make e.g. a "projected column density" image
-useDensGradients = true              % use density gradient within cells
 nTreeNGB         = 20                % use tree-based search integrator instead of mesh (0=disabled)
 viStepSize       = 0.5               % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units

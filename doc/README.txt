@@ -4,7 +4,7 @@
 
 Primary Author: Dylan Nelson (dnelson@cfa.harvard.edu)
 
-Current Version: 0.41 (19 Dec 2013)
+Current Version: 0.42 (9 Jan 2014)
 
 Installation/Compilation:
 

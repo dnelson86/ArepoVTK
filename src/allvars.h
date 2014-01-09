@@ -6,7 +6,25 @@
 #ifndef AREPO_RT_ALLVARS_H
 #define AREPO_RT_ALLVARS_H
 
-#define  terminate(...) {char termbuf1[1000], termbuf2[1000]; sprintf(termbuf1, "Code termination on task=%d, function %s(), file %s, line %d", ThisTask, __FUNCTION__, __FILE__, __LINE__); sprintf(termbuf2, __VA_ARGS__); printf("%s: %s\n", termbuf1, termbuf2); fflush(stdout); MPI_Abort(MPI_COMM_WORLD, 1); exit(0);}
+/* variable types (including dtypes.h) */
+
+#define  MAX_FLOAT_NUMBER 1e37
+#define  MIN_FLOAT_NUMBER 1e-37
+#define  MAX_DOUBLE_NUMBER 1e306
+#define  MIN_DOUBLE_NUMBER 1e-306
+
+#ifdef DOUBLEPRECISION
+#if (DOUBLEPRECISION==2)
+#define  MAX_REAL_NUMBER  MAX_FLOAT_NUMBER
+#define  MIN_REAL_NUMBER  MIN_FLOAT_NUMBER
+#else
+#define  MAX_REAL_NUMBER  MAX_DOUBLE_NUMBER
+#define  MIN_REAL_NUMBER  MIN_DOUBLE_NUMBER
+#endif
+#else
+#define  MAX_REAL_NUMBER  MAX_FLOAT_NUMBER
+#define  MIN_REAL_NUMBER  MIN_FLOAT_NUMBER
+#endif
 
 /* memory management */
 
@@ -37,7 +55,6 @@
 
 /* magic constants */
 
-#define MAX_REAL_NUMBER      1e37
 #define MAXLEN_OUTPUTLIST    1100
 #define TIMEBINS             60
 #define GRAVCOSTLEVELS       6
@@ -366,7 +383,7 @@ extern struct particle_data
 	MyFloat  GravAccel[3];
   MyIDType ID;
 
-  float OldAcc;         /**< magnitude of old gravitational force. Used in relative opening criterion */
+  float OldAcc; // ArepoVTK: used to store ElectronAbundance (Ne)
   float Soft;
 
 #ifdef METALS
@@ -386,7 +403,7 @@ extern struct sph_particle_data
   MyFloat Energy;
   MyFloat Momentum[3];
   MyFloat Volume;
-  MyFloat OldMass;
+  MyFloat OldMass; // ArepoVTK: used to store Entropy (code units)
 
   /* primitive variables */
   MyFloat Density;
@@ -401,8 +418,9 @@ extern struct sph_particle_data
   MyFloat SurfaceArea;
   MyFloat ActiveArea;
 
+	MyFloat Metallicity; // ArepoVTK: moved outside METALS!!!
+	
 #ifdef METALS
-  MyFloat Metallicity;
   MyFloat MassMetallicity;
 #endif
 

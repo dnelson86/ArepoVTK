@@ -6,31 +6,19 @@
 #ifndef AREPO_RT_TRANSFER_H
 #define AREPO_RT_TRANSFER_H
 
-//#include "ArepoRT.h"
 #include "spectrum.h"
 
 // TODO: bit field approach, such that TransferFunction keeps a record of all the 
 //       SphP fields it will need to evaluate Lve(), and returns this upon request
 //       to AdvanceRayOneCell() which will use it to form vals[] of the needed elements
 
-#define TF_VAL_DENS        0
-#define TF_VAL_UTHERM      1
-#define TF_VAL_PRES        2
-#define TF_VAL_ENERGY      3
-
-#define TF_VAL_VEL_X       4
-#define TF_VAL_VEL_Y       5
-#define TF_VAL_VEL_Z       6
-#define TF_VAL_VEL_DIV     7
-#define TF_VAL_VEL_CURL    8
-
-#define TF_VAL_POTENTIAL   9
-
-#define TF_VAL_METALLICITY 10
-#define TF_VAL_NE          11
-#define TF_VAL_SFR         12
-
-#define TF_NUM_VALS        13
+#define TF_VAL_DENS       0
+#define TF_VAL_TEMP       1
+#define TF_VAL_VMAG       2
+#define TF_VAL_ENTROPY    3
+#define TF_VAL_METAL      4
+#define TF_VAL_SZY        5
+#define TF_VAL_XRAY       6
 
 class TransferFunc1D {
 public:
@@ -38,11 +26,11 @@ public:
 		~TransferFunc1D();
 		
 		void CheckReverse();
-		bool InRange(const float *vals);
-		Spectrum Lve(const float *vals) const;
+		bool InRange(const vector<float> &vals);
+		Spectrum Lve(const vector<float> &vals) const;
 		
 private:
-		short int valNum;   // 1 - density, 2 - utherm
+		short int valNum;   // 1 - density, 2 - temp (etc, 1 greater than defined above)
 		short int type;     // 1 - constant, 2 - tophat, 3 - gaussian,
 												// 4 - constant (discrete), 5 - tophat (discrete), 6 - gaussian (discrete)
 												
@@ -89,8 +77,8 @@ public:
     //Spectrum sigma_a(const Point &p, const Vector &, float) const {    }
     //Spectrum sigma_s(const Point &p, const Vector &, float) const {    }
 		Spectrum sigma_t() const { return sig_t; }
-		bool InRange(const float *vals) const;
-    Spectrum Lve(const float *vals) const;
+		bool InRange(const vector<float> &vals) const;
+    Spectrum Lve(const vector<float> &vals) const;
     //Spectrum tau(const Ray &r, float stepSize, float offset) const {   }
 		
 private:

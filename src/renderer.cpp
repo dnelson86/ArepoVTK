@@ -66,7 +66,6 @@ void RendererTask::Run(int threadNum) {
 				{
 						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], 
 						                                     &prevEntryCell, &prevEntryTetra, threadNum);
-
 						// error check on value of Ls[i]
         }
 
@@ -75,7 +74,7 @@ void RendererTask::Run(int threadNum) {
         {
             for (int i = 0; i < sampleCount; ++i)
             {
-                camera->film->AddSample(samples[i], Ls[i]);
+                camera->film->AddSample(samples[i], Ls[i], rays[i], threadNum);
             }
         }
     }
@@ -184,11 +183,12 @@ void Renderer::Render(const Scene *scene, int frameNum)
 		cout << endl << "[" << setw(3) << frameNum << "] Render complete (" 
 		     << setw(6) << seconds << " seconds)." << endl << endl;
 		
-		// cleanup and store image
+		// cleanup and store image, column integrals, and raw floats
 		TasksCleanup();
     delete sample;
 		
     camera->film->WriteImage(frameNum);
+		camera->film->WriteIntegrals();
     IF_DEBUG(camera->film->WriteRawRGB());
 }
 

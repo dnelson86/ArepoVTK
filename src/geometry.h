@@ -166,8 +166,8 @@ public:
     Ray(const Point &origin, const Vector &direction, double start, double end = INFINITY, 
 		    double t = 0.0f, int d = 0, int ind = -6, int tsk = -1, int pind = -1)
         : o(origin), d(direction), min_t(start), max_t(end), index(ind), 
-				  task(tsk), prev_index(pind), depth(d), time(t) {
-		}
+				  task(tsk), prev_index(pind), depth(d), time(t)
+		{		}
 		
     Point operator()(double t) const { return o + d * t; }
 		void printRay(const string &preamble) { cout << preamble << " o.x= " << setw(5) << o.x
@@ -179,6 +179,7 @@ public:
     Point o;  // origin
     Vector d; // direction
     mutable double min_t, max_t; // parametric distance along ray
+		mutable double raw_vals[TF_NUM_VALS]; // projected column density values in code/physical units
 		mutable int index, task;    // index and task of the primary voronoi cell in which this ray is located
 		mutable int prev_index;     // index of the primary voronoi cell where the ray was last
     mutable int depth; // counter of ViStepSize steps

@@ -56,10 +56,12 @@ ArepoTree::~ArepoTree()
 		//	delete varNGBLists[i];
 }
 
-bool ArepoTree::FindNeighborList(Point &pt, float hsml, int *numngb_int, float *vals)
+bool ArepoTree::FindNeighborList(Point &pt, float hsml, int *numngb_int, vector<float> &vals)
 {
+	int numngb = 0;
+#if defined(NATURAL_NEIGHBOR_SPHKERNEL) || defined(NATURAL_NEIGHBOR_IDW)
 	// based on ngb_treefind_variable (e.g. CalcTHValWt)
-	int node, p, numngb;
+	int node, p;
 	struct NgbNODE *current;
 	double dx, dy, dz, xtmp, ytmp, ztmp, r, wk, weight, h2, r2;
 	float search_min[3], search_max[3], search_max_Lsub[3], search_min_Ladd[3];
@@ -74,7 +76,6 @@ bool ArepoTree::FindNeighborList(Point &pt, float hsml, int *numngb_int, float *
 	h2 = hsml * hsml;
 	r2 = 0.0;
 	weight = 0.0;
-	numngb = 0;
 	
 	// starting node
 	node = Ngb_MaxPart;
@@ -128,7 +129,9 @@ bool ArepoTree::FindNeighborList(Point &pt, float hsml, int *numngb_int, float *
 				r = sqrt(r2);
 #ifdef NATURAL_NEIGHBOR_IDW
 				wk = 1.0 / pow( r,POWER_PARAM );
-#else // NATURAL_NEIGHBOR_SPHKERNEL
+#else
+
+#ifdef NATURAL_NEIGHBOR_SPHKERNEL
 				u = r * hinv;
 				
 				if(u < 0.5)
@@ -139,15 +142,16 @@ bool ArepoTree::FindNeighborList(Point &pt, float hsml, int *numngb_int, float *
 				wk = NORM_COEFF * wk / hinv3;
 #endif
 
+#endif // NATURAL_NEIGHBOR_IDW
+
 				// accumulate weights and add to neighbor list
 				weight += wk;
 				
 				//varNGBList[numngb++] = p;
 				numngb++;
 				
-				// TEST: store directly weighted Dens/Temp values
-				vals[TF_VAL_DENS]   += SphP[p].Density * wk;
-				vals[TF_VAL_UTHERM] += SphP[p].Utherm * wk;
+				// TEST: store directly weighted values
+				addValsContribution( vals, p, wk );
 			}
 			
 		}
@@ -184,19 +188,21 @@ bool ArepoTree::FindNeighborList(Point &pt, float hsml, int *numngb_int, float *
 	}
 
 	// normalize vals
-	vals[TF_VAL_DENS] /= weight;
-	vals[TF_VAL_UTHERM] /= weight;
+	weight = 1.0 / weight;
+	
+	for( unsigned int i=0; i < vals.size(); i++ )
+		vals[i] *= weight;
 	
 #ifdef DEBUG
 	cout << "FindNeighborList(): numngb = " << numngb << " weight = " << weight 
-	     << " ( dens = " << vals[TF_VAL_DENS] << " utherm = " << vals[TF_VAL_UTHERM] << " ) " << endl;
+	     << " ( dens = " << vals[TF_VAL_DENS] << " utherm = " << vals[TF_VAL_TEMP] << " ) " << endl;
 #endif	
-	
+#endif // SPH/IDW
 	*numngb_int = numngb;
 	
 	if( !numngb )
 	  return false; // skip
-	
+
 	return true;
 }
 
@@ -204,7 +210,7 @@ bool ArepoTree::AdvanceRayOneStep(const Ray &ray, double *t0, double *t1,
 																	Spectrum &Lv, Spectrum &Tr, int threadNum)
 {
 		double min_t_old, min_t_new;
-		float vals[TF_NUM_VALS];
+		vector<float> vals(TF_NUM_VALS, 0.0);
 		int numngb_int;
 		bool status;
 		
@@ -231,10 +237,7 @@ bool ArepoTree::AdvanceRayOneStep(const Ray &ray, double *t0, double *t1,
 		Point midpt( ray(min_t_new) );
 			
 		// tree search for N nearest neighbors
-		vals[TF_VAL_DENS]   = 0.0;
-		vals[TF_VAL_UTHERM] = 0.0;
-		
-		status = FindNeighborList( midpt, ray.prevHSML, &numngb_int, &vals[0] );
+		status = FindNeighborList( midpt, ray.prevHSML, &numngb_int, vals );
 		
 		// adjust hsml (for the next sample point) based on difference between requested nTreeNGB
 		// and the number of neighbors found with this current hsml
@@ -249,7 +252,7 @@ bool ArepoTree::AdvanceRayOneStep(const Ray &ray, double *t0, double *t1,
 #endif
 
 		// sample quantities at this position (now have interpolated densisty,temp,etc)
-		// i.e. fill vals[] array
+		// i.e. fill vals vector
 		// currently done in FindNeighborList()
 		
 		if(status)
@@ -258,13 +261,7 @@ bool ArepoTree::AdvanceRayOneStep(const Ray &ray, double *t0, double *t1,
 			Spectrum stepTau(0.0);
 			stepTau += transferFunction->sigma_t() * ( vals[TF_VAL_DENS] ) * viStepSize;
 			//Tr *= Exp(-stepTau); // reduce transmittance for optical depth
-			
-			// apply TF to integrated (total) quantities (only appropriate for constant?)
-			if (Config.projColDens) {
-				terminate("1299"); // best check this
-				vals[TF_VAL_DENS] *= viStepSize;
-			}
-			
+						
 			// compute emission-only source term using transfer function
 			if(status)
 				Lv += Tr * transferFunction->Lve(vals) * sampleWt;
