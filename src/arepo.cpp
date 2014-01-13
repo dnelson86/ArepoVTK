@@ -180,11 +180,6 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 		// transfer function and sampling setup
 		transferFunction = tf;
 		
-		sampleWt = 1.0f; //All.BoxSize / pow(NumGas,0.333);
-		
-		if (Config.viStepSize)
-			sampleWt *= Config.viStepSize;
-		
 		// set pointers into Arepo data structures
 		T   = &Mesh;
 		DP  = T->DP;
@@ -692,7 +687,8 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 		dir[1] = ray.d[1];
 		dir[2] = ray.d[2];
 		
-		qmin = find_next_cell_DC(T, SphP_ID, &(pos[0]), dir, ray.index, &length); // TODO: change ray.index to ray.prev_index
+		// TODO: change ray.index to ray.prev_index
+		qmin = find_next_cell_DC(T, SphP_ID, &(pos[0]), dir, ray.index, &length);
 		
 		if( qmin != -1 )
 			qmin_dp = DC[qmin].dp_index; // DP_index (in ray.index we store SphP_index)
@@ -713,12 +709,12 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 	
 		// check if exiting box and failed to exit a face
 		if (qmin == -1) {
-			//Point exitcell = ray(*t0 + min_t);
 			Point exitcell = ray(min_t);
 			
 			if (!extent.Inside(exitcell)) { // && ray.index >= NumGas
 				// set intersection with box face to allow for final contribution to ray
 				IF_DEBUG(cout << " failed to intersect face, exitcell outside box, ok!" << endl);
+				
 				min_t = ray.max_t;
 				
 				// fake exit face
@@ -776,7 +772,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 				//Tr *= Exp(-stepTau); // reduce transmittance for optical depth
 					
 				// setup sampling for this cell
-				Point prev_sample_pt = hitcell;
+				Point prev_sample_pt;
 				int nSamples;
 				float stepSize;
 				
@@ -795,16 +791,19 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 				{
 					// sub-stepping: adaptive based on cell size (could include gradients as well)
 					// in this case -Config.viStepSize is the NUMBER of samples per cell
+					// note: Config.viStepSize=-1 should reproduce the behavior of Config.viStepSize=0
 					stepSize = len / -Config.viStepSize;
-					nSamples = (int)floor(len / stepSize);
-					prev_sample_pt = hitcell + 0.5 * stepSize * norm; // all samples interior to faces
-					// UNTESTED
+					nSamples = (int)(-Config.viStepSize); // = floor(len/stepSize) up to floating rounding
+					norm = Normalize(norm);
+					prev_sample_pt = hitcell - 0.5 * stepSize * norm; // all samples interior to bounding faces
 				}
 				else
 				{
 					// not sub-stepping, then do single sample at midpoint of line through cell
 					nSamples = 1;
-					stepSize = 0.5 * len;
+					stepSize = len;
+					norm = Normalize(norm);
+					prev_sample_pt = hitcell - 0.5 * stepSize * norm;
 				}
 				
 				IF_DEBUG(prev_sample_pt.print("  prev_sample_pt "));
@@ -815,13 +814,15 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 				for (int i = 0; i < nSamples; ++i)
 				{
 					// where are we inside the cell?
-					Vector samplept(prev_sample_pt[0] + ((i+1)*stepSize) * norm[0],
-											    prev_sample_pt[1] + ((i+1)*stepSize) * norm[1],
-											    prev_sample_pt[2] + ((i+1)*stepSize) * norm[2]);
+					Point samplept = prev_sample_pt + (i+1)*stepSize * norm;
 					
 #if defined(DTFE_INTERP) || defined(NNI_WATSON_SAMBRIDGE) || defined(NNI_LIANG_HALE)
 					locateCurrentTetra(ray, samplept);
 #endif
+
+					// temporary fix for near-box-edge rays going crazy with NNI
+					if (!extent.Inside(samplept))
+					  terminate("ERROR: Sample point outside box. (%g %g %g)",samplept.x,samplept.y,samplept.z);
 																							
 					// subsample (replace fields in vals by interpolated values)
 					int status = subSampleCell(ray, samplept, vals, threadNum);
@@ -836,7 +837,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 					
 					// compute emission-only source term using transfer function
 					if(status)
-					  Lv += Tr * transferFunction->Lve(vals) * sampleWt;
+					  Lv += Tr * transferFunction->Lve(vals) * stepSize;
 							
 					// update raw column density integrals
 					if( Config.projColDens ) {
@@ -846,10 +847,10 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 							
 						// same weighting procedure as in voronoi_makeimage_new()
 						// e.g. weight (Temp,Vmag,Ent,Metal) by rho*len and then normalize out at the end
-						float weight = vals[TF_VAL_DENS] * len;
+						float weight = vals[TF_VAL_DENS] * stepSize;
 						
 						// column density
-						ray.raw_vals[0] += vals[TF_VAL_DENS] * len;
+						ray.raw_vals[0] += vals[TF_VAL_DENS] * stepSize;
 						
 						// mass-weighted values
 						ray.raw_vals[1] += vals[TF_VAL_TEMP] * weight;
@@ -858,9 +859,9 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 						ray.raw_vals[4] += vals[TF_VAL_METAL] * weight;
 						
 						// un-weighted line integrals
-						ray.raw_vals[5] += vals[TF_VAL_SZY] * len;
+						ray.raw_vals[5] += vals[TF_VAL_SZY] * stepSize;
 						if( vals[TF_VAL_TEMP] >= 1e6 ) // xray restriction: hot gas only (Temp > 1e6 K)
-							ray.raw_vals[6] += vals[TF_VAL_XRAY] * len;
+							ray.raw_vals[6] += vals[TF_VAL_XRAY] * stepSize;
 					}
 							
 					// update previous sample point marker

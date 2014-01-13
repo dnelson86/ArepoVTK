@@ -18,12 +18,6 @@ ArepoTree::ArepoTree(const TransferFunction *tf)
 		
 		// transfer function and sampling setup
 		transferFunction = tf;
-		viStepSize       = Config.viStepSize;
-		
-		sampleWt = 1.0f; //All.BoxSize / pow(NumGas,0.333);
-		
-		if (viStepSize)
-			sampleWt *= viStepSize;
 		
 		// set pointers into Arepo data structures
 		
@@ -219,8 +213,8 @@ bool ArepoTree::AdvanceRayOneStep(const Ray &ray, double *t0, double *t1,
 			terminate("Ray on wrong task.");
 	
 		// setup stepping: strict in world space
-		min_t_old = *t0 + ray.depth * viStepSize;
-		min_t_new = *t0 + (ray.depth+1) * viStepSize;
+		min_t_old = *t0 + ray.depth * Config.viStepSize;
+		min_t_new = *t0 + (ray.depth+1) * Config.viStepSize;
 		Point prev_sample_pt( ray(min_t_old) );
 	
 		// check if exiting box and failed to exit a face
@@ -259,12 +253,12 @@ bool ArepoTree::AdvanceRayOneStep(const Ray &ray, double *t0, double *t1,
 		{
 			// optical depth
 			Spectrum stepTau(0.0);
-			stepTau += transferFunction->sigma_t() * ( vals[TF_VAL_DENS] ) * viStepSize;
+			stepTau += transferFunction->sigma_t() * ( vals[TF_VAL_DENS] ) * Config.viStepSize;
 			//Tr *= Exp(-stepTau); // reduce transmittance for optical depth
 						
 			// compute emission-only source term using transfer function
 			if(status)
-				Lv += Tr * transferFunction->Lve(vals) * sampleWt;
+				Lv += Tr * transferFunction->Lve(vals) * Config.viStepSize;
 		}
 
 		// update ray: transfer to next voronoi cell (possibly on different task)

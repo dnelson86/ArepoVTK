@@ -85,7 +85,7 @@ public:
 		
 		// fluid data introspection
 		float calcNeighborHSML(int sphInd, Vector &pt);
-		int subSampleCell(const Ray &ray, Vector &pt, vector<float> &vals, int threadNum);
+		int subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int threadNum);
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
 		// NNI_WATSON_SAMBRIDGE
@@ -109,7 +109,6 @@ private:
     // rendering
 		BBox extent;
     const TransferFunction *transferFunction;
-		float sampleWt;
 		
 		// units, etc
 		float valBounds[TF_NUM_VALS*3];     // min,max,mean for each non-derived quantity

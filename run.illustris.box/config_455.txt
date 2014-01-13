@@ -2,7 +2,7 @@
 
 % Input/Output
 % ------------
-imageFile      = output/455_test_new/frame_455     % output: TGA image filename
+imageFile      = output/455_2k_nni/frame_455     % output: TGA image filename
 rawRGBFile     = frame.raw.txt                     % output: raw dump of floats (debug only)
 filename       = output/snapdir_135_455/snap_135   % input: snapshot file
 paramFilename  = param_455.txt                     % input: Arepo parameter file
@@ -10,7 +10,7 @@ paramFilename  = param_455.txt                     % input: Arepo parameter file
 % General
 % -------
 nCores         = 16                   % number of cores to use (0=all)
-nTasks         = 64                   % number of tasks/threads to run (0=auto)
+nTasks         = 256                  % number of tasks/threads to run (0=auto)
 quickRender    = false                % unused
 openWindow     = false                % unused
 verbose        = true                 % report more information
@@ -68,7 +68,7 @@ drawTetra        = false             % draw delaunay tetrahedra
 drawVoronoi      = false             % draw voronoi polyhedra faces
 projColDens      = true              % calculate/save raw line integrals 
 nTreeNGB         = 0                 % use tree-based search integrator instead of mesh (0=disabled)
-viStepSize       = 0.0               % volume integration sub-stepping size (0=disabled)
+viStepSize       = 0.0              % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
 rayMaxT          = 15000.0           % maximum ray integration parametric length
 rgbLine          = 5.0 5.0 5.0       % (RGB) bounding box

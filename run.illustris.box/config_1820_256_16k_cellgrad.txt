@@ -9,7 +9,7 @@ paramFilename  = param_1820.txt                           % input: Arepo paramet
 
 % General
 % -------
-nCores         = 64                   % number of cores to use (0=all)
+nCores         = 16                   % number of cores to use (0=all)
 nTasks         = 128                  % number of tasks/threads to run (0=auto)
 quickRender    = false                % unused
 openWindow     = false                % unused

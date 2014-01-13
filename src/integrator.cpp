@@ -163,9 +163,8 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		// TODO: exchange?
 		
 		// advance ray through voronoi cells
-#ifdef DEBUG
 		int count = 0;
-
+#ifdef DEBUG
 		Point p = ray(ray.min_t);
 		cout << " VoronoiIntegrator::Li(iter=" << count << ") Lv.y = " << setw(6) << Lv.y()
 				 << " Tr.y = " << Tr.y() << " ray.x = " << setw(5) << p.x 
@@ -173,19 +172,22 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 #endif			 
 
 		while( true ) {
-#ifdef DEBUG
 				count++;
-
+				
+				if (count > 10000) {
+						Point pos = ray(ray.min_t);
+						cout << "COUNT = " << count << " (Breaking) ray.min_t = " << ray.min_t << " max_t = "
+						     << ray.max_t << " depth = " << ray.depth << " x = " << pos.x << " y = "
+								 << pos.y << " z = " << pos.z << endl;
+						if(count > 10005)
+							break;
+				}
+#ifdef DEBUG
 				p = ray(ray.min_t);
 				cout << " VoronoiIntegrator::Li(iter=" << count << ") Lv.y = " << setw(5) << Lv.y()
 						 << " Tr.y = " << setw(2) << Tr.y() << " ray.x = " << setw(5) << p.x 
 						 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl;
 				cout << "  ( index = " << ray.index << " prev_index = " << ray.prev_index << " )" << endl;
-
-				if (count > 10000) {
-						cout << "COUNT > 10000 (Breaking)" << endl;
-						break;
-				}
 #endif
 				if (!scene->arepoMesh->AdvanceRayOneCellNew(ray, &t0, &t1, Lv, Tr, threadNum) )
 						break;
