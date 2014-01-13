@@ -40,7 +40,6 @@ private:
     // rendering
 		BBox extent;
     const TransferFunction *transferFunction;
-		float viStepSize, sampleWt;
 		
 		//vector<int *> varNGBLists;
 		//int *varNGBList;

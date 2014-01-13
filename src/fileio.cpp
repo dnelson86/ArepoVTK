@@ -128,7 +128,7 @@ void ConfigSet::ReadFile(string cfgfile)
 			terminate("Config: ERROR! Currently can only recenter box with totNumJobs>0 (custom load).");
 		if (!convertUthermToKelvin && projColDens)
 			terminate("Config: ERROR! Cannot write raw field of SZ_Y without assuming Utherm is in Kelvin.");
-		if (!viStepSize && nTreeNGB)
+		if (viStepSize <= 0.0 && nTreeNGB)
 			terminate("Config: ERROR! Need to specify viStepSize>0 if nTreeNGB>0.");
 #if !defined(NATURAL_NEIGHBOR_IDW) && !defined(NATURAL_NEIGHBOR_SPHKERNEL)
 		if (nTreeNGB)

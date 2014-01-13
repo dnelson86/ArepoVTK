@@ -412,7 +412,7 @@ double ArepoMesh::ccVolume(double *ci, double *cj, double *ck, double *ct)
 #endif
 
 // interpolate scalar fields at position pt inside Voronoi cell SphP_ID (various methods)
-int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, vector<float> &vals, int threadNum)
+int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int threadNum)
 {
 	int sphInd = ray.index;
 	
@@ -708,6 +708,8 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, vector<float> &vals, in
 		AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].z = pt.z;
 		
 		set_integers_for_pointer( &AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] );
+		//cout << "ipw: interpt: " << AuxMeshes[threadNum].Ndp 
+		//		 << " x = " << pt.x << " y = " << pt.y << " z = " << pt.z << endl;
 		tlast = insert_point_new(&AuxMeshes[threadNum], AuxMeshes[threadNum].Ndp, tlast);
 		AuxMeshes[threadNum].Ndp++;
 		
@@ -773,7 +775,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Vector &pt, vector<float> &vals, in
 		// normalize by volume of last added cell (around interp point)
 		float invWeight = 1.0 / dp_new_vol[AuxMeshes[threadNum].Ndp-1];
 		
-		for( int i=0; i < vals.size(); i++ )
+		for( unsigned int i=0; i < vals.size(); i++ )
 			vals[i] *= invWeight;
 
 #endif // NATURAL_NEIGHBOR_INTERP

@@ -9,12 +9,12 @@ paramFilename  = param.txt                             % input: Arepo parameter 
 
 % General
 % -------
-nCores         = 8                    % number of cores to use (0=all)
-nTasks         = 16                   % number of tasks/threads to run (0=auto)
+nCores         = 32                   % number of cores to use (0=all)
+nTasks         = 64                   % number of tasks/threads to run (0=auto)
 quickRender    = false                % unused
 openWindow     = false                % unused
 verbose        = true                 % report more information
-totNumJobs     = 4                    % set >=1 to split single image render across multiple jobs (0=disable)
+totNumJobs     = 1                    % set >=1 to split single image render across multiple jobs (0=disable)
 maskFileBase   = mask                 % create/use maskfile for job based frustrum culling
 maskPadFac     = 1000.0               % frustrum padding factor in code spatial units
 
@@ -68,7 +68,7 @@ drawTetra        = false             % draw delaunay tetrahedra
 drawVoronoi      = false             % draw voronoi polyhedra faces
 projColDens      = true              % calculate/save raw line integrals
 nTreeNGB         = 0                 % use tree-based search integrator instead of mesh (0=disabled)
-viStepSize       = 0.0               % volume integration sub-stepping size (0=disabled)
+viStepSize       = -1                % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
 rayMaxT          = 8000.0            % maximum ray integration parametric length
 rgbLine          = 5.0 5.0 5.0       % (RGB) bounding box
