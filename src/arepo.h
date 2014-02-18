@@ -84,7 +84,7 @@ public:
 		void checkCurCellTF(bool *addFlag, int sphInd, vector<float> &vals);
 		
 		// fluid data introspection
-		float calcNeighborHSML(int sphInd, Vector &pt);
+		float calcNeighborHSML(int sphInd, Point &pt);
 		int subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int threadNum);
 		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		

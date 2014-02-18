@@ -216,7 +216,7 @@ inline float sph_kernel(float dist, float hinv)
   return 0;
 }
 
-float ArepoMesh::calcNeighborHSML(int sphInd, Vector &pt)
+float ArepoMesh::calcNeighborHSML(int sphInd, Point &pt)
 {
 		float dx,dy,dz,xtmp,ytmp,ztmp;
 		float distsq, hsml2 = 0.0;
@@ -296,9 +296,10 @@ float ArepoMesh::calcNeighborHSML(int sphInd, Vector &pt)
 #endif
 
 #ifdef NATURAL_NEIGHBOR_INTERP
-void inline periodic_wrap_DP_point(point &dp_pt, Vector &ref)
+void inline periodic_wrap_DP_point(point &dp_pt, Point &ref)
 {
 #ifdef PERIODIC
+	// conditional: wrap points to be in same quadrant as ref
   double dx, dy, dz;
 
   dx = dp_pt.x - ref.x;
@@ -317,6 +318,21 @@ void inline periodic_wrap_DP_point(point &dp_pt, Vector &ref)
     dp_pt.z -= boxSize_Z;
   if(dz < -boxHalf_Z)
     dp_pt.z += boxSize_Z;
+/*
+	// unconditional wrap all points to first quadrant
+  if(dp_pt.x > boxHalf_X)
+    dp_pt.x -= boxSize_X;
+  if(dp_pt.x < -boxHalf_X)
+    dp_pt.x += boxSize_X;
+  if(dp_pt.y > boxHalf_Y)
+    dp_pt.y -= boxSize_Y;
+  if(dp_pt.y < -boxHalf_Y)
+    dp_pt.y += boxSize_Y;
+  if(dp_pt.z > boxHalf_Z)
+    dp_pt.z -= boxSize_Z;
+  if(dp_pt.z < -boxHalf_Z)
+    dp_pt.z += boxSize_Z;
+*/
 #endif
 }
 #endif
@@ -619,6 +635,7 @@ int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int
 		
 		double dp_old_vol[AUXMESH_ALLOC_SIZE/2];
 		double dp_new_vol[AUXMESH_ALLOC_SIZE/2];
+		int sph_neighbor_inds[AUXMESH_ALLOC_SIZE/2];
 
 		// recreate the voronoi cell of the parent's neighbors (auxiliary mesh approach):
 		init_clear_auxmesh(&AuxMeshes[threadNum]);
@@ -627,9 +644,12 @@ int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int
 		int edge = SphP[sphInd].first_connection;
 		int last_edge = SphP[sphInd].last_connection;
 		
+#ifdef NATURAL_NEIGHBOR_INNER
+		int nNgb = 0;
+		int pri_neighbor_inds[MAX_NON_INDS];
+#endif
+		
 		while(edge >= 0) {
-			int dp_neighbor = DC[edge].dp_index;
-			
 			// could connect to bounding tetra if we don't have a ghost across this boundary
 			if ( DC[edge].index < 0 ) {
 				if ( edge == last_edge )
@@ -637,7 +657,72 @@ int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int
 				edge = DC[edge].next;
 				continue;
 			}
-		
+			
+#ifdef NATURAL_NEIGHBOR_INNER	
+			// loop over neighbors of neighbors
+			int sphp_neighbor = DC[edge].index;
+			int inner_edge = SphP[sphp_neighbor].first_connection;
+			int inner_last_edge = SphP[sphp_neighbor].last_connection;
+			
+			while(inner_edge >= 0) {
+				// skip any neighbors we've already done
+				int flag = 0;
+				
+				for( int i=0; i < nNgb; i++ ) {
+				  if ( DC[inner_edge].dp_index == pri_neighbor_inds[i] ) {
+						flag = 1;
+						break;
+					}
+				}
+				
+				// check possible conditions for not adding this NoN
+				if ( DC[inner_edge].index < 0 // could connect to bounding tetra (if no ghost across this bnd)
+				     || DC[inner_edge].dp_index >= NumGas // note: GHOSTS
+						 || DC[inner_edge].index == sphInd // skip the primary parent (added later)
+						 || flag == 1	) // NoN already done
+				{ 
+					if ( inner_edge == inner_last_edge )
+						break;
+					inner_edge = DC[inner_edge].next;
+					continue;
+				}
+				
+				// add current cell to handled list (will include first order and second order natural neighbors)
+				if(nNgb >= MAX_NON_INDS)
+					terminate("nNgb %d out of bounds",nNgb);
+				pri_neighbor_inds[nNgb++] = DC[inner_edge].dp_index;
+				
+				if(AuxMeshes[threadNum].Ndp + 2 >= AuxMeshes[threadNum].MaxNdp)
+					terminate("AuxMesh for NNI exceeds maximum size.");
+				
+				// insert point
+				AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] = Mesh.DP[ DC[inner_edge].dp_index ];
+				
+				periodic_wrap_DP_point( AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp], pt );
+				
+				sph_neighbor_inds[AuxMeshes[threadNum].Ndp] = DC[inner_edge].index;
+				
+				IF_DEBUG(cout << "   insertNoN (dp_index=" << DC[inner_edge].dp_index 
+											<< " orig x=" << Mesh.DP[ DC[inner_edge].dp_index ].x 
+											<< " y=" << Mesh.DP[ DC[inner_edge].dp_index ].y
+											<< " z=" << Mesh.DP[ DC[inner_edge].dp_index ].z << ") (wrapped x=" 
+											<< AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].x 
+											<< " y=" << AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].y 
+											<< " z=" << AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].z 
+											<< ") tlast=" << setw(3) << tlast << " totnum=" << setw(2) << AuxMeshes[threadNum].Ndp+1 << endl);				
+				
+				set_integers_for_pointer( &AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] );
+				tlast = insert_point_new(&AuxMeshes[threadNum], AuxMeshes[threadNum].Ndp, tlast);
+				AuxMeshes[threadNum].Ndp++;
+				
+			  if(inner_edge == inner_last_edge)
+					break;
+
+				inner_edge = DC[inner_edge].next;
+			}
+#else // NATURAL_NEIGHBOR_INNER	(already add first order neighbors as NoN of second order neighbors)
+			int dp_neighbor = DC[edge].dp_index;
+			
 			if(AuxMeshes[threadNum].Ndp + 2 >= AuxMeshes[threadNum].MaxNdp)
 				terminate("AuxMesh for NNI exceeds maximum size.");
 				
@@ -647,7 +732,9 @@ int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int
 			// wrap this DP point to near our sample point if necessary
 			// this doesn't necessary work, if some neighbors are wrapped and others aren't we will not get the correct
 			// periodic volume change? in any case, only matters with ghost neighbors, deal with later
-			//periodic_wrap_DP_point( AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp], pt );
+			periodic_wrap_DP_point( AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp], pt );
+			
+			sph_neighbor_inds[AuxMeshes[threadNum].Ndp] = DC[edge].index;
 				
 			IF_DEBUG(cout << "   insertN (orig x=" << Mesh.DP[ dp_neighbor ].x << " y=" << Mesh.DP[ dp_neighbor ].y
 			              << " z=" << Mesh.DP[ dp_neighbor ].z << ") (wrapped x=" 
@@ -660,6 +747,8 @@ int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int
 			set_integers_for_pointer( &AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] );
 		  tlast = insert_point_new(&AuxMeshes[threadNum], AuxMeshes[threadNum].Ndp, tlast);
 		  AuxMeshes[threadNum].Ndp++;
+				
+#endif // NATURAL_NEIGHBOR_INNER
 				
 			// move to next neighbor
 			if(edge == last_edge)
@@ -677,7 +766,9 @@ int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int
 		AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] = Mesh.DP[sphInd];
 
 		// wrap
-		//periodic_wrap_DP_point( AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp], pt);
+		periodic_wrap_DP_point( AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp], pt );
+		
+		sph_neighbor_inds[AuxMeshes[threadNum].Ndp] = sphInd;
 		
 		IF_DEBUG(cout << "   insertP (orig x=" << Mesh.DP[ sphInd ].x << " y=" << Mesh.DP[ sphInd ].y
 		              << " z=" << Mesh.DP[ sphInd ].z << ") (wrapped x=" 
@@ -696,8 +787,8 @@ int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int
 		
 #ifdef DEBUG
 		cout << "   old volumes:";
-		for (int k = 0; k < AuxMeshes[threadNum].Ndp; k++) {
-				cout << " [" << k << "] " << dp_old_vol[k];
+		for (int kk = 0; kk < AuxMeshes[threadNum].Ndp; kk++) {
+				cout << " [" << kk << "] " << dp_old_vol[kk];
 		}
 		cout << endl;
 #endif		
@@ -707,9 +798,11 @@ int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int
 		AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].y = pt.y;
 		AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp].z = pt.z;
 		
+		// wrap
+		periodic_wrap_DP_point( AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp], pt );
+		
 		set_integers_for_pointer( &AuxMeshes[threadNum].DP[AuxMeshes[threadNum].Ndp] );
-		//cout << "ipw: interpt: " << AuxMeshes[threadNum].Ndp 
-		//		 << " x = " << pt.x << " y = " << pt.y << " z = " << pt.z << endl;
+
 		tlast = insert_point_new(&AuxMeshes[threadNum], AuxMeshes[threadNum].Ndp, tlast);
 		AuxMeshes[threadNum].Ndp++;
 		
@@ -721,62 +814,34 @@ int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int
 
 #ifdef DEBUG
 		cout << "   new volumes:";
-		for (int k = 0; k < AuxMeshes[threadNum].Ndp; k++) {
-				cout << " [" << k << "] " << dp_new_vol[k];
+		for (int kk = 0; kk < AuxMeshes[threadNum].Ndp; kk++) {
+				cout << " [" << kk << "] " << dp_new_vol[kk];
 		}
 		cout << endl;
 #endif
 
-		// calculate scalar value based on neighbor values and area fraction weights
-		edge = SphP[sphInd].first_connection;
-		int k = 0;
-		
-		while(edge >= 0) {
-			int sphp_neighbor = DC[edge].index;
-			// could connect to bounding tetra if we don't have a ghost across this boundary
-			if ( sphp_neighbor < 0 ) {
-				if ( edge == last_edge )
-					break;
-				edge = DC[edge].next;
-				continue;
-			}
-
-			weight = dp_old_vol[k] - dp_new_vol[k];
-			weightsum += weight;
-			
-			addValsContribution( vals, sphp_neighbor, weight );
-			
-			k++;
-			
-			// move to next neighbor
-			if(edge == last_edge)
-				break;
-				
-#ifdef DEBUG		 
-			if (DC[edge].next == edge || DC[edge].next < 0)
-			  terminate(" what is going on ");
-#endif
-
-			edge = DC[edge].next;
-		}
-		
-		// add primary parent
-		weight = dp_old_vol[AuxMeshes[threadNum].Ndp-2] - dp_new_vol[AuxMeshes[threadNum].Ndp-2];
-		weightsum += weight;
-		
-		addValsContribution( vals, sphInd, weight );
-
-		IF_DEBUG(cout << "   weightsum = " << weightsum << " inserted vol = " << dp_new_vol[AuxMeshes[threadNum].Ndp-1] << endl);
-		
-		// do the volumes lost by all the natural neighbors add up to the sample pt cell volume?
-		//if ( fabs(weightsum - dp_new_vol[AuxMeshes[threadNum].Ndp-1]) / dp_new_vol[AuxMeshes[threadNum].Ndp-1] > 1e-1 )
-		//  terminate("NNI weight error is large.");
-		
 		// normalize by volume of last added cell (around interp point)
 		float invWeight = 1.0 / dp_new_vol[AuxMeshes[threadNum].Ndp-1];
+
+		// calculate scalar value based on neighbor values and area fraction weights
+		edge = SphP[sphInd].first_connection;
 		
-		for( unsigned int i=0; i < vals.size(); i++ )
-			vals[i] *= invWeight;
+		// loop over all points added to auxmesh except sample point (inc. pri parent and NoN)
+		for(int k = 0; k < AuxMeshes[threadNum].Ndp-1; k++) {
+			weight = (dp_old_vol[k] - dp_new_vol[k]) * invWeight;
+			weightsum += weight;
+			
+#ifdef DEBUG
+			cout << " neighbor [k=" << k << "] [sph=" << sph_neighbor_inds[k] << "] weight = " 
+					 << weight << " weightsum = " << weightsum << endl;
+#endif
+			
+			addValsContribution( vals, sph_neighbor_inds[k], weight );
+		}
+		
+		// do the volumes lost by all the natural neighbors add up to the sample pt cell volume?
+		if ( fabs(weightsum - 1.0) > 0.01 ) // 1% tolerance
+		  terminate("NNI weight error is large (%g).",weightsum);
 
 #endif // NATURAL_NEIGHBOR_INTERP
 
