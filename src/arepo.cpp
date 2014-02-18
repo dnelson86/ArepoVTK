@@ -425,8 +425,8 @@ void ArepoMesh::LocateEntryTetra(const Ray &ray, int *prevEntryTetra)
 
 void addValsContribution( vector<float> &vals, int SphP_ind, double weight )
 {
-		if( weight < 0.0 )
-			weight = 0.0;
+		if( weight < INSIDE_EPS ) // catches negative weights as well
+			return;
 		
 		vals[TF_VAL_DENS]    += SphP[SphP_ind].Density * weight;
 		vals[TF_VAL_TEMP]    += SphP[SphP_ind].Utherm * weight;
