@@ -21,6 +21,12 @@ void RendererTask::Run(int threadNum) {
 		Timer timer2;
 		timer2.Start();
 		
+		// TODO: if taskFinishedArray[taskNum] == 1, this task is already done (from restart)
+		//   immediate exit
+		// TODO: if ( sigTermGlobalVarFlag == 1 ) then we are quickly cycling through the 
+		//   remaining tasks, which we need to complete before we write the restart
+		//   so: immediate exit
+		
     // Get sub-_Sampler_ for _SamplerRendererTask_
     Sampler *sampler = mainSampler->GetSubSampler(taskNum, taskCount);
     if (!sampler) {
@@ -57,8 +63,7 @@ void RendererTask::Run(int threadNum) {
             // find camera ray for _sample[i]_
             rayWeights[i] = camera->GenerateRay(samples[i], &rays[i]);
 
-						// find entry cell in mesh
-						// done inside integrator for now (need t0,t1)
+						// find entry cell in mesh (done inside integrator for now - need t0,t1)
 				}
 				
 				// Evaluate radiance along camera rays
@@ -66,7 +71,10 @@ void RendererTask::Run(int threadNum) {
 				{
 						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], 
 						                                     &prevEntryCell, &prevEntryTetra, threadNum);
-						// error check on value of Ls[i]
+						// TODO:
+						// if( sigTermGlobalVarFlag )
+						//   break; (do not add any samples from this thread to the BlockArrays)
+						
         }
 
         // Report sample results to _Sampler_, add contributions to image
@@ -76,6 +84,8 @@ void RendererTask::Run(int threadNum) {
             {
                 camera->film->AddSample(samples[i], Ls[i], rays[i], threadNum);
             }
+						// TODO:
+						// mark taskFinishedArray[taskNum] = 1;
         }
     }
 
@@ -132,9 +142,9 @@ void Renderer::Render(const Scene *scene, int frameNum)
 		Timer *timer = new Timer();
 
     // image size and number of render tasks (threads) to run
-    int nPixels = camera->film->xResolution * camera->film->yResolution;
+    long long nPixels = camera->film->xResolution * camera->film->yResolution;
 		int nTasks = Config.nTasks;
-		int nCores = numberOfCores();
+		long long nCores = numberOfCores();
 		
 		if (!nTasks) {
 				// calculate number of tasks automatically
@@ -162,6 +172,8 @@ void Renderer::Render(const Scene *scene, int frameNum)
 				renderTasks.push_back(new RendererTask(scene, this, camera, sampler, sample, 
 																							 nTasks-1-i, nTasks));
 
+		// TODO: we are loading from a restart? if so load the taskFinishedArray now and fill it in
+																							 
 		// init tasks and run
 		startTasks(renderTasks);
 		
@@ -174,6 +186,12 @@ void Renderer::Render(const Scene *scene, int frameNum)
 		
 		if( !Config.verbose )
 			cout << "]" << endl;
+		
+		// are we writing a restart and quitting due to SIGTERM?
+		// TODO
+		// if( sigTermGlobalVarFlag )
+		//   write restart file: pixels/integrals BlockedArrays, taskFinishedArray, Config parameters (nTasks etc)
+		//   return;
 		
 		// do rasterization stage with just one task
 		if (Config.drawTetra || Config.drawVoronoi || Config.drawBBox)

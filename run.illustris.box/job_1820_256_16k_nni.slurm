@@ -1,8 +1,8 @@
 #!/bin/sh
 ##SBATCH --mail-user dnelson@cfa.harvard.edu
 ##SBATCH --mail-type=fail
-#SBATCH -p hernquist
-#SBATCH --array=0-63
+#SBATCH -p itc_cluster
+#SBATCH --array=3,19,33
 #SBATCH -J ren18n
 #SBATCH -o output/1820_256_16k_nni/run_%a.txt
 #SBATCH -e output/1820_256_16k_nni/run_%a.txt

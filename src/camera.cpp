@@ -68,6 +68,9 @@ Film::Film(int xres, int yres, Filter *filt, const double crop[4], const string 
             *ftp++ = filter->Evaluate(fx, fy);
         }
     }
+		
+		// TODO: we are loading from a restart? if so load the pixels/integrals BlockedArray
+		// chunks now and fill them in
 
     // Possibly open window for image display
     if (openWindow)
@@ -515,9 +518,14 @@ void Film::WriteIntegrals()
 	if (filename == "")
 		filename = "frame";
 
+        // use job expansion (sub-jobs) if requested, for output filename and crop[] calculation
+        int jobNum = Config.curJobNum;
+        if( Config.expandedJobNum > 0 )
+          jobNum = Config.expandedJobNum;
+
 	// prepend "_curJob_totJobs"
 	if( Config.totNumJobs >= 1 )
-		filename += "_" + toStr(Config.curJobNum) + "_" + toStr(Config.totNumJobs);
+		filename += "_" + toStr(jobNum) + "_" + toStr(Config.totNumJobs*pow(Config.jobExpansionFac,2));
 		
 	filename += ".hdf5";
 	
@@ -737,13 +745,18 @@ Film *CreateFilm(Filter *filter)
 {
 		double crop[4];
 		
-    string filename = Config.imageFile;
-    if (filename == "")
-			filename = "frame";
+		string filename = Config.imageFile;
+		if (filename == "")
+		  filename = "frame";
+
+		// use job expansion (sub-jobs) if requested, for output filename and crop[] calculation
+		int jobNum = Config.curJobNum;
+		if( Config.expandedJobNum > 0 )
+		  jobNum = Config.expandedJobNum;
 
 		// prepend "_curJob_totJobs"
 		if( Config.totNumJobs >= 1 )
-			filename += "_" + toStr(Config.curJobNum) + "_" + toStr(Config.totNumJobs);
+			filename += "_" + toStr(jobNum) + "_" + toStr(Config.totNumJobs*pow(Config.jobExpansionFac,2));
 			
 		filename += ".tga";
 			
@@ -752,13 +765,14 @@ Film *CreateFilm(Filter *filter)
 		int yres = Config.imageYPixels;
 			
 		// instead modify the crop window (also reduces the pixel/sampling rays count)
-    if( Config.totNumJobs >= 1 )
+		if( Config.totNumJobs >= 1 )
 		{
 			// y increasing from 0 downwards from the top
 			// x increasing from 0 rightwards from the left (flipped from job tile ordering)
-			int nJobDivisionsXY = sqrt( Config.totNumJobs );
-			int jRow = floor( Config.curJobNum / nJobDivisionsXY );
-			int jCol = floor( Config.curJobNum % nJobDivisionsXY );
+			int nJobDivisionsXY = sqrt( Config.totNumJobs ) * Config.jobExpansionFac;
+
+			int jRow = floor( jobNum / nJobDivisionsXY );
+			int jCol = floor( jobNum % nJobDivisionsXY );
 			
 			double xySize = 1.0 / nJobDivisionsXY;
 			

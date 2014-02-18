@@ -4,7 +4,7 @@
 
 Primary Author: Dylan Nelson (dnelson@cfa.harvard.edu)
 
-Current Version: 0.42 (9 Jan 2014)
+Current Version: 0.43 (18 Feb 2014)
 
 Installation/Compilation:
 
@@ -103,29 +103,41 @@ Version Roadmap:
    - custom read_ic() with selective loading of only particles in camera frustrum
    - split camera/image into subchunks, each handled by a separate instance
    - maskfile approach to precompute which particles each instance needs to load
-  
- +v0.42
+ 
+ +v0.43
+  - expanded job subdivision
+  - adaptive spatial stepping with tree based ray tracing
+ 
+ +v0.44
+  - within custom loading, load DM, Stars, and BHs for rendering (one at a time)
+   - transfer functions fields for each that make sense for Illustris
+  - stars: use BC03 stellar photometric tables for U,B,V,K,g,r,i,z band images
+
+ +v0.45
   - keyframe transfer function settings
   - time navigation (multiple snapshots, time interpolation)
+   - subboxes: render bbox's, update from disk at different interval than fullbox
   - movie pipeline
    - frame metadata (XML/MKV container?)  
 
- +v0.43
+ +v0.46
+  - fix/verify exact NNI
   - Watson-Sambridge NNI
   - Liang-Hale NNI
 
- +v0.44
+ +v0.47
   - load group catalogs, merger trees
    - track halos in time
 
- +v0.45
+ +v0.48
   - 2D transfer functions, e.g. f(rho,T)	 
   - derived fields for TFs (e.g. temp, coolingrate)
   - johnston convolved planck BB temp emission TF
 
  +v0.50
   - custom memory downsizing (minimize P,SphP)
-  - load additional particle types
+  - robust restart functionality
+  - load multiple particle types simultaneously: gas/dm, gas/stars
    - multiple meshes (e.g. allow DM NNI and gas NNI in TF) 
 
  +v0.55

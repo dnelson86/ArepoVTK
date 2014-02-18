@@ -174,6 +174,10 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		while( true ) {
 				count++;
 				
+				// TODO: SIGTERM
+				// if( sigTermGlobalVarFlag )
+				//   return Lv; // immediately, will not be used
+				
 				if (count > 10000) {
 						Point pos = ray(ray.min_t);
 						cout << "COUNT = " << count << " (Breaking) ray.min_t = " << ray.min_t << " max_t = "
@@ -292,6 +296,9 @@ Spectrum TreeSearchIntegrator::Li(const Scene *scene, const Renderer *renderer, 
 				 << " ray.y = " << setw(5) << p.y << " ray.z = " << setw(5) << p.z << endl;
 #endif			 
 		while( true ) {
+				// TODO: SIGTERM
+				// if( sigTermGlobalVarFlag )
+				//   return Lv; // immediately, will not be used
 #ifdef DEBUG
 				count++;
 

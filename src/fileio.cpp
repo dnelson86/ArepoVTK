@@ -76,11 +76,16 @@ void ConfigSet::ReadFile(string cfgfile)
 		quickRender   = readValue<bool>("quickRender",   false);
 		openWindow    = readValue<bool>("openWindow",    false);
 		verbose       = readValue<bool>("verbose",       false);
+
+		// Job Sub-Divison
 		totNumJobs    = readValue<int>   ("totNumJobs", 0);
 		curJobNum     = -1; // read from commandline
 		maskFileBase  = readValue<string>("maskFileBase", "");
 		maskPadFac    = readValue<float> ("maskPadFac", 0.0f);
 		
+		jobExpansionFac = readValue<int> ("jobExpansionFac", 1);
+		expandedJobNum  = -1; // read from commandline
+
 		// Frame/Camera
 		imageXPixels  = readValue<int>  ("imageXPixels", 500);
 		imageYPixels  = readValue<int>  ("imageYPixels", 500);
@@ -93,12 +98,12 @@ void ConfigSet::ReadFile(string cfgfile)
 		// Data Processing
 		splitStrArray( readValue<string>("recenterBoxCoords", "-1 -1 -1") , &recenterBoxCoords[0] );
 		convertUthermToKelvin = readValue<bool>("convertUthermToKelvin", false);
-	
-	  // Animation
+
+		// Animation
 		startFrame    = readValue<int>("startFrame",     0);	
 		numFrames     = readValue<int>("numFrames",      1);
 		timePerFrame  = readValue<float>("timePerFrame", 1.0);
-	  maxInv        = -1;
+		maxInv        = -1;
 	
 		// Render
 		drawBBox      = readValue<bool>("drawBBox",      true);
@@ -128,11 +133,18 @@ void ConfigSet::ReadFile(string cfgfile)
 			terminate("Config: ERROR! Currently can only recenter box with totNumJobs>0 (custom load).");
 		if (!convertUthermToKelvin && projColDens)
 			terminate("Config: ERROR! Cannot write raw field of SZ_Y without assuming Utherm is in Kelvin.");
-		if (viStepSize <= 0.0 && nTreeNGB)
-			terminate("Config: ERROR! Need to specify viStepSize>0 if nTreeNGB>0.");
+		if (viStepSize == 0.0 && nTreeNGB)
+			terminate("Config: ERROR! Need to specify viStepSize!=0 if nTreeNGB>0.");
 #if !defined(NATURAL_NEIGHBOR_IDW) && !defined(NATURAL_NEIGHBOR_SPHKERNEL)
 		if (nTreeNGB)
 			terminate("Config: ERROR! Must enable IDW or SPHKERNEL for nTreeNGB>0.");
+#endif
+		if (jobExpansionFac != 1 && jobExpansionFac != 2 && jobExpansionFac != 4)
+			terminate("Config: ERROR! Odd choice of jobExpansionFac.");
+			
+		// validation not directly related to config file
+#if defined(NATURAL_NEIGHBOR_INTERP) && !defined(NATURAL_NEIGHBOR_INNER)
+		terminate("NNI without NN_INNER likely gives incorrect weights.");
 #endif
 }
 
