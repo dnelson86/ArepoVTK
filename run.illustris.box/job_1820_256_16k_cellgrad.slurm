@@ -2,7 +2,7 @@
 ##SBATCH --mail-user dnelson@cfa.harvard.edu
 ##SBATCH --mail-type=fail
 #SBATCH -p hernquist
-#SBATCH --array=0-63
+#SBATCH --array=2,3
 #SBATCH -J ren18g
 #SBATCH -o output/1820_256_16k_cellgrad/run_%a.txt
 #SBATCH -e output/1820_256_16k_cellgrad/run_%a.txt

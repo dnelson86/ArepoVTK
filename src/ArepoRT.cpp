@@ -227,11 +227,12 @@ int main (int argc, char* argv[])
 	// command line arguments
 	int c;
 	int curJobNum = -1;
+	int expJobNum = -1;
 	string snapNum = "";
 	
 	opterr = 0;
 	
-	while ((c = getopt( argc, argv, "s:j:")) != -1 )
+	while ((c = getopt( argc, argv, "s:j:e:")) != -1 )
 		switch (c)
 		{
 			case 'j':
@@ -239,6 +240,13 @@ int main (int argc, char* argv[])
 				string num = optarg;
 				istringstream( num ) >> curJobNum;
 				
+				break;
+			}
+			case 'e':
+			{
+				string num = optarg;
+				istringstream( num ) >> expJobNum;
+
 				break;
 			}
 			case 's':
@@ -254,7 +262,7 @@ int main (int argc, char* argv[])
 	
 	// should be one non-option, the configuration file parameter
 	if( optind != argc - 1 ) {
-		cout << "Usage: ArepoRT <configfile.txt> [-s snapNum] [-j jobNum]" << endl << endl;
+		cout << "Usage: ArepoRT <configfile.txt> [-s snapNum] [-j jobNum] [-e expandedJobNum]" << endl << endl;
 		return 0;
 	}
 	
@@ -277,7 +285,31 @@ int main (int argc, char* argv[])
 		if( Config.totNumJobs > 0 ) {
 			cout << "Error: Have totNumJobs > 0 but the current job number is unspecified!" << endl;
 			return 0;
-		}	
+		}
+		if( expJobNum > 0 ) {
+			cout << "Error: Have expandedJobNum > 0 but the current job number is unspecified!" << endl;
+			return 0;
+		}
+	}
+
+	// process 'e' input
+	if( expJobNum != -1 )
+	{
+		Config.expandedJobNum = expJobNum;
+		// require that the expanded job number is reasonable
+		if( expJobNum < 0 || expJobNum >= Config.totNumJobs*pow(Config.jobExpansionFac,2) ) {
+			cout << "ERROR: Specified expJobNum is out of bounds." << endl;
+			return 0;
+		} else {
+			cout << " -- -- Executing expanded job number [" << expJobNum+1 << "] of ["
+			     << Config.totNumJobs*pow(Config.jobExpansionFac,2) << "]." << endl;
+		}
+	} else {
+		// require that we have not specified a jobExpansionFactor above one in this case
+		if( Config.jobExpansionFac != 1 ) {
+			cout << "Error: Have jobExpansionFac above unity, but expandedJobNumber not specified." << endl;
+			return 0;
+		}
 	}
 	
 	// process 's' input
@@ -315,6 +347,9 @@ int main (int argc, char* argv[])
 
   cout << endl << "Arepo Load, Init, Meshing: [" << (float)timer.Time() << "] seconds." << endl;
 
+	// TODO: SIGTERM
+	// setup handler which recieves the SIGTERM, then sets sigTermGlobalVarFlag=1
+	
 	// render
 	if ( Config.filename.substr(0,10) == "test/Arepo" )
 		rtTestRenderScene(Config.filename);

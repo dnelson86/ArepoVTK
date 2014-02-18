@@ -34,6 +34,7 @@ public:
     bool quickRender, verbose, openWindow;
 		
 		int totNumJobs, curJobNum;
+		int jobExpansionFac, expandedJobNum;
 		string maskFileBase;
 		float maskPadFac;
 		

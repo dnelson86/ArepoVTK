@@ -2,21 +2,22 @@
 
 % Input/Output
 % ------------
-imageFile      = output/jobtest_new/frame_jobtest1     % output: TGA image filename
+imageFile      = output/jobtest_exp/frame_jobtest1     % output: TGA image filename
 rawRGBFile     = frame.raw.txt                         % output: raw dump of floats (debug only)
 filename       = snap_130                              % input: Arepo snapshot
 paramFilename  = param.txt                             % input: Arepo parameter file
 
 % General
 % -------
-nCores         = 32                   % number of cores to use (0=all)
-nTasks         = 64                   % number of tasks/threads to run (0=auto)
-quickRender    = false                % unused
-openWindow     = false                % unused
-verbose        = true                 % report more information
-totNumJobs     = 1                    % set >=1 to split single image render across multiple jobs (0=disable)
-maskFileBase   = mask                 % create/use maskfile for job based frustrum culling
-maskPadFac     = 1000.0               % frustrum padding factor in code spatial units
+nCores          = 8                    % number of cores to use (0=all)
+nTasks          = 64                   % number of tasks/threads to run (0=auto)
+quickRender     = false                % unused
+openWindow      = false                % unused
+verbose         = true                 % report more information
+totNumJobs      = 4                    % set >=1 to split single image render across multiple jobs (0=disable)
+jobExpansionFac = 2                    % increase number of jobs by this factor, only for render not mask (per dim)
+maskFileBase    = mask                 % create/use maskfile for job based frustrum culling
+maskPadFac      = 1000.0               % frustrum padding factor in code spatial units
 
 % Frame/Camera
 % ------------
@@ -68,8 +69,7 @@ drawTetra        = false             % draw delaunay tetrahedra
 drawVoronoi      = false             % draw voronoi polyhedra faces
 projColDens      = true              % calculate/save raw line integrals
 nTreeNGB         = 0                 % use tree-based search integrator instead of mesh (0=disabled)
-viStepSize       = -1                % volume integration sub-stepping size (0=disabled)
-                                     % in (Arepo) code units
+viStepSize       = 0                 % volume integration sub-stepping size (0=disabled)
 rayMaxT          = 8000.0            % maximum ray integration parametric length
 rgbLine          = 5.0 5.0 5.0       % (RGB) bounding box
 rgbTetra         = 0.01 0.01 0.01    % (RGB) tetra edges

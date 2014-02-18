@@ -14,7 +14,7 @@
 #define TASK_MAX_PIXEL_SIZE 100 //16
 #define INFINITY            FLT_MAX
 #define INSIDE_EPS          1.0e-6
-#define AUXMESH_ALLOC_SIZE  1000
+#define AUXMESH_ALLOC_SIZE  4000
 #define TF_NUM_VALS         7 // see transfer.h
 
 #define MSUN_PER_PC3_IN_CGS 6.769e-23
@@ -32,11 +32,11 @@
 
 //#define NATURAL_NEIGHBOR_INTERP
 //#define NATURAL_NEIGHBOR_IDW
-//#define NATURAL_NEIGHBOR_SPHKERNEL
+#define NATURAL_NEIGHBOR_SPHKERNEL
 //#define NNI_WATSON_SAMBRIDGE
 //#define NNI_LIANG_HALE
 //#define DTFE_INTERP
-#define CELL_GRADIENTS_DENS
+//#define CELL_GRADIENTS_DENS
 //#define CELL_PIECEWISE_CONSTANT
 
 /* interpolation method options */
@@ -45,7 +45,7 @@
                             // ghosts for hsml/TF (i.e. for reflective BCs but we are doing
                             // periodic meshing, the ghosts are incorrect and should be skipped)
 //#define NNI_DISABLE_EXACT // for bruteforce NNI disable exact geometry computations
-//#define NATURAL_NEIGHBOR_INNER // for IDW or SPHKERNEL do neighbors of neighbors
+//#define NATURAL_NEIGHBOR_INNER // for IDW, SPHKERNEL or NNI, do neighbors of neighbors
 //#define BRUTE_FORCE            // for IDW or SPHKERNEL, calculate over all NumGas in the box
 
 /* exponent of distance, greater values assign more influence to values closest to the 
