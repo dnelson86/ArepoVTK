@@ -68,6 +68,7 @@ private:
 		
 		void makeNewMaskFile( string maskFileName, vector<string> snapFilenames );
 		void loadAllChunksWithMask( string maskFileName, vector<string> snapFilenames );
+		void loadAllChunksNoMask( vector<string> snapFilenames );
 		
 		struct cameraParams {
 		  float zMin;

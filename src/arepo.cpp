@@ -80,14 +80,14 @@ bool Arepo::LoadSnapshot()
 				terminate("1140");
 		}
 		
-		if( Config.totNumJobs >= 1 ) {
+		//if( Config.totNumJobs >= 1 ) {
 			// custom selective load snapshot, make/use maskfile for job splitting
 			ArepoSnapshot arepoSnap( snapFilename );
 			arepoSnap.read_ic();
-		} else {		
-			// load snapshot (GAS ONLY) with Arepo function
-			read_ic(snapFilename.c_str(), 0x01);
-		}
+		//} else {		
+		//	// load snapshot (GAS ONLY) with Arepo function
+		//	read_ic(snapFilename.c_str(), 0x01);
+		//}
 		
 		if( Config.nTreeNGB )
 		{
@@ -862,6 +862,9 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 						ray.raw_vals[5] += vals[TF_VAL_SZY] * stepSize;
 						if( vals[TF_VAL_TEMP] >= 1e6 ) // xray restriction: hot gas only (Temp > 1e6 K)
 							ray.raw_vals[6] += vals[TF_VAL_XRAY] * stepSize;
+	        	                        if( vals[TF_VAL_TEMP] >= 5e5 && vals[TF_VAL_TEMP] < 1e6 ) // ramp off this step
+        	        	                        ray.raw_vals[6] += (vals[TF_VAL_TEMP]-5e5)/5e5 * vals[TF_VAL_XRAY] * stepSize;
+
 					}
 							
 					// update previous sample point marker

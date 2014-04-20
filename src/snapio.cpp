@@ -72,11 +72,16 @@ void ArepoSnapshot::read_ic()
 			exit(0);
 		} else {
 			cout << "Reading existing mask file [" << maskFileName << "]." << endl;
+			
+			// selectively load from all snapshot chunks using the maskfile
+			ArepoSnapshot::loadAllChunksWithMask( maskFileName, snapFilenames );
 		}
+	} else {
+		cout << "Custom load with only [1] job, not using mask file." << endl;
+		
+		// load all particles from chunks, no maskfile
+		ArepoSnapshot::loadAllChunksNoMask( snapFilenames );
 	}
-	
-	// selectively load from all snapshot chunks using the maskfile
-	ArepoSnapshot::loadAllChunksWithMask( maskFileName, snapFilenames );
 	
 }
 
@@ -103,7 +108,6 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 	// buffers
 	vector<int> jobIndList;
 	vector<float> quantity;
-	//vector<int> quantity_id;
 	vector<float> nelec; // ConvertUthermToKelvin
 #ifdef DOUBLEPRECISION
 	vector<double> pos;
@@ -148,7 +152,7 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 			continue;
 		}
 		
-		// reserve enough space for indice list and float quantity buffer
+		// reserve enough space for index list and float quantity buffer
 		jobIndList.reserve( partCounts[Config.curJobNum] );
 		quantity.reserve( partCounts[Config.curJobNum] );
 		//quantity_id.reserve( partCounts[Config.curJobNum] );
@@ -309,6 +313,200 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 	
 	// verify our total particle counts equal partCountsTot[curJobNum]
 	if( offset != partCountsTot[Config.curJobNum] ) {
+		cout << "Error: Failed to read the expected number of particles." << endl;
+		exit(1192);
+	}
+	
+}
+
+void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
+{
+	unsigned int i, j, k;
+	unsigned int offset = 0;
+	
+	// no maskfile: load Header/partCountsTot
+	vector<unsigned long long> numPartTotal_low, numPartTotal_high;
+	unsigned long long partCountsTot;
+	
+	readGroupAttribute( snapFilenames[0], "Header", "NumPart_Total", numPartTotal_low );
+	readGroupAttribute( snapFilenames[0], "Header", "NumPart_Total_HighWord", numPartTotal_high );
+	
+	partCountsTot = numPartTotal_low[READ_PARTTYPE] + (((long long) numPartTotal_high[READ_PARTTYPE]) << 32);
+	
+	if( Config.verbose )
+	  cout << "Reading total of [" << partCountsTot << "] particles across all files." << endl;
+	
+	// allocate (P/SphP)
+	All.MaxPart = partCountsTot / (1.0 - 1 * ALLOC_TOLERANCE);
+	All.MaxPartSph = partCountsTot / (1.0 - 1 * ALLOC_TOLERANCE);
+	
+	allocate_memory();	
+	
+	// buffers
+	vector<float> quantity;
+	vector<float> nelec; // ConvertUthermToKelvin
+#ifdef DOUBLEPRECISION
+	vector<double> pos;
+#endif
+
+	// check snapshot field types vs requested
+	int posBits = getDatasetTypeSize( snapFilenames[0], "PartType" + toStr(READ_PARTTYPE), "Coordinates" );
+
+#ifdef DOUBLEPRECISION
+	if( posBits != 64 )
+		cout << endl << " -- WARNING: DOUBLEPRECISION > 0 but snapshot 'Coordinates' field has [" 
+				 << posBits << "] bits!" << endl << endl;
+#else
+	if( posBits != 32 )
+		cout << endl << " -- WARNING: DOUBLEPRECISION = 0 but snapshot 'Coordinates' field has [" 
+				 << posBits << "] bits!" << endl << endl;
+#endif
+
+	// loop over each chunk
+	for( i=0; i < snapFilenames.size(); i++ )
+	{
+		// load header of this file, get particle count
+		vector<unsigned long long> numPartByType;
+		unsigned int partCounts = 0;		
+		
+		readGroupAttribute( snapFilenames[i], "Header", "NumPart_ThisFile", numPartByType );
+		partCounts = numPartByType[READ_PARTTYPE];
+		
+		// reserve enough space for index list and float quantity buffer
+		quantity.reserve( partCounts );
+		if( Config.convertUthermToKelvin )
+			nelec.reserve( partCounts );
+#ifdef DOUBLEPRECISION
+		pos.reserve( partCounts );
+#endif
+		
+		if( Config.verbose )
+			cout << "File [" << i << ": " << snapFilenames[i] << "] loading [" << partCounts << "] particles." << endl;
+		
+		// init type
+		for( j=0; j < partCounts-1; j++ )
+			P[offset + j].Type = 0;
+		
+		// read fields using hdf5 point selection, then transfer buffer into P/SphP starting at offset
+		// (ParticleIDs, Coordinates, Density, Mass, Utherm, Velocity)
+		// based on compile flags: Ne, Metallicity, Sfr
+		// note these are all for Gas, for meshing+rendering of different types, will have to change this logic
+		string groupName = "PartType" + toStr(READ_PARTTYPE);
+		
+		// Coordinates (X)
+		for( k=0; k < 3; k++ )
+		{
+#ifdef DOUBLEPRECISION
+			// Coordinates in float64 (in P, hopefully also in snapshot)
+			readGroupDataset( snapFilenames[i], groupName, "Coordinates", k, pos );
+			
+			recenterBoxCoords( pos, k );
+						
+			for( j=0; j < pos.size(); j++ )
+				P[offset + j].Pos[k] = pos[j];
+#else
+			// Coordinates in float32
+			readGroupDataset( snapFilenames[i], groupName, "Coordinates", k, quantity );
+			
+			recenterBoxCoords( quantity, k );
+						
+			for( j=0; j < quantity.size(); j++ )
+				P[offset + j].Pos[k] = quantity[j];
+#endif
+		}
+		
+		// Velocities
+		for( k=0; k < 3; k++ )
+		{
+			readGroupDataset( snapFilenames[i], groupName, "Velocities", k, quantity );
+			
+			for( j=0; j < quantity.size(); j++ )
+				P[offset + j].Vel[k] = quantity[j];
+		}
+		
+		// Mass
+		readGroupDataset( snapFilenames[i], groupName, "Masses", -1, quantity );
+		
+		for( j=0; j < quantity.size(); j++ )
+			P[offset + j].Mass = quantity[j];
+			
+		// Density
+		readGroupDataset( snapFilenames[i], groupName, "Density", -1, quantity );
+		
+		for( j=0; j < quantity.size(); j++ )
+			SphP[offset + j].Density = quantity[j];
+			
+		// Utherm
+		readGroupDataset( snapFilenames[i], groupName, "InternalEnergy", -1, quantity );
+		
+		// Convert to temperature in Kelvin? if so load electron number density
+		if( Config.convertUthermToKelvin ) {
+			if( !groupExists(snapFilenames[i], groupName, "ElectronAbundance") ) {
+				cout << "Error: Cannot convert Utherm to Kelvin, ElectronAbundance (Ne) does not exist!" << endl;
+				exit(1205);
+			}
+			
+			readGroupDataset( snapFilenames[i], groupName, "ElectronAbundance", -1, nelec );
+			
+			convertUthermToKelvin( quantity, nelec );
+		}
+		
+		for( j=0; j < quantity.size(); j++ )
+			SphP[offset + j].Utherm = quantity[j];
+			
+		// ElectrunAbundance (Ne)
+		if( groupExists(snapFilenames[i], groupName, "ElectronAbundance") )
+		{
+			if( !nelec.size() ) // lazy load in case we already have it
+				readGroupDataset( snapFilenames[i], groupName, "ElectronAbundance", -1, nelec );
+				
+			for( j=0; j < nelec.size(); j++ )
+				P[offset + j].OldAcc = nelec[i];
+		} else {
+			for( j=0; j < nelec.size(); j++ )
+				P[offset + j].OldAcc = 0.0;
+		}
+
+		// Metallicity
+		string metalObjName = "";
+		if( groupExists(snapFilenames[i], groupName, "Metallicity") )
+			metalObjName = "Metallicity";
+		if( groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
+			metalObjName = "GFM_Metallicity";
+			
+		if( metalObjName != "" )
+		{
+			readGroupDataset( snapFilenames[i], groupName, metalObjName, -1, quantity );
+			
+			for( j=0; j < quantity.size(); j++ )
+				SphP[offset + j].Metallicity = quantity[j];
+		} else {
+			for( j=0; j < quantity.size(); j++ )
+				SphP[offset + j].Metallicity = 0.0;
+		}
+
+		// increment global snapshot offset as we move to next chunk
+		offset += partCounts;
+	
+	} // snapFilenames
+	
+	// handle other things read_ic() sets (global/local total particle counts, massTable, time/cosmo factors)
+	All.TotNumGas = partCountsTot;
+	All.TotNumPart = partCountsTot;
+	
+	//for(i = 0; i < NTYPES; i++)
+	//	All.MassTable[i] = header.mass[i];
+	
+	vector<float> snapTime;
+	readGroupAttribute( snapFilenames[0], "Header", "Time", snapTime );
+	All.Time = All.TimeBegin = snapTime[0];
+	set_cosmo_factors_for_current_time();
+	
+	NumPart = partCountsTot;
+	NumGas = partCountsTot;
+	
+	// verify our total particle counts equal partCountsTot[curJobNum]
+	if( offset != partCountsTot ) {
 		cout << "Error: Failed to read the expected number of particles." << endl;
 		exit(1192);
 	}

@@ -295,6 +295,8 @@ bool ArepoTree::AdvanceRayOneStep(const Ray &ray, double *t0, double *t1,
 				ray.raw_vals[5] += vals[TF_VAL_SZY] * stepSize;
 				if( vals[TF_VAL_TEMP] >= 1e6 ) // xray restriction: hot gas only (Temp > 1e6 K)
 					ray.raw_vals[6] += vals[TF_VAL_XRAY] * stepSize;
+				if( vals[TF_VAL_TEMP] >= 5e5 && vals[TF_VAL_TEMP] < 1e6 ) // ramp off this step
+					ray.raw_vals[6] += (vals[TF_VAL_TEMP]-5e5)/5e5 * vals[TF_VAL_XRAY] * stepSize;
 			}
 		}
 
