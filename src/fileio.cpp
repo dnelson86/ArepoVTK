@@ -127,12 +127,12 @@ void ConfigSet::ReadFile(string cfgfile)
 			terminate("Config: ERROR! projColDens only with totNumJobs>0 (custom load).");
 		if (totNumJobs < 0 || totNumJobs > 16*16)
 			terminate("Config: ERROR! Strange totNumJobs value, should be >=0 and <256");
-		if (convertUthermToKelvin && !totNumJobs)
-			terminate("Config: ERROR! convertUthermToKelvin only with totNumJobs>0 (custom load).");
-		if (recenterBoxCoords[0] > 0 && !totNumJobs)
-			terminate("Config: ERROR! Currently can only recenter box with totNumJobs>0 (custom load).");
-		if (!convertUthermToKelvin && projColDens)
-			terminate("Config: ERROR! Cannot write raw field of SZ_Y without assuming Utherm is in Kelvin.");
+		//if (convertUthermToKelvin && !totNumJobs)
+		//	terminate("Config: ERROR! convertUthermToKelvin only with totNumJobs>0 (custom load).");
+		//if (recenterBoxCoords[0] > 0 && !totNumJobs)
+		//	terminate("Config: ERROR! Currently can only recenter box with totNumJobs>0 (custom load).");
+		//if (!convertUthermToKelvin && projColDens)
+		//	terminate("Config: ERROR! Cannot write raw field of SZ_Y without assuming Utherm is in Kelvin.");
 		if (viStepSize == 0.0 && nTreeNGB)
 			terminate("Config: ERROR! Need to specify viStepSize!=0 if nTreeNGB>0.");
 #if !defined(NATURAL_NEIGHBOR_IDW) && !defined(NATURAL_NEIGHBOR_SPHKERNEL)
