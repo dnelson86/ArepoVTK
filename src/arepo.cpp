@@ -66,6 +66,11 @@ bool Arepo::LoadSnapshot()
 		open_logfiles();
 		
 		// check snapshot exists
+		if (snapFilename.substr(0,4) == "none") {
+				cout << "Arepo::LoadSnapshot() No snapshot requested, returning empty." << endl;
+				return true;
+		}
+		
 		if (ifstream(snapFilename.c_str())) {
 				freopen("/dev/tty","w",stdout);
 				cout << "Arepo::LoadSnapshot() ERROR! Exact snapshot [" << snapFilename << "] found (don't include extension)." << endl;
@@ -89,7 +94,7 @@ bool Arepo::LoadSnapshot()
 		//	read_ic(snapFilename.c_str(), 0x01);
 		//}
 		
-		if( Config.nTreeNGB )
+		if( Config.nTreeNGB /*&& Config.readPartType == 0*/ )
 		{
 			// sampling based on tree searches only, custom (minimal) init
 			int i, j;
@@ -117,8 +122,6 @@ bool Arepo::LoadSnapshot()
 			ngb_treeallocate();
 			ngb_treebuild(NumGas);
 			
-			//setup_smoothinglengths(); // build grav tree
-			//cell density not set (by mesh), would need to include in snapshot file
 			//perhaps most (all) fields not accessed, chance to really kill P/SphP memory usage
 			//update_primitive_variables();	// to get pressure
 			printf("Arepo tree loaded, returning control.\n");
@@ -132,6 +135,48 @@ bool Arepo::LoadSnapshot()
 			}
 		}
 		
+		if( Config.readPartType != 0 )
+		{
+			// we will need a density estimate from the Voronoi mesh
+			// for all other particle types (for which a local density estimate is not saved in snapshots)
+			for(int i = 0; i < TIMEBINS; i++)
+				TimeBinActive[i] = 1;
+
+			reconstruct_timebins();
+			voronoi_init_connectivity(&Mesh);
+			setup_smoothinglengths(); // build grav tree
+			density(); // compute sph-kernel based density, saved into SphP[i].Density
+
+                        /*
+			create_mesh();
+			
+			// compute new Density using Voronoi estimator
+			for( int i=0; i < NumGas; i++ )
+			{
+				SphP[i].Density = P[i].Mass / SphP[i].Volume;
+				SphP[i].Momentum[0] = P[i].Mass * P[i].Vel[0];
+				SphP[i].Momentum[1] = P[i].Mass * P[i].Vel[1];
+				SphP[i].Momentum[2] = P[i].Mass * P[i].Vel[2];
+			}
+			
+			//update_primitive_variables();
+			//calculate_gradients();
+			*/
+
+			// DEBUG: DM mesh density bounds
+			float min=INFINITY, max=0.0, mean=0.0;
+			for( int i=0; i < NumGas; i++ )
+			{
+				if( SphP[i].Density < min )
+					min = SphP[i].Density;
+				if( SphP[i].Density > max )
+					max = SphP[i].Density;
+				mean += SphP[i].Density;
+			}
+			mean /= NumGas;
+			cout << " DM DEBUG MIN MAX MEAN: " << min << " " << max << " " << mean << endl;
+		}
+		
 		if( !Config.verbose ) { // restore stdout
 			//TODO: switch between these automatically
 			freopen("/dev/tty","w",stdout);
@@ -139,16 +184,6 @@ bool Arepo::LoadSnapshot()
 			//string fn = Config.imageFile + string(".out.txt");
 			//freopen(fn.c_str(),"a",stdout); //return stdout to a file (SLURM)
 		}		
-
-		// illustris fof0 log density/temp
-		/*
-		cout << "Converting DENSITY TO LOG!" << endl;
-		cout << "Converting TEMPERATURE TO LOG!" << endl;
-		for(int i = 0; i < NumGas; i++)
-		{
-			SphP[i].Density = log10( SphP[i].Density );
-			SphP[i].Utherm = log10( SphP[i].Utherm );
-		} */
 
 		// Data Processing (temporary spot)
 		float gamma = 5.0 / 3.0;
@@ -167,6 +202,11 @@ bool Arepo::LoadSnapshot()
 		if (Config.verbose) {
 				cout << endl << "Arepo Init Finished, Memory Report:" << endl;
 				dump_memory_table();
+		}
+		
+		if( Config.takeLogDens ) {
+			for( int i=0; i < NumGas; i++ )
+				SphP[i].Density = log10( SphP[i].Density ) + 10.0; // shift from ~[-10,-1] to ~[0,9]
 		}
 		
 		return true;
@@ -428,23 +468,47 @@ void addValsContribution( vector<float> &vals, int SphP_ind, double weight )
 		if( weight < INSIDE_EPS ) // catches negative weights as well
 			return;
 		
-		vals[TF_VAL_DENS]    += SphP[SphP_ind].Density * weight;
-		vals[TF_VAL_TEMP]    += SphP[SphP_ind].Utherm * weight;
-		vals[TF_VAL_VMAG]    += sqrt( P[SphP_ind].Vel[0] * P[SphP_ind].Vel[0] + 
-														    	P[SphP_ind].Vel[1] * P[SphP_ind].Vel[1] + 
-																	P[SphP_ind].Vel[2] * P[SphP_ind].Vel[2] ) * weight;
-		vals[TF_VAL_ENTROPY] += SphP[SphP_ind].OldMass * weight;
-		vals[TF_VAL_METAL]   += SphP[SphP_ind].Metallicity * weight;
-		// SZ y-parameter (no constants, not real units)
-		// line integral of: n_e*T = (x_e*rho*T) = (x_e*rho*(U/mu))
-		// require/assume: Utherm is temperature in units of Kelvin already
-		vals[TF_VAL_SZY]     += (SphP[SphP_ind].Density * P[SphP_ind].OldAcc) * 
-												    SphP[SphP_ind].Utherm * weight;
-		// Xray (no constants, not real units): line integral of n^2 * Lambda(T)
-		// no additional weighting as with (Temp,Vmag,Ent,Metal)
-		// assume: Utherm is temperature in units of Kelvin already (restriction: hot gas only, >1e6)
-		vals[TF_VAL_XRAY]    +=  sqrt( SphP[SphP_ind].Utherm ) *
-														 pow( SphP[SphP_ind].Density * P[SphP_ind].OldAcc, 2 ) * weight;
+		// gas
+		if( Config.readPartType == PARTTYPE_GAS )
+		{
+			vals[TF_VAL_DENS]    += SphP[SphP_ind].Density * weight;
+			vals[TF_VAL_TEMP]    += SphP[SphP_ind].Utherm * weight;
+			vals[TF_VAL_VMAG]    += sqrt( P[SphP_ind].Vel[0] * P[SphP_ind].Vel[0] + 
+										  							P[SphP_ind].Vel[1] * P[SphP_ind].Vel[1] + 
+										  							P[SphP_ind].Vel[2] * P[SphP_ind].Vel[2] ) * weight;
+			vals[TF_VAL_ENTROPY] += SphP[SphP_ind].OldMass * weight;
+			vals[TF_VAL_METAL]   += SphP[SphP_ind].Metallicity * weight;
+			// SZ y-parameter (no constants, not real units)
+			// line integral of: n_e*T = (x_e*rho*T) = (x_e*rho*(U/mu))
+			// require/assume: Utherm is temperature in units of Kelvin already
+			vals[TF_VAL_SZY]     += (SphP[SphP_ind].Density * P[SphP_ind].OldAcc) * 
+									 						SphP[SphP_ind].Utherm * weight;
+			// Xray (no constants, not real units): line integral of n^2 * Lambda(T)
+			// no additional weighting as with (Temp,Vmag,Ent,Metal)
+			// assume: Utherm is temperature in units of Kelvin already (restriction: hot gas only, >1e6)
+			vals[TF_VAL_XRAY]    +=  sqrt( SphP[SphP_ind].Utherm ) *
+									 							pow( SphP[SphP_ind].Density * P[SphP_ind].OldAcc, 2 ) * weight;
+
+			vals[TF_VAL_BMAG]      += SphP[SphP_ind].VelVertex[0];
+			vals[TF_VAL_SHOCKDEDT] += SphP[SphP_ind].VelVertex[1];
+		}
+		
+		// dark matter
+		if( Config.readPartType == PARTTYPE_DM )
+		{
+			vals[TF_VAL_DENS]    += SphP[SphP_ind].Density * weight;
+			vals[TF_VAL_TEMP]    += 0.0;
+			vals[TF_VAL_VMAG]    += sqrt( P[SphP_ind].Vel[0] * P[SphP_ind].Vel[0] + 
+										  							P[SphP_ind].Vel[1] * P[SphP_ind].Vel[1] + 
+										  							P[SphP_ind].Vel[2] * P[SphP_ind].Vel[2] ) * weight;
+			vals[TF_VAL_ENTROPY] += 0.0;
+			vals[TF_VAL_METAL]   += 0.0;
+			vals[TF_VAL_SZY]     += 0.0;
+			vals[TF_VAL_XRAY]    += 0.0;
+
+			vals[TF_VAL_BMAG]      += 0.0;
+			vals[TF_VAL_SHOCKDEDT] += 0.0;
+		}
 }
 
 int ArepoMesh::FindNearestGasParticle(Point &pt, int guess, double *mindist)
@@ -766,12 +830,8 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 				Vector midpt(hitcell[0] + 0.5 * norm[0],hitcell[1] + 0.5 * norm[1],hitcell[2] + 0.5 * norm[2]);
 				midpt -= sphCen;
 
-				// optical depth: always use gradient for tau calculation (though apply as one value for whole cell)
-				Spectrum stepTau(0.0);
-				stepTau += transferFunction->sigma_t() * (SphP[SphP_ID].Density + Dot(sphDensGrad,midpt)) * len;
-				//Tr *= Exp(-stepTau); // reduce transmittance for optical depth
-					
 				// setup sampling for this cell
+				Spectrum stepTau(0.0);
 				Point prev_sample_pt;
 				int nSamples;
 				float stepSize;
@@ -834,38 +894,44 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 							<< " rho subSample = " << vals[TF_VAL_DENS];
 					samplept.print(" ");
 #endif
+
+					// ensure positivity of integral weights, etc
+					if( vals[TF_VAL_DENS] < 0.0 )
+						vals[TF_VAL_DENS] = 0.0;
+
+					// accumulate optical depth during sampling (reduce transmittance accordingly)
+					// note: Transmittance=1-Opacity
+					stepTau += transferFunction->sigma_t() * vals[TF_VAL_DENS] * stepSize;
+					Spectrum localAlpha(1.0);
+					localAlpha += -1.0*Exp(-stepTau); // similar to DVR (essentially density weighting)
+					//localAlpha = 1.0; // old behavior
 					
 					// compute emission-only source term using transfer function
 					if(status)
-					  Lv += Tr * transferFunction->Lve(vals) * stepSize;
+						Lv += Tr * localAlpha * transferFunction->Lve(vals) * stepSize;
 							
-					// update raw column density integrals
-					if( Config.projColDens ) {
-						// ensure positivity of integral weights
-						if( vals[TF_VAL_DENS] < 0.0 )
-							vals[TF_VAL_DENS] = 0.0;
+					Tr *= Exp(-stepTau); // normal pbrt
+					//Tr -= localAlpha * Tr; // similar to DVR
 							
-						// same weighting procedure as in voronoi_makeimage_new()
-						// e.g. weight (Temp,Vmag,Ent,Metal) by rho*len and then normalize out at the end
-						float weight = vals[TF_VAL_DENS] * stepSize;
-						
-						// column density
-						ray.raw_vals[0] += vals[TF_VAL_DENS] * stepSize;
-						
-						// mass-weighted values
-						ray.raw_vals[1] += vals[TF_VAL_TEMP] * weight;
-						ray.raw_vals[2] += vals[TF_VAL_VMAG] * weight;
-						ray.raw_vals[3] += vals[TF_VAL_ENTROPY] * weight;
-						ray.raw_vals[4] += vals[TF_VAL_METAL] * weight;
-						
-						// un-weighted line integrals
-						ray.raw_vals[5] += vals[TF_VAL_SZY] * stepSize;
-						if( vals[TF_VAL_TEMP] >= 1e6 ) // xray restriction: hot gas only (Temp > 1e6 K)
-							ray.raw_vals[6] += vals[TF_VAL_XRAY] * stepSize;
-	        	                        if( vals[TF_VAL_TEMP] >= 5e5 && vals[TF_VAL_TEMP] < 1e6 ) // ramp off this step
-        	        	                        ray.raw_vals[6] += (vals[TF_VAL_TEMP]-5e5)/5e5 * vals[TF_VAL_XRAY] * stepSize;
-
-					}
+					// update raw column density integrals, same weighting procedure as in voronoi_makeimage_new()
+					// e.g. weight (Temp,Vmag,Ent,Metal) by rho*len and then normalize out at the end
+					float weight = vals[TF_VAL_DENS] * stepSize;
+					
+					// column density
+					ray.raw_vals[0] += vals[TF_VAL_DENS] * stepSize;
+					
+					// mass-weighted values
+					ray.raw_vals[1] += vals[TF_VAL_TEMP] * weight;
+					ray.raw_vals[2] += vals[TF_VAL_VMAG] * weight;
+					ray.raw_vals[3] += vals[TF_VAL_ENTROPY] * weight;
+					ray.raw_vals[4] += vals[TF_VAL_METAL] * weight;
+					
+					// un-weighted line integrals
+					ray.raw_vals[5] += vals[TF_VAL_SZY] * stepSize;
+					if( vals[TF_VAL_TEMP] >= 1e6 ) // xray restriction: hot gas only (Temp > 1e6 K)
+						ray.raw_vals[6] += vals[TF_VAL_XRAY] * stepSize;
+					if( vals[TF_VAL_TEMP] >= 5e5 && vals[TF_VAL_TEMP] < 1e6 ) // ramp off this step
+						ray.raw_vals[6] += (vals[TF_VAL_TEMP]-5e5)/5e5 * vals[TF_VAL_XRAY] * stepSize;
 							
 					// update previous sample point marker
 					ray.depth++;

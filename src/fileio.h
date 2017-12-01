@@ -26,10 +26,12 @@ public:
 		
 		void splitStrArray(const string str, float *rgb); // size 3
 
-    // General
+    // Input/Output
     string imageFile, rawRGBFile;
 		string filename, paramFilename;
+		bool writeRGB8bit, writeRGB16bit, writeRGBA8bit;
 		
+		// General
     int nTasks, nCores;
     bool quickRender, verbose, openWindow;
 		
@@ -42,14 +44,17 @@ public:
 		int imageXPixels, imageYPixels;
 		float swScale; // screenWindow mult factor * [-1,1]
 		
+		string cameraType;
 		float cameraFOV;
 		float cameraPosition[3], cameraLookAt[3], cameraUp[3];
 		
 		// Data Processing
 		float recenterBoxCoords[3];
 		bool convertUthermToKelvin;
+		bool takeLogUtherm, takeLogDens;
 		
 		// Transfer Functions
+		int readPartType;
 		vector<string> tfSet;
 		
 		// Animation
@@ -57,10 +62,11 @@ public:
 		
 		int startFrame, numFrames;
 		float timePerFrame;
-		float maxInv; // inverse of maximum pixel value for first frame
+		float minScale, maxScale; // scale all RGB values from [min,max]->[0,1]
+		float minAlpha, maxAlpha; // scale raw density integrals from [min,max]->[0,1] and write as alpha channel
 		
 		// Render
-		bool drawBBox, drawTetra, drawVoronoi;
+		bool drawBBox, drawTetra, drawVoronoi, drawSphere;
 		bool projColDens;		
 		
 		int nTreeNGB;

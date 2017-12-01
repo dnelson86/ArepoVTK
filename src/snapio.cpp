@@ -103,6 +103,9 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 	All.MaxPart = partCountsTot[Config.curJobNum] / (1.0 - 2 * ALLOC_TOLERANCE);
 	All.MaxPartSph = partCountsTot[Config.curJobNum] / (1.0 - 2 * ALLOC_TOLERANCE);
 	
+	//if( Config.readPartType != PARTTYPE_GAS )
+	//	All.MaxPartSph = 0; // don't allocate SphP
+	
 	allocate_memory();	
 	
 	// buffers
@@ -114,7 +117,7 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 #endif
 
 	// check snapshot field types vs requested
-	int posBits = getDatasetTypeSize( snapFilenames[0], "PartType" + toStr(READ_PARTTYPE), "Coordinates" );
+	int posBits = getDatasetTypeSize( snapFilenames[0], "PartType" + toStr(Config.readPartType), "Coordinates" );
 
 #ifdef DOUBLEPRECISION
 	if( posBits != 64 )
@@ -126,6 +129,10 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 				 << posBits << "] bits!" << endl << endl;
 #endif
 
+	// masstable
+	vector<float> massTable;
+	readGroupAttribute( snapFilenames[0], "Header", "MassTable", massTable );
+	
 	// loop over each chunk
 	for( i=0; i < snapFilenames.size(); i++ )
 	{
@@ -183,7 +190,7 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 		// (ParticleIDs, Coordinates, Density, Mass, Utherm, Velocity)
 		// based on compile flags: Ne, Metallicity, Sfr
 		// note these are all for Gas, for meshing+rendering of different types, will have to change this logic
-		groupName = "PartType" + toStr(READ_PARTTYPE);
+		groupName = "PartType" + toStr(Config.readPartType);
 		
 		// make 1D serialized index list of hsize_t type since we will use it several times
 		vector<hsize_t> coord;
@@ -231,73 +238,92 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 		}
 		
 		// Mass
-		readGroupDatasetSelect( snapFilenames[i], groupName, "Masses", coord, -1, quantity );
-		
-		for( j=0; j < quantity.size(); j++ )
-			P[offset + j].Mass = quantity[j];
+		if( massTable[Config.readPartType] ) {
+			// constant mass for all particles, set from massTable (DM only)
+			for( j=0; j < quantity.size(); j++ )
+				P[offset + j].Mass = massTable[Config.readPartType];
+		} else {
+			// gas, stars, BHs can all have variable masses
+			readGroupDatasetSelect( snapFilenames[i], groupName, "Masses", coord, -1, quantity );
 			
-		// Density
-		readGroupDatasetSelect( snapFilenames[i], groupName, "Density", coord, -1, quantity );
-		
-		for( j=0; j < quantity.size(); j++ )
-			SphP[offset + j].Density = quantity[j];
-			
-		// Utherm
-		readGroupDatasetSelect( snapFilenames[i], groupName, "InternalEnergy", coord, -1, quantity );
-		
-		// Convert to temperature in Kelvin? if so load electron number density
-		if( Config.convertUthermToKelvin ) {
-			if( !groupExists(snapFilenames[i], groupName, "ElectronAbundance") ) {
-				cout << "Error: Cannot convert Utherm to Kelvin, ElectronAbundance (Ne) does not exist!" << endl;
-				exit(1205);
-			}
-			
-			readGroupDatasetSelect( snapFilenames[i], groupName, "ElectronAbundance", coord, -1, nelec );
-			
-			convertUthermToKelvin( quantity, nelec );
+			for( j=0; j < quantity.size(); j++ )
+				P[offset + j].Mass = quantity[j];
 		}
-		
-		for( j=0; j < quantity.size(); j++ )
-			SphP[offset + j].Utherm = quantity[j];
 			
-		// ElectrunAbundance (Ne)
-		if( groupExists(snapFilenames[i], groupName, "ElectronAbundance") )
+		// Gas Only
+		if( Config.readPartType == PARTTYPE_GAS )
 		{
-			if( !nelec.size() ) // lazy load in case we already have it
+			// Density
+			readGroupDatasetSelect( snapFilenames[i], groupName, "Density", coord, -1, quantity );
+			
+			for( j=0; j < quantity.size(); j++ )
+				SphP[offset + j].Density = quantity[j];
+				
+			// Utherm
+			readGroupDatasetSelect( snapFilenames[i], groupName, "InternalEnergy", coord, -1, quantity );
+			
+			// Convert to temperature in Kelvin? if so load electron number density
+			if( Config.convertUthermToKelvin ) {
+				if( !groupExists(snapFilenames[i], groupName, "ElectronAbundance") ) {
+					cout << "Error: Cannot convert Utherm to Kelvin, ElectronAbundance (Ne) does not exist!" << endl;
+					exit(1205);
+				}
+				
 				readGroupDatasetSelect( snapFilenames[i], groupName, "ElectronAbundance", coord, -1, nelec );
 				
-			for( j=0; j < nelec.size(); j++ )
-				P[offset + j].OldAcc = nelec[i];
-		} else {
-			for( j=0; j < nelec.size(); j++ )
-				P[offset + j].OldAcc = 0.0;
-		}
-
-		// Metallicity
-		string metalObjName = "";
-		if( groupExists(snapFilenames[i], groupName, "Metallicity") )
-			metalObjName = "Metallicity";
-		if( groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
-			metalObjName = "GFM_Metallicity";
+				convertUthermToKelvin( quantity, nelec );
+			}
 			
-		if( metalObjName != "" )
-		{
-			readGroupDatasetSelect( snapFilenames[i], groupName, metalObjName, coord, -1, quantity );
+			if( Config.takeLogUtherm )
+				for( j=0; j < quantity.size(); j++ )
+					quantity[j] = log10( quantity[j] );
 			
 			for( j=0; j < quantity.size(); j++ )
-				SphP[offset + j].Metallicity = quantity[j];
-		} else {
-			for( j=0; j < quantity.size(); j++ )
-				SphP[offset + j].Metallicity = 0.0;
-		}
+				SphP[offset + j].Utherm = quantity[j];
+				
+			// ElectrunAbundance (Ne)
+			if( groupExists(snapFilenames[i], groupName, "ElectronAbundance") )
+			{
+				if( !nelec.size() ) // lazy load in case we already have it
+					readGroupDatasetSelect( snapFilenames[i], groupName, "ElectronAbundance", coord, -1, nelec );
+					
+				for( j=0; j < nelec.size(); j++ )
+					P[offset + j].OldAcc = nelec[i];
+			} else {
+				for( j=0; j < nelec.size(); j++ )
+					P[offset + j].OldAcc = 0.0;
+			}
 
+			// Metallicity
+			string metalObjName = "";
+			if( groupExists(snapFilenames[i], groupName, "Metallicity") )
+				metalObjName = "Metallicity";
+			if( groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
+				metalObjName = "GFM_Metallicity";
+				
+			if( metalObjName != "" )
+			{
+				readGroupDatasetSelect( snapFilenames[i], groupName, metalObjName, coord, -1, quantity );
+				
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].Metallicity = quantity[j];
+			} else {
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].Metallicity = 0.0;
+			}
+		} // readPartType==1
+		
 		// increment global snapshot offset as we move to next chunk
 		offset += partCounts[Config.curJobNum];
 	
 	} // snapFilenames
 	
 	// handle other things read_ic() sets (global/local total particle counts, massTable, time/cosmo factors)
-	All.TotNumGas = partCountsTot[Config.curJobNum];
+	//if( Config.readPartType == PARTTYPE_GAS )
+		All.TotNumGas = partCountsTot[Config.curJobNum];
+	//else
+	//	All.TotNumGas = 0;
+	
 	All.TotNumPart = partCountsTot[Config.curJobNum];
 	
 	//for(i = 0; i < NTYPES; i++)
@@ -321,8 +347,9 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 
 void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 {
-	unsigned int i, j, k;
+	unsigned int i=0, j=0, k=0;
 	unsigned int offset = 0;
+	int posBits = -1;
 	
 	// no maskfile: load Header/partCountsTot
 	vector<unsigned long long> numPartTotal_low, numPartTotal_high;
@@ -331,7 +358,7 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 	readGroupAttribute( snapFilenames[0], "Header", "NumPart_Total", numPartTotal_low );
 	readGroupAttribute( snapFilenames[0], "Header", "NumPart_Total_HighWord", numPartTotal_high );
 	
-	partCountsTot = numPartTotal_low[READ_PARTTYPE] + (((long long) numPartTotal_high[READ_PARTTYPE]) << 32);
+	partCountsTot = numPartTotal_low[Config.readPartType] + (((long long) numPartTotal_high[Config.readPartType]) << 32);
 	
 	if( Config.verbose )
 	  cout << "Reading total of [" << partCountsTot << "] particles across all files." << endl;
@@ -340,9 +367,13 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 	All.MaxPart = partCountsTot / (1.0 - 1 * ALLOC_TOLERANCE);
 	All.MaxPartSph = partCountsTot / (1.0 - 1 * ALLOC_TOLERANCE);
 	
+	//if( Config.readPartType != PARTTYPE_GAS )
+	//	All.MaxPartSph = 0; // don't allocate SphP
+	
 	allocate_memory();	
 	
 	// buffers
+	vector<float> massTable;
 	vector<float> quantity;
 	vector<float> nelec; // ConvertUthermToKelvin
 #ifdef DOUBLEPRECISION
@@ -350,7 +381,17 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 #endif
 
 	// check snapshot field types vs requested
-	int posBits = getDatasetTypeSize( snapFilenames[0], "PartType" + toStr(READ_PARTTYPE), "Coordinates" );
+	while( posBits < 0 )
+	{
+	  vector<unsigned long long> numPartByType;
+		readGroupAttribute( snapFilenames[i], "Header", "NumPart_ThisFile", numPartByType );
+		readGroupAttribute( snapFilenames[i], "Header", "MassTable", massTable );
+		
+		if( numPartByType[Config.readPartType] )
+	    posBits = getDatasetTypeSize( snapFilenames[i], "PartType" + toStr(Config.readPartType), "Coordinates" );
+			
+		i++;
+	}
 
 #ifdef DOUBLEPRECISION
 	if( posBits != 64 )
@@ -370,7 +411,16 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 		unsigned int partCounts = 0;		
 		
 		readGroupAttribute( snapFilenames[i], "Header", "NumPart_ThisFile", numPartByType );
-		partCounts = numPartByType[READ_PARTTYPE];
+		partCounts = numPartByType[Config.readPartType];
+		
+		// reading nothing from this file? then skip
+		if( partCounts == 0 )
+		{
+			if( Config.verbose )
+				cout << "File [" << i << ": " << snapFilenames[i] << "] empty load, skipping." << endl;
+				
+			continue;
+		}
 		
 		// reserve enough space for index list and float quantity buffer
 		quantity.reserve( partCounts );
@@ -391,7 +441,7 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 		// (ParticleIDs, Coordinates, Density, Mass, Utherm, Velocity)
 		// based on compile flags: Ne, Metallicity, Sfr
 		// note these are all for Gas, for meshing+rendering of different types, will have to change this logic
-		string groupName = "PartType" + toStr(READ_PARTTYPE);
+		string groupName = "PartType" + toStr(Config.readPartType);
 		
 		// Coordinates (X)
 		for( k=0; k < 3; k++ )
@@ -425,65 +475,118 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 		}
 		
 		// Mass
-		readGroupDataset( snapFilenames[i], groupName, "Masses", -1, quantity );
-		
-		for( j=0; j < quantity.size(); j++ )
-			P[offset + j].Mass = quantity[j];
+		if( massTable[Config.readPartType] ) {
+			// constant mass for all particles, set from massTable (DM only)
+			for( j=0; j < quantity.size(); j++ )
+				P[offset + j].Mass = massTable[Config.readPartType];
+		} else {
+			// gas, stars, BHs can all have variable masses
+			readGroupDataset( snapFilenames[i], groupName, "Masses", -1, quantity );
 			
-		// Density
-		readGroupDataset( snapFilenames[i], groupName, "Density", -1, quantity );
-		
-		for( j=0; j < quantity.size(); j++ )
-			SphP[offset + j].Density = quantity[j];
-			
-		// Utherm
-		readGroupDataset( snapFilenames[i], groupName, "InternalEnergy", -1, quantity );
-		
-		// Convert to temperature in Kelvin? if so load electron number density
-		if( Config.convertUthermToKelvin ) {
-			if( !groupExists(snapFilenames[i], groupName, "ElectronAbundance") ) {
-				cout << "Error: Cannot convert Utherm to Kelvin, ElectronAbundance (Ne) does not exist!" << endl;
-				exit(1205);
-			}
-			
-			readGroupDataset( snapFilenames[i], groupName, "ElectronAbundance", -1, nelec );
-			
-			convertUthermToKelvin( quantity, nelec );
+			for( j=0; j < quantity.size(); j++ )
+				P[offset + j].Mass = quantity[j];
 		}
-		
-		for( j=0; j < quantity.size(); j++ )
-			SphP[offset + j].Utherm = quantity[j];
 			
-		// ElectrunAbundance (Ne)
-		if( groupExists(snapFilenames[i], groupName, "ElectronAbundance") )
+		// Gas Only
+		if( Config.readPartType == PARTTYPE_GAS )
 		{
-			if( !nelec.size() ) // lazy load in case we already have it
+			// Density
+			readGroupDataset( snapFilenames[i], groupName, "Density", -1, quantity );
+			
+			for( j=0; j < quantity.size(); j++ )
+				SphP[offset + j].Density = quantity[j];
+				
+			// Utherm
+			readGroupDataset( snapFilenames[i], groupName, "InternalEnergy", -1, quantity );
+			
+			// Convert to temperature in Kelvin? if so load electron number density
+			if( Config.convertUthermToKelvin ) {
+				if( !groupExists(snapFilenames[i], groupName, "ElectronAbundance") ) {
+					cout << "Error: Cannot convert Utherm to Kelvin, ElectronAbundance (Ne) does not exist!" << endl;
+					exit(1205);
+				}
+				
 				readGroupDataset( snapFilenames[i], groupName, "ElectronAbundance", -1, nelec );
 				
-			for( j=0; j < nelec.size(); j++ )
-				P[offset + j].OldAcc = nelec[i];
-		} else {
-			for( j=0; j < nelec.size(); j++ )
-				P[offset + j].OldAcc = 0.0;
-		}
+				convertUthermToKelvin( quantity, nelec );
+			}
+			
+			if( Config.takeLogUtherm )
+				for( j=0; j < quantity.size(); j++ )
+					quantity[j] = log10( quantity[j] );
+			
+			for( j=0; j < quantity.size(); j++ )
+				SphP[offset + j].Utherm = quantity[j];
+				
+			// ElectrunAbundance (Ne)
+			if( groupExists(snapFilenames[i], groupName, "ElectronAbundance") )
+			{
+				if( !nelec.size() ) // lazy load in case we already have it
+					readGroupDataset( snapFilenames[i], groupName, "ElectronAbundance", -1, nelec );
+					
+				for( j=0; j < nelec.size(); j++ )
+					P[offset + j].OldAcc = nelec[i];
+			} else {
+				for( j=0; j < nelec.size(); j++ )
+					P[offset + j].OldAcc = 0.0;
+			}
 
-		// Metallicity
-		string metalObjName = "";
-		if( groupExists(snapFilenames[i], groupName, "Metallicity") )
-			metalObjName = "Metallicity";
-		if( groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
-			metalObjName = "GFM_Metallicity";
-			
-		if( metalObjName != "" )
-		{
-			readGroupDataset( snapFilenames[i], groupName, metalObjName, -1, quantity );
-			
-			for( j=0; j < quantity.size(); j++ )
-				SphP[offset + j].Metallicity = quantity[j];
-		} else {
-			for( j=0; j < quantity.size(); j++ )
-				SphP[offset + j].Metallicity = 0.0;
-		}
+			// Metallicity
+			string metalObjName = "";
+			if( groupExists(snapFilenames[i], groupName, "Metallicity") )
+				metalObjName = "Metallicity";
+			if( groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
+				metalObjName = "GFM_Metallicity";
+				
+			if( metalObjName != "" )
+			{
+				readGroupDataset( snapFilenames[i], groupName, metalObjName, -1, quantity );
+				
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].Metallicity = quantity[j];
+			} else {
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].Metallicity = 0.0;
+			}
+
+			// MagneticField
+			if( groupExists(snapFilenames[i], groupName, "MagneticField") )
+			{
+				for( k=0; k < 3; k++ )
+				{
+					readGroupDataset( snapFilenames[i], groupName, "MagneticField", k, quantity );
+					
+					for( j=0; j < quantity.size(); j++ )
+						SphP[offset + j].VelVertex[k] = quantity[j];
+				}
+
+				// convert first entry to scalar magnitude
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].VelVertex[0] = sqrt(SphP[offset + j].VelVertex[0]*SphP[offset + j].VelVertex[0] + 
+				                                       SphP[offset + j].VelVertex[1]*SphP[offset + j].VelVertex[1] + 
+				                                       SphP[offset + j].VelVertex[2]*SphP[offset + j].VelVertex[2]);
+			} else {
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].VelVertex[0] = 0.0;
+					SphP[offset + j].VelVertex[1] = 0.0;
+					SphP[offset + j].VelVertex[2] = 0.0;
+			}
+
+			// EnergyDissipation (SHOCK_FINDER)
+			if( groupExists(snapFilenames[i], groupName, "EnergyDissipation") )
+			{
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].VelVertex[1] = quantity[j];
+			}
+			else
+			{
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].VelVertex[1] = 0.0;
+			}
+
+
+
+		} // readPartType==1
 
 		// increment global snapshot offset as we move to next chunk
 		offset += partCounts;
@@ -491,7 +594,11 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 	} // snapFilenames
 	
 	// handle other things read_ic() sets (global/local total particle counts, massTable, time/cosmo factors)
-	All.TotNumGas = partCountsTot;
+	//if( Config.readPartType == 0 )
+		All.TotNumGas = partCountsTot;
+	//else
+	//	All.TotNumGas = 0;
+	
 	All.TotNumPart = partCountsTot;
 	
 	//for(i = 0; i < NTYPES; i++)
@@ -656,12 +763,12 @@ void ArepoSnapshot::makeNewMaskFile( string maskFileName, vector<string> snapFil
 	// hold total number of particles that each job is responsible for
 	vector<long long> partCountsTot ( Config.totNumJobs, 0 );
 	
-	string groupName = "PartType" + toStr(READ_PARTTYPE);
+	string groupName = "PartType" + toStr(Config.readPartType);
 	
 	// allocate space for approximate size of Coordinates per chunk
 	vector<float> pos_x, pos_y, pos_z;
 
-	int allocNum = round(numPartTotal[READ_PARTTYPE] / snapFilenames.size() * 1.5);
+	int allocNum = round(numPartTotal[Config.readPartType] / snapFilenames.size() * 1.5);
 	
 	pos_x.reserve( allocNum );
 	pos_y.reserve( allocNum );
@@ -669,16 +776,16 @@ void ArepoSnapshot::makeNewMaskFile( string maskFileName, vector<string> snapFil
 	
 	float fillNumPart;
 	
-	if( numPartTotal[READ_PARTTYPE] <= pow(128,3) )
+	if( numPartTotal[Config.readPartType] <= pow(128,3) )
 		fillNumPart = 1000;
-	else if( numPartTotal[READ_PARTTYPE] <= pow(512,3) )
+	else if( numPartTotal[Config.readPartType] <= pow(512,3) )
 		fillNumPart = 10000;
-	else if( numPartTotal[READ_PARTTYPE] <= pow(1024,3) )
+	else if( numPartTotal[Config.readPartType] <= pow(1024,3) )
 		fillNumPart = 100000;
 	else
 		fillNumPart = 250000;
 	
-	int fillDivisor = floor( numPartTotal[READ_PARTTYPE] * snapFilenames.size() / fillNumPart );
+	int fillDivisor = floor( numPartTotal[Config.readPartType] * snapFilenames.size() / fillNumPart );
 	cout << " fillDivisor: " << fillDivisor << endl;
 	
 	// loop over each snapshot chunk
@@ -794,7 +901,7 @@ void ArepoSnapshot::makeNewMaskFile( string maskFileName, vector<string> snapFil
 	createNewGroup( maskFileName, "Header" );
 	writeGroupDataset( maskFileName, "Header", "PartCountsTot", partCountsTot );
 	
-	if( numReadTot != numPartTotal[READ_PARTTYPE] ) {
+	if( numReadTot != numPartTotal[Config.readPartType] ) {
 		cout << "Error: Failed to read all coordinates for mask creation!" << endl;
 		exit(1178);
 	}

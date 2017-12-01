@@ -20,7 +20,7 @@ VORONOI_MESHOUTPUT # for write_voronoi_mesh
 #INPUT_IN_DOUBLEPRECISION # DP ICs or DP snaps
 
 # for ArepoVTK only (not Arepo projection)
-NUM_THREADS=4
+NUM_THREADS=8
 #SPECIAL_BOUNDARY # for run.spoon only
 DOUBLEPRECISION=2 # for run.illustris.box (mixed)
 #LONGIDS # for run.illustris.box (unnecessary) (causes problems)

@@ -87,8 +87,34 @@ private:
     int tauSampleOffset, scatterSampleOffset;
 };
 
+class QuadIntersectionIntegrator : public VolumeIntegrator {
+public:
+    // consturction
+    QuadIntersectionIntegrator() {
+				IF_DEBUG(cout << "QuadIntersectionIntegrator() constructor." << endl);
+    }
+		//~QuadIntersectionIntegrator() { };
+
+    // methods
+		void Preprocess(const Scene *scene, const Camera *camera, const Renderer *renderer);
+    void RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene);
+    Spectrum Li(const Scene *scene, const Renderer *renderer, const Ray &ray, 
+		            const Sample *sample, RNG &rng, Spectrum *transmittance, int *prevEntryCell, int *prevEntryTetra, int threadNum) const;
+    Spectrum Transmittance(const Scene *scene, const Renderer *,
+            const Ray &ray, const Sample *sample, RNG &rng) const;
+private:
+    // data
+    int tauSampleOffset, scatterSampleOffset;
+		int nQuads;
+		vector<Point> P0;
+		vector<Vector> S1;
+		vector<Vector> S2;
+		vector<Vector> QN;
+};
+
 EmissionIntegrator *CreateEmissionVolumeIntegrator(const float stepSize);
 VoronoiIntegrator *CreateVoronoiVolumeIntegrator();
 TreeSearchIntegrator *CreateTreeSearchVolumeIntegrator();
+QuadIntersectionIntegrator *CreateQuadIntersectionIntegrator();
 
 #endif

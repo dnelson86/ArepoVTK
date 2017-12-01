@@ -56,7 +56,7 @@
 /* magic constants */
 
 #define MAXLEN_OUTPUTLIST    1100
-#define TIMEBINS             60
+#define TIMEBINS             29
 #define GRAVCOSTLEVELS       6
 #define CPU_PARTS            51
 
@@ -130,6 +130,7 @@ extern int ThisTask, NTask, PTask;
 extern int NumPart, NumGas;
 extern int RestartFlag, RestartSnapNum, WriteMiscFiles;
 extern char ParameterFile[MAXLEN_PATH];
+extern int TimeBinActive[TIMEBINS];
 
 extern struct global_data_all_processes
 {
@@ -380,7 +381,7 @@ extern struct particle_data
   MyDouble Pos[3] __attribute__((__aligned__(16)));
   MyDouble Mass;
   MyFloat  Vel[3] __attribute__((__aligned__(16)));
-	MyFloat  GravAccel[3];
+  MyFloat  GravAccel[3];
   MyIDType ID;
 
   float OldAcc; // ArepoVTK: used to store ElectronAbundance (Ne)
@@ -412,13 +413,13 @@ extern struct sph_particle_data
 
   /* variables for mesh  */
   MyFloat Center[3];		/* center of mass of cell */
-  MyFloat VelVertex[3];		/* current vertex velocity (primitive variable) */
+  MyFloat VelVertex[3];		/* current vertex velocity (primitive variable) */ /* ArepoVTK: used to store {Bmag,ShockDEDT,empty} */
   MyFloat MaxDelaunayRadius;
   MyFloat Hsml;		        /* auxiliary search radius for points around a delaunay triangle */
   MyFloat SurfaceArea;
   MyFloat ActiveArea;
 
-	MyFloat Metallicity; // ArepoVTK: moved outside METALS!!!
+  MyFloat Metallicity; // ArepoVTK: moved outside METALS!!!
 	
 #ifdef METALS
   MyFloat MassMetallicity;
@@ -531,7 +532,13 @@ void domain_Decomposition(void);
 void set_softenings(void);
 int ngb_treebuild(int npart);
 void ngb_treeallocate(void);
+void setup_smoothinglengths(void);
+void density(void);
+void reconstruct_timebins(void);
  
+void create_mesh(void); 
+void voronoi_init_connectivity(tessellation * T);
+
 void *mymalloc_fullinfo(const char *varname, size_t n, const char *func, const char *file, int linenr);
 void *mymalloc_movable_fullinfo(void *ptr, const char *varname, size_t n, const char *func, const char *file,int line);
 

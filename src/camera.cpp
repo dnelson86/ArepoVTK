@@ -184,13 +184,6 @@ bool Film::DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L)
     float xyz[3];
     L.ToXYZ(xyz);
 		
-		float filterWt = 1.0;
-		
-		// premultiplies
-		xyz[0] *= filterWt;
-		xyz[1] *= filterWt;
-		xyz[2] *= filterWt;
-		
 		//bool syncNeeded = false; // not thread safe!
 		int off1, off2;	
 
@@ -290,23 +283,6 @@ bool Film::DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L)
 		float gradient = dy / dx;		
 		float xend,yend,xgap;//,ygap;
 		
-/*	// special case: vertical line (dy==0 because swapped already)
-		IF_DEBUG(cout << " dx: " << dx << " dy: " << dy << " grad: " << gradient << endl);
-		if (dy == 0 || fabs(dy) < 1e-4) {
-				IF_DEBUG(cout << " VERTICAL " << (int)x1 << " " << (int)x2 << " " << round_(y1) << endl);
-				for (int x=(int)x1; x<(int)x2; x++) {
-						if (round_(y1) > 0 && x > 0 && round_(y1) < xPixelCount && x < yPixelCount) {
-						    IF_DEBUG(cout << "  Paint " << x << " " << round_(y1) << endl);
-								Pixel &pixel = (*pixels)(round_(y1),x);
-								pixel.Lxyz[0] += filterWt * xyz[0];
-								pixel.Lxyz[1] += filterWt * xyz[1] * 1.0;
-								pixel.Lxyz[2] += filterWt * xyz[2];
-								pixel.weightSum += filterWt;
-						}
-				}
-				return true;
-		} */
-		
 		// first endpoint
 		xend = round_(x1);
 		yend = y1 + gradient * (xend-x1);
@@ -322,20 +298,32 @@ bool Film::DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L)
 		
 		if (off1 > 0 && off2 > 0 && off1 < xPixelCount && off2 < yPixelCount) {		
 				Pixel &pixel = (*pixels)(off1,off2);
-				pixel.Lxyz[0] += xyz[0] * rfpart_(yend) * xgap;
+				//pixel.Lxyz[0] += xyz[0] * rfpart_(yend) * xgap;
 				// multiplicative brightness modification on y-comp as per CIE XYZ standard
 				// note: apparently not, changes colors (not strict brightness modification)
 				//       better to multiply all components
-				pixel.Lxyz[1] += xyz[1] * rfpart_(yend) * xgap;
-				pixel.Lxyz[2] += xyz[2] * rfpart_(yend) * xgap;
-				pixel.weightSum += filterWt;
+				//pixel.Lxyz[1] += xyz[1] * rfpart_(yend) * xgap;
+				//pixel.Lxyz[2] += xyz[2] * rfpart_(yend) * xgap;
+				//pixel.weightSum += filterWt;
+
+				// new apr.2014 approach
+				for( int i=0; i < 3; i++) {
+					pixel.Lxyz[i] *= 0.5;
+					pixel.Lxyz[i] += 0.5 * xyz[i] * rfpart_(yend) * xgap;
+				}
+				
 		}
 		if (off1 > 0 && off2+1 > 0 && off1 < xPixelCount && off2+1 < yPixelCount) {		
 				Pixel &pixel = (*pixels)(off1,off2+1);
-				pixel.Lxyz[0] += xyz[0] * fpart_(yend) * xgap;
-				pixel.Lxyz[1] += xyz[1] * fpart_(yend) * xgap;
-				pixel.Lxyz[2] += xyz[2] * fpart_(yend) * xgap;
-				pixel.weightSum += filterWt;
+				//pixel.Lxyz[0] += xyz[0] * fpart_(yend) * xgap;
+				//pixel.Lxyz[1] += xyz[1] * fpart_(yend) * xgap;
+				//pixel.Lxyz[2] += xyz[2] * fpart_(yend) * xgap;
+				//pixel.weightSum += filterWt;
+				for( int i=0; i < 3; i++) {
+					pixel.Lxyz[i] *= 0.5;
+					pixel.Lxyz[i] += 0.5 * xyz[i] * fpart_(yend) * xgap;
+				}
+
 		}
 		
 		float intery = yend + gradient;
@@ -355,17 +343,25 @@ bool Film::DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L)
 		
 		if (off1 > 0 && off2 > 0 && off1 < xPixelCount && off2 < yPixelCount) {		
 				Pixel &pixel = (*pixels)(off1,off2);
-				pixel.Lxyz[0] += xyz[0] * rfpart_(yend) * xgap;
-				pixel.Lxyz[1] += xyz[1] * rfpart_(yend) * xgap;
-				pixel.Lxyz[2] += xyz[2] * rfpart_(yend) * xgap;
-				pixel.weightSum += filterWt;
+				//pixel.Lxyz[0] += xyz[0] * rfpart_(yend) * xgap;
+				//pixel.Lxyz[1] += xyz[1] * rfpart_(yend) * xgap;
+				//pixel.Lxyz[2] += xyz[2] * rfpart_(yend) * xgap;
+				//pixel.weightSum += filterWt;
+				for( int i=0; i < 3; i++) {
+					pixel.Lxyz[i] *= 0.5;
+					pixel.Lxyz[i] += 0.5 * xyz[i] * rfpart_(yend) * xgap;
+				}
 		}
 		if (off1 > 0 && off2+1 > 0 && off1 < xPixelCount && off2+1 < yPixelCount) {		
 				Pixel &pixel = (*pixels)(off1,off2+1);
-				pixel.Lxyz[0] += xyz[0] * fpart_(yend) * xgap;
-				pixel.Lxyz[1] += xyz[1] * fpart_(yend) * xgap;
-				pixel.Lxyz[2] += xyz[2] * fpart_(yend) * xgap;
-				pixel.weightSum += filterWt;
+				//pixel.Lxyz[0] += xyz[0] * fpart_(yend) * xgap;
+				//pixel.Lxyz[1] += xyz[1] * fpart_(yend) * xgap;
+				//pixel.Lxyz[2] += xyz[2] * fpart_(yend) * xgap;
+				//pixel.weightSum += filterWt;
+				for( int i=0; i < 3; i++) {
+					pixel.Lxyz[i] *= 0.5;
+					pixel.Lxyz[i] += 0.5 * xyz[i] * fpart_(yend) * xgap;
+				}
 		}
 		
 		// main loop
@@ -378,19 +374,28 @@ bool Film::DrawLine(float x1, float y1, float x2, float y2, const Spectrum &L)
 
 				if (off1 > 0 && off2 > 0 && off1 < xPixelCount && off2 < yPixelCount) {		
 						Pixel &pixel = (*pixels)(off1,off2);
-						pixel.Lxyz[0] += xyz[0] * rfpart_(intery);
-						pixel.Lxyz[1] += xyz[1] * rfpart_(intery);
-						pixel.Lxyz[2] += xyz[2] * rfpart_(intery);
-						pixel.weightSum += filterWt;
+						//pixel.Lxyz[0] += xyz[0] * rfpart_(intery);
+						//pixel.Lxyz[1] += xyz[1] * rfpart_(intery);
+						//pixel.Lxyz[2] += xyz[2] * rfpart_(intery);
+						//pixel.weightSum += filterWt;
+						//pixel.weightSum += filterWt;
+						for( int i=0; i < 3; i++) {
+							pixel.Lxyz[i] *= 0.5;
+							pixel.Lxyz[i] += 0.5 * xyz[i] * rfpart_(intery);
+						}
 						IF_DEBUG(cout << " Painting x = " << off1 << " y = " << off2 << " (" 
 						              << rfpart_(intery) << ")" << endl);
 				}
 				if (off1 > 0 && off2+1 > 0 && off1 < xPixelCount && off2+1 < yPixelCount) {	
 						Pixel &pixel = (*pixels)(off1,off2+1);
-						pixel.Lxyz[0] += xyz[0] * fpart_(intery);
-						pixel.Lxyz[1] += xyz[1] * fpart_(intery);
-						pixel.Lxyz[2] += xyz[2] * fpart_(intery);
-						pixel.weightSum += filterWt;
+						//pixel.Lxyz[0] += xyz[0] * fpart_(intery);
+						//pixel.Lxyz[1] += xyz[1] * fpart_(intery);
+						//pixel.Lxyz[2] += xyz[2] * fpart_(intery);
+						//pixel.weightSum += filterWt;
+						for( int i=0; i < 3; i++) {
+							pixel.Lxyz[i] *= 0.5;
+							pixel.Lxyz[i] += 0.5 * xyz[i] * fpart_(intery);
+						}
 						IF_DEBUG(cout << " Painting x = " << off1 << " y = " << off2+1 << " (" 
 						              << fpart_(intery) << ")" << endl);
 				}
@@ -449,8 +454,12 @@ void Film::WriteImage(int frameNum, float splatScale)
     // Convert image to RGB and compute final pixel values
     int nPix = xPixelCount * yPixelCount;
     float *rgb = new float[3*nPix];
+		float *alpha = new float[nPix];
     int offset = 0;
-    float maxInv = 0.0;
+    float maxScale = 0.0;
+		float minScale = INFINITY;
+		float maxAlpha = 0.0;
+		float minAlpha = INFINITY;
 		
     for (int y = 0; y < yPixelCount; ++y) {
         for (int x = 0; x < xPixelCount; ++x) {
@@ -465,11 +474,21 @@ void Film::WriteImage(int frameNum, float splatScale)
                 rgb[3*offset+1] = max(0.0f, rgb[3*offset+1] * invWt);
                 rgb[3*offset+2] = max(0.0f, rgb[3*offset+2] * invWt);
             }
+						
+						// save min/max of raw density integral
+						alpha[offset] = (*integrals)(x, y).raw_vals[0];
+						
+						if( alpha[offset] < minAlpha ) minAlpha = alpha[offset];
+						if( alpha[offset] > maxAlpha ) maxAlpha = alpha[offset];
 
-            // save maximum
-            if(rgb[3*offset  ] > maxInv) maxInv = rgb[3*offset];
-            if(rgb[3*offset+1] > maxInv) maxInv = rgb[3*offset+1];
-            if(rgb[3*offset+2] > maxInv) maxInv = rgb[3*offset+2];
+            // save minimum and maximum
+            if(rgb[3*offset  ] < minScale) minScale = rgb[3*offset];
+            if(rgb[3*offset+1] < minScale) minScale = rgb[3*offset+1];
+            if(rgb[3*offset+2] < minScale) minScale = rgb[3*offset+2];
+						
+            if(rgb[3*offset  ] > maxScale) maxScale = rgb[3*offset];
+            if(rgb[3*offset+1] > maxScale) maxScale = rgb[3*offset+1];
+            if(rgb[3*offset+2] > maxScale) maxScale = rgb[3*offset+2];
 
             // Add splat value at pixel
             float splatRGB[3];
@@ -483,24 +502,50 @@ void Film::WriteImage(int frameNum, float splatScale)
 
     offset = 0;
 
-    // scale the maximum intensity up to 1.0 based on the FIRST frame
-    if( frameNum == 0 || Config.maxInv <= 0.0 )
-      Config.maxInv = 1.0 / maxInv;
-
+    // scale the intensity into [0.0,1.0] based on the FIRST frame, or based on input
+    if( Config.maxScale <= 0.0 ) {
+      Config.maxScale = maxScale;
+			cout << "Set Config.maxScale = " << Config.maxScale << endl;
+		} else {
+			cout << "Using Config.maxScale = " << Config.maxScale << " current maxScale = " << maxScale << endl;
+		}
+    if( Config.minScale < 0.0 ) {
+      Config.minScale = minScale;
+			cout << "Set Config.minScale = " << Config.minScale << endl;
+		} else {
+			cout << "Using Config.minScale = " << Config.minScale << " current minScale = " << minScale << endl;
+		}
+    if( Config.maxAlpha <= 0.0 ) {
+      Config.maxAlpha = maxAlpha;
+			cout << "Set Config.maxAlpha = " << Config.maxAlpha << endl;
+		} else {
+			cout << "Using Config.maxAlpha = " << Config.maxAlpha << " current maxAlpha = " << maxAlpha << endl;
+		}
+    if( Config.minAlpha < 0.0 ) {
+      Config.minAlpha = minAlpha;
+			cout << "Set Config.minAlpha = " << Config.minAlpha << endl;
+		} else {
+			cout << "Using Config.maxAlpha = " << Config.maxAlpha << " current maxAlpha = " << maxAlpha << endl;
+		}
+		
+		float invFac = 1.0 / (Config.maxScale - Config.minScale);
+		
     for (int y = 0; y < yPixelCount; ++y) {
         for (int x = 0; x < xPixelCount; ++x) {
-            rgb[3*offset  ] = rgb[3*offset  ] * Config.maxInv;
-            rgb[3*offset+1] = rgb[3*offset+1] * Config.maxInv;
-            rgb[3*offset+2] = rgb[3*offset+2] * Config.maxInv;
+            rgb[3*offset  ] = (rgb[3*offset  ] - Config.minScale) * invFac;
+            rgb[3*offset+1] = (rgb[3*offset+1] - Config.minScale) * invFac;
+            rgb[3*offset+2] = (rgb[3*offset+2] - Config.minScale) * invFac;
+						alpha[offset]   = (alpha[offset] - Config.minAlpha) / (Config.maxAlpha - Config.minAlpha);
             offset++;
         }
     }
 
     // Write RGB image
-    ::WriteImage(filename, rgb, NULL, xPixelCount, yPixelCount,
+    ::WriteImage(filename, rgb, alpha, xPixelCount, yPixelCount,
                  xResolution, yResolution, xPixelStart, yPixelStart);
 
     // Release temporary image memory
+		delete[] alpha;
     delete[] rgb;
 }
 
@@ -758,7 +803,19 @@ Film *CreateFilm(Filter *filter)
 		if( Config.totNumJobs >= 1 )
 			filename += "_" + toStr(jobNum) + "_" + toStr(Config.totNumJobs*pow(Config.jobExpansionFac,2));
 			
-		filename += ".tga";
+		// default extension?
+    if (filename.size() >= 5)
+		{
+			uint32_t suffixOffset = filename.size() - 4;
+			
+			if (!strcmp(filename.c_str() + suffixOffset, ".tga") &&
+					!strcmp(filename.c_str() + suffixOffset, ".TGA") &&
+					!strcmp(filename.c_str() + suffixOffset, ".png") &&
+					!strcmp(filename.c_str() + suffixOffset, ".PNG"))
+			{
+				filename += ".tga";
+			}
+		}
 			
 		// do not modify Film resolution for job subdivisions
 		int xres = Config.imageXPixels;
@@ -820,25 +877,6 @@ Camera::Camera(const Transform &cam2world, float sopen, float sclose, Film *f)
     //    cout << "Warning! CameraToWorld has a scale factor." << endl;
 }
 
-bool Camera::RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L)
-{
-		//p1.print("Camera::RasterizeLine p1 W ");
-		//p2.print("Camera::RasterizeLine p2 W ");
-		
-		// transform start and end points to raster space
-		Point start,end;
-		
-		Transform w2r = Inverse(RasterToCamera) * Inverse(CameraToWorld);
-		start = w2r(p1);
-		end   = w2r(p2);
-		
-		//start.print("Camera::RasterizeLine p1 R ");
-		//end.print("Camera::RasterizeLine p2 R ");
-
-		// ask film to draw
-		return film->DrawLine(start.x,start.y,end.x,end.y,L);
-}
-
 Camera::Camera(const Transform &cam2world, const Transform &proj, const float screenWindow[4],
                float sopen, float sclose, float lensr, float focald, Film *f)
 		: CameraToWorld(cam2world), shutterOpen(sopen), shutterClose(sclose)
@@ -864,31 +902,7 @@ Camera::Camera(const Transform &cam2world, const Transform &proj, const float sc
 
     RasterToScreen = Inverse(ScreenToRaster);
     RasterToCamera = Inverse(CameraToScreen) * RasterToScreen;
-}
-
-ProjCamera::ProjCamera(const Transform &cam2world, const Transform &proj, const float screenWindow[4],
-										   float sopen, float sclose, float lensr, float focald, Film *f)
-		: Camera(cam2world, sopen, sclose, f)
-{
-		IF_DEBUG(cout << "ProjCamera(c2w,proj,sW," << sopen << "," << sclose << "," << lensr << "," << focald 
-		              << "f) constructor." << endl);
-		
-    // Initialize depth of field parameters
-    lensRadius = lensr;
-    focalDistance = focald;
-
-    // Compute projective camera transformations
-    CameraToScreen = proj;
-
-    // Compute projective camera screen transformations
-    ScreenToRaster = Scale(float(film->xResolution),
-                           float(film->yResolution), 1.0f) *
-        Scale(1.0f / (screenWindow[1] - screenWindow[0]),
-              1.0f / (screenWindow[2] - screenWindow[3]), 1.0f) *
-        Translate(Vector(-screenWindow[0], -screenWindow[3], 0.0f));
-
-    RasterToScreen = Inverse(ScreenToRaster);
-    RasterToCamera = Inverse(CameraToScreen) * RasterToScreen;
+		WorldToRaster  = Inverse(RasterToCamera) * Inverse(CameraToWorld);
 }
 
 // OrthoCamera
@@ -903,7 +917,6 @@ OrthoCamera::OrthoCamera(const Transform &cam2world, const float screenWindow[4]
     dxCamera = RasterToCamera(Vector(1, 0, 0));
     dyCamera = RasterToCamera(Vector(0, 1, 0));
 }
-
 
 float OrthoCamera::GenerateRay(const CameraSample &sample, Ray *ray) const
 {
@@ -937,10 +950,20 @@ float OrthoCamera::GenerateRay(const CameraSample &sample, Ray *ray) const
     return 1.0f;
 }
 
+bool OrthoCamera::RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L) const
+{
+		// transform start and end points to raster space
+		Point start = WorldToRaster(p1);
+		Point end   = WorldToRaster(p2);
+		
+		// ask film to draw
+		return film->DrawLine(start.x,start.y,end.x,end.y,L);
+}
+
 // PerspectiveCamera
 PerspectiveCamera::PerspectiveCamera(const Transform &cam2world, const float screenWindow[4], 
 										float sopen, float sclose, float lensr, float focald, float fov, Film *film)
-    : ProjCamera(cam2world, Perspective(fov, 1e-2f, 1000.0f), screenWindow,
+    : Camera(cam2world, Perspective(fov, 1e-2f, 1000.0f), screenWindow,
 								 sopen, sclose, lensr, focald, film)
 {
 		IF_DEBUG(cout << "PerspectiveCamera(c2w,sW=[" << screenWindow[0] << "," << screenWindow[1] << ","
@@ -981,7 +1004,193 @@ float PerspectiveCamera::GenerateRay(const CameraSample &sample, Ray *ray) const
     return 1.0f;
 }
 
+bool PerspectiveCamera::RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L) const
+{
+		// transform start and end points to raster space
+		Point start = WorldToRaster(p1);
+		Point end   = WorldToRaster(p2);
+
+		// ask film to draw
+		return film->DrawLine(start.x,start.y,end.x,end.y,L);
+}
+
+// Fisheye Camera
+FisheyeCamera::FisheyeCamera(const Transform &cam2world, float sopen, float sclose, Film *film)
+    : Camera(cam2world, sopen, sclose, film)
+{
+		IF_DEBUG(cout << "FisheyeCamera() constructor." << endl);
+}
+
+float FisheyeCamera::GenerateRay(const CameraSample &sample, Ray *ray) const
+{
+		IF_DEBUG(cout << "FisheyeCamera::GenerateRay()" << endl);
+		
+		double fisheye_fov = Config.cameraFOV * M_PI / 180.0; // radians (can be greater than 180 degrees)
+		double rad,phi,theta;
+		
+		// transform sample x,y to [-1,1] coordinates
+		Point normPt;
+		normPt.x = 2 * sample.imageX / film->xResolution - 1.0;
+		normPt.y = 2 * sample.imageY / film->yResolution - 1.0;
+		
+		// compute radius from image center, if outside unit disc, do not integrate this ray
+		rad = sqrt( normPt.x*normPt.x + normPt.y*normPt.y );
+		
+		if( rad > 1.0 )
+			return 0.0f;
+			
+		phi = atan2( normPt.y, normPt.x ); // [-PI,+PI]
+		phi += M_PI; // [0,+2PI]
+				
+		theta = rad * fisheye_fov * 0.5; // [0,fisheye_fov/2]
+		
+    // compute fisheye camera ray direction
+		Vector dir( sinf(theta)*cosf(phi), //x
+								sinf(theta)*sinf(phi), //y
+		            cosf(theta) ); //z
+								
+		// make ray
+    *ray = Ray(Point(0,0,0), dir, 0.0f, INFINITY);
+    ray->time = Lerp(sample.time, shutterOpen, shutterClose);
+		
+		IF_DEBUG(ray->printRay(" genray C "));
+		
+    CameraToWorld(*ray, ray);
+				
+		IF_DEBUG(ray->printRay(" genray W "));
+
+    return 1.0f;
+}
+
+bool FisheyeCamera::RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L) const
+{
+		// transform start and end points to raster space (cartesian->spherical)
+		double fisheye_fov = Config.cameraFOV * M_PI / 180.0; // radians
+		Transform w2c = Inverse(CameraToWorld);
+		
+		Point p1_c = w2c(p1);
+		Point p2_c = w2c(p2);
+		
+		float rad,phi,start_x,start_y,end_x,end_y;
+		int numSegments = 10;
+		bool flag;
+		
+		for( int i=0; i < numSegments; i++ )
+		{
+			// segment start and end
+			Point start = p1_c + (p2_c-p1_c)*(i+0)/numSegments;
+			Point end   = p1_c + (p2_c-p1_c)*(i+1)/numSegments;
+
+			// convert to raster coordinates
+			rad = atan2( sqrtf( start.x*start.x + start.y*start.y ), start.z ) / fisheye_fov * 2.0; //[-1,+1]
+			phi = atan2( start.y, start.x );
+			
+			start_x = (rad * cosf(phi) + 1.0) * 0.5 * film->xResolution;
+			start_y = (rad * sinf(phi) + 1.0) * 0.5 * film->yResolution;
+			
+			rad = atan2( sqrtf( end.x*end.x + end.y*end.y ), end.z ) / fisheye_fov * 2.0;
+			phi = atan2( end.y, end.x );
+						
+			end_x = (rad * cosf(phi) + 1.0) * 0.5 * film->xResolution;
+			end_y = (rad * sinf(phi) + 1.0) * 0.5 * film->yResolution;
+			
+			// ask film to draw
+			flag = film->DrawLine(start_x,start_y,end_x,end_y,L);
+		}
+				
+		return flag;
+}
+
+// Environment Camera
+EnvironmentCamera::EnvironmentCamera(const Transform &cam2world, float sopen, float sclose, Film *film)
+    : Camera(cam2world, sopen, sclose, film)
+{
+		IF_DEBUG(cout << "EnvironmentCamera() constructor." << endl);
+}
+
+float EnvironmentCamera::GenerateRay(const CameraSample &sample, Ray *ray) const
+{
+		IF_DEBUG(cout << "EnvironmentCamera::GenerateRay()" << endl);
+		
+    // compute environment camera ray direction
+		float theta = M_PI * sample.imageY / film->yResolution;
+		float phi   = 2 * M_PI * sample.imageX / film->xResolution;
+		
+		Vector dir( sinf(theta)*cosf(phi), //x
+		            cosf(theta),           //z
+								sinf(theta)*sinf(phi) ); //y
+								
+		// make ray
+    *ray = Ray(Point(0,0,0), dir, 0.0f, INFINITY);
+    ray->time = Lerp(sample.time, shutterOpen, shutterClose);
+		
+		IF_DEBUG(ray->printRay(" genray C "));
+		
+    CameraToWorld(*ray, ray);
+				
+		IF_DEBUG(ray->printRay(" genray W "));
+
+    return 1.0f;
+}
+
+bool EnvironmentCamera::RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L) const
+{
+		// transform start and end points to raster space (cartesian->spherical)
+		Transform w2c = Inverse(CameraToWorld);
+		
+		Point p1_c = w2c(p1);
+		Point p2_c = w2c(p2);
+		
+		float phi,theta,start_x,start_y,end_x,end_y;
+		int numSegments = 10;
+		bool flag;
+		
+		for( int i=0; i < numSegments; i++ )
+		{
+			// segment start and end
+			Point start = p1_c + (p2_c-p1_c)*(i+0)/numSegments;
+			Point end   = p1_c + (p2_c-p1_c)*(i+1)/numSegments;
+			
+			// convert to raster coordinates
+			phi = atan2( start.y, start.x ) + M_PI;
+			theta = acos( start.z / sqrtf( start.x*start.x+start.y*start.y+start.z*start.z ) );
+			
+			start_x = phi / (2*M_PI) * film->xResolution;
+			start_y = theta / M_PI * film->yResolution;
+			
+			phi = atan2( end.y, end.x ) + M_PI;
+			theta = acos( end.z / sqrtf( end.x*end.x+end.y*end.y+end.z*end.z ) );
+			
+			end_x = phi / (2*M_PI) * film->xResolution;
+			end_y = theta / M_PI * film->yResolution;
+
+			// ask film to draw
+			flag = film->DrawLine(start_x,start_y,end_x,end_y,L);
+		}
+				
+		return flag;
+}
+
 // Camera object creation
+Camera *CreateCamera(const Transform &cam2world, Film *film)
+{
+	// decide which camera model based on FOV
+	if (Config.cameraType == "perspective")
+		return CreatePerspectiveCamera(cam2world, film);
+	else if (Config.cameraType == "orthographic")
+		return CreateOrthographicCamera(cam2world, film);
+	else if (Config.cameraType == "fisheye")
+		return CreateFisheyeCamera(cam2world, film);
+	else if (Config.cameraType == "environmental")
+		return CreateEnvironmentCamera(cam2world, film);
+	//else if (Config.cameraType == "oculusrift")
+	//	return CreateOculusRiftCamera(cam2world, film);
+	else	
+		cout << "ERROR: Could not choose camera type." << endl;
+	
+	return NULL;
+}
+
 OrthoCamera *CreateOrthographicCamera(const Transform &cam2world, Film *film)
 {
 		// Config
@@ -1012,4 +1221,22 @@ PerspectiveCamera *CreatePerspectiveCamera(const Transform &cam2world, Film *fil
 		
     return new PerspectiveCamera(cam2world, screen, shutteropen, shutterclose, lensradius, 
 																 focaldistance, fov, film);
+}
+
+FisheyeCamera *CreateFisheyeCamera(const Transform &cam2world, Film *film)
+{
+    // Config
+    float shutteropen   = 0.0f;
+    float shutterclose  = 1.0f;
+		
+    return new FisheyeCamera(cam2world, shutteropen, shutterclose, film);
+}
+
+EnvironmentCamera *CreateEnvironmentCamera(const Transform &cam2world, Film *film)
+{
+    // Config
+    float shutteropen   = 0.0f;
+    float shutterclose  = 1.0f;
+		
+    return new EnvironmentCamera(cam2world, shutteropen, shutterclose, film);
 }

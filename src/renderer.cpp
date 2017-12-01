@@ -27,6 +27,9 @@ void RendererTask::Run(int threadNum) {
 		//   remaining tasks, which we need to complete before we write the restart
 		//   so: immediate exit
 		
+		//if( Config.filename.substr(0,4) == "none" && typeid(*renderer) != typeid(QuadIntersectionIntegrator) )
+		//  return;
+			
     // Get sub-_Sampler_ for _SamplerRendererTask_
     Sampler *sampler = mainSampler->GetSubSampler(taskNum, taskCount);
     if (!sampler) {
@@ -69,6 +72,7 @@ void RendererTask::Run(int threadNum) {
 				// Evaluate radiance along camera rays
 				for (int i=0; i < sampleCount; i++)
 				{
+					if( rayWeights[i] > 0 )
 						Ls[i] = rayWeights[i] * renderer->Li(scene, rays[i], &samples[i], rng, &Ts[i], 
 						                                     &prevEntryCell, &prevEntryTetra, threadNum);
 						// TODO:
@@ -82,6 +86,7 @@ void RendererTask::Run(int threadNum) {
         {
             for (int i = 0; i < sampleCount; ++i)
             {
+							if( rayWeights[i] > 0 )
                 camera->film->AddSample(samples[i], Ls[i], rays[i], threadNum);
             }
 						// TODO:
@@ -194,7 +199,7 @@ void Renderer::Render(const Scene *scene, int frameNum)
 		//   return;
 		
 		// do rasterization stage with just one task
-		if (Config.drawTetra || Config.drawVoronoi || Config.drawBBox)
+		if (Config.drawTetra || Config.drawVoronoi || Config.drawBBox || Config.drawSphere)
 				Renderer::RasterizeStage(scene);		
 		
     float seconds = (float)timer->Time();
@@ -275,6 +280,88 @@ void Renderer::RasterizeStage(const Scene *scene)
 						}
 				}
 		} 
+		
+		// draw test sphere
+		if (Config.drawSphere) {
+				edges.clear();
+				Spectrum Ledge = Spectrum::FromRGB(Config.rgbLine);
+				
+				float rgb_r[3]; rgb_r[0] = 1.0; rgb_r[1] = 0.0; rgb_r[2] = 0.0;
+				float rgb_g[3]; rgb_g[0] = 0.0; rgb_g[1] = 1.0; rgb_g[2] = 0.0;
+				float rgb_b[3]; rgb_b[0] = 0.0; rgb_b[1] = 0.0; rgb_b[2] = 1.0;
+				
+				Spectrum Lr = Spectrum::FromRGB(rgb_r);
+				Spectrum Lg = Spectrum::FromRGB(rgb_g);
+				Spectrum Lb = Spectrum::FromRGB(rgb_b);
+				
+				Point p0,p1,p2,p3;
+				float theta[4], phi[4], rr[4];
+				
+				// inspired by http://paulbourke.net/dome/fisheye/source1.c (Paul Bourke)
+				int N = 36;
+				
+				for(int j=0; j < N/2; j++)
+				{
+					for(int i=-N/2; i < N/2; i++)
+					{
+						// OPTION A: (also switch j loop, start at -N_lat/2
+						/*p0.y = j * 2 * N;
+						p1.y = (j+1) * 2 * N;
+						p2.y = p1.y;
+						p3.y = p0.y;
+						
+						p0.x = i * 2 * N;
+						p1.x = p0.x;
+						p2.x = (i+1) * 2 * N;
+						p3.x = p2.x;*/
+						
+						// OPTION B:
+						theta[0] = (j+0) * M_PI / N;
+						theta[1] = (j+1) * M_PI / N;
+						theta[2] = theta[1];
+						theta[3] = theta[0];
+						
+						phi[0] = i * 2 * M_PI / N;
+						phi[1] = phi[0];
+						phi[2] = (i+1) * 2 * M_PI / N;
+						phi[3] = phi[2];
+												
+						p0.x = sin(theta[0]) * sin(phi[0]);
+						p0.y = sin(theta[0]) * cos(phi[0]);
+						p0.z = cos(theta[0]);
+						p1.x = sin(theta[1]) * sin(phi[1]);
+						p1.y = sin(theta[1]) * cos(phi[1]);
+						p1.z = cos(theta[1]);
+						p2.x = sin(theta[2]) * sin(phi[2]);
+						p2.y = sin(theta[2]) * cos(phi[2]);
+						p2.z = cos(theta[2]);
+						p3.x = sin(theta[3]) * sin(phi[3]);
+						p3.y = sin(theta[3]) * cos(phi[3]);
+						p3.z = cos(theta[3]);
+						
+						// BOTH:						
+						rr[0] = p0.x * p0.x + p0.y * p0.y;
+						rr[1] = p1.x * p1.x + p1.y * p1.y;
+						rr[2] = p2.x * p2.x + p2.y * p2.y;
+						rr[3] = p3.x * p3.x + p3.y * p3.y;
+						
+						if (rr[0] > 1 || rr[1] > 1 || rr[2] > 1 || rr[3] > 1)
+							continue;
+							
+						p0.z = sqrt(1.0 - rr[0]);
+						p1.z = sqrt(1.0 - rr[1]);
+						p2.z = sqrt(1.0 - rr[2]);
+						p3.z = sqrt(1.0 - rr[3]);
+						
+						// draw the polygon with vertices p0,p1,p2,p3
+						camera->RasterizeLine(p0,p1,Lr);
+						camera->RasterizeLine(p1,p2,Lg);
+						camera->RasterizeLine(p2,p3,Lb);
+						camera->RasterizeLine(p3,p0,Ledge);
+						
+					} //i
+				} //j
+		}
 
 		float time = (float)timer2.Time();
 		cout << endl << " [Task=00] Rasterization phase: [" << time << "] seconds." << endl;

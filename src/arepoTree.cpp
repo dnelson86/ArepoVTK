@@ -38,7 +38,45 @@ ArepoTree::ArepoTree(const TransferFunction *tf)
 			cout << "Error: All.BoxSize=0, likely structure mismatch." << endl;
 			exit(1180);
 		}		
-		
+
+	
+		float pmax = -INFINITY, umax = -INFINITY;
+		float pmin = INFINITY, umin = INFINITY;
+		float pmean = 0.0, umean = 0.0;
+
+		for (int i=0; i < NumGas; i++)
+		{
+			if (SphP[i].Density > pmax)
+			  pmax = SphP[i].Density;
+			if (SphP[i].Density < pmin)
+			  pmin = SphP[i].Density;
+			pmean += SphP[i].Density;
+
+			if (SphP[i].Utherm > umax)
+			  umax = SphP[i].Utherm;
+			if (SphP[i].Utherm < umin)
+			  umin = SphP[i].Utherm;
+			umean += SphP[i].Utherm;
+		}
+
+		valBounds[TF_VAL_DENS*3 + 0] = pmin;
+		valBounds[TF_VAL_DENS*3 + 1] = pmax;
+		valBounds[TF_VAL_DENS*3 + 2] = pmean / NumGas;
+
+		valBounds[TF_VAL_TEMP*3 + 0] = umin;
+		valBounds[TF_VAL_TEMP*3 + 1] = umax;
+		valBounds[TF_VAL_TEMP*3 + 2] = umean / NumGas;
+
+		cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0]
+		                          << " max = " << valBounds[TF_VAL_DENS*3 + 1]
+		                          << " mean = " << valBounds[TF_VAL_DENS*3 + 2] << endl;
+
+		cout << " Temp  min = " << valBounds[TF_VAL_TEMP*3 + 0]
+		           << " max = " << valBounds[TF_VAL_TEMP*3 + 1]
+		           << " mean = " << valBounds[TF_VAL_TEMP*3 + 2] << endl;
+
+
+	
 		IF_DEBUG(extent.print(" ArepoTree extent "));		
 }
 
@@ -259,45 +297,53 @@ bool ArepoTree::AdvanceRayOneStep(const Ray &ray, double *t0, double *t1,
 #endif
 
 		// sample quantities at this position (now have interpolated densisty,temp,etc)
-		// i.e. fill vals vector
-		// currently done in FindNeighborList()
+		// i.e. fill vals vector (currently done in FindNeighborList())
+		Spectrum stepTau(0.0);
 		
+		// ensure positivity of integral weights, etc
+		if( vals[TF_VAL_DENS] < 0.0 )
+			vals[TF_VAL_DENS] = 0.0;
+
 		if(status)
 		{
-			// optical depth
-			//Spectrum stepTau(0.0);
-			//stepTau += transferFunction->sigma_t() * ( vals[TF_VAL_DENS] ) * Config.stepSize;
-			////Tr *= Exp(-stepTau); // reduce transmittance for optical depth
-						
-			// compute emission-only source term using transfer function
-			Lv += Tr * transferFunction->Lve(vals) * stepSize;
-				
-			// update raw column density integrals
-			if( Config.projColDens ) {
-				// ensure positivity of integral weights
-				if( vals[TF_VAL_DENS] < 0.0 )
-					vals[TF_VAL_DENS] = 0.0;
-					
-				// same weighting procedure as in voronoi_makeimage_new()
-				// e.g. weight (Temp,Vmag,Ent,Metal) by rho*len and then normalize out at the end
-				float weight = vals[TF_VAL_DENS] * stepSize;
-				
-				// column density
-				ray.raw_vals[0] += vals[TF_VAL_DENS] * stepSize;
-				
-				// mass-weighted values
-				ray.raw_vals[1] += vals[TF_VAL_TEMP] * weight;
-				ray.raw_vals[2] += vals[TF_VAL_VMAG] * weight;
-				ray.raw_vals[3] += vals[TF_VAL_ENTROPY] * weight;
-				ray.raw_vals[4] += vals[TF_VAL_METAL] * weight;
-				
-				// un-weighted line integrals
-				ray.raw_vals[5] += vals[TF_VAL_SZY] * stepSize;
-				if( vals[TF_VAL_TEMP] >= 1e6 ) // xray restriction: hot gas only (Temp > 1e6 K)
-					ray.raw_vals[6] += vals[TF_VAL_XRAY] * stepSize;
-				if( vals[TF_VAL_TEMP] >= 5e5 && vals[TF_VAL_TEMP] < 1e6 ) // ramp off this step
-					ray.raw_vals[6] += (vals[TF_VAL_TEMP]-5e5)/5e5 * vals[TF_VAL_XRAY] * stepSize;
+			// accumulate optical depth during sampling (reduce transmittance accordingly)
+			// note: Transmittance=1-Opacity
+			Spectrum localAlpha(1.0);
+			if( !(transferFunction->sigma_t() == 0) )
+			{
+				stepTau += transferFunction->sigma_t() * vals[TF_VAL_DENS] * stepSize;
+				localAlpha += -1.0*Exp(-stepTau); // similar to DVR (essentially density weighting)
+				//localAlpha = 1.0; // old behavior
 			}
+		
+			// compute emission-only source term using transfer function
+			Lv += Tr * localAlpha * transferFunction->Lve(vals) * stepSize;
+				
+			Tr *= Exp(-stepTau); // normal pbrt
+			//Tr -= localAlpha * Tr; // similar to DVR
+				
+			// update raw column density integrals, same weighting procedure as in voronoi_makeimage_new()
+			// e.g. weight (Temp,Vmag,Ent,Metal) by rho*len and then normalize out at the end
+			float weight = vals[TF_VAL_DENS] * stepSize;
+			
+			// column density
+			ray.raw_vals[0] += vals[TF_VAL_DENS] * stepSize;
+			
+			// mass-weighted values
+			ray.raw_vals[1] += vals[TF_VAL_TEMP] * weight;
+			ray.raw_vals[2] += vals[TF_VAL_VMAG] * weight;
+			ray.raw_vals[3] += vals[TF_VAL_ENTROPY] * weight;
+			ray.raw_vals[4] += vals[TF_VAL_METAL] * weight;
+
+			ray.raw_vals[7] += vals[TF_VAL_BMAG] * weight;
+			ray.raw_vals[8] += vals[TF_VAL_SHOCKDEDT] * weight;
+			
+			// un-weighted line integrals
+			ray.raw_vals[5] += vals[TF_VAL_SZY] * stepSize;
+			if( vals[TF_VAL_TEMP] >= 1e6 ) // xray restriction: hot gas only (Temp > 1e6 K)
+				ray.raw_vals[6] += vals[TF_VAL_XRAY] * stepSize;
+			if( vals[TF_VAL_TEMP] >= 5e5 && vals[TF_VAL_TEMP] < 1e6 ) // ramp off this step
+				ray.raw_vals[6] += (vals[TF_VAL_TEMP]-5e5)/5e5 * vals[TF_VAL_XRAY] * stepSize;
 		}
 
 		// update ray: transfer to next voronoi cell (possibly on different task)
