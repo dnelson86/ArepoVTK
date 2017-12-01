@@ -3,7 +3,7 @@
 %----  Relevant files 
 
 InitCondFile	    ./unused
-OutputDir           ./output/
+OutputDir           ./output
 EnergyFile          unused
 InfoFile            unused
 TimingsFile         unused
@@ -19,14 +19,15 @@ SnapFormat         3
 
 %---- CPU-time limits
 
-TimeLimitCPU              21600  % 6 hours in seconds
-CpuTimeBetRestartFile     7200   % 2 hours in seconds
+TimeLimitCPU              21600  % unused
+CpuTimeBetRestartFile     7200   % unused
 ResubmitOn                0
 ResubmitCommand           unused
 
 %----- Memory alloction
 
-MaxMemSize        40000         % sets maximum memory use in MByte
+%MaxMemSize        32000 % subbox0.2000 for mesh
+MaxMemSize        22000       % sets maximum memory use in MByte
 BufferSize        100          % in MByte
 BufferSizeGravity 100
 
@@ -49,7 +50,7 @@ CellShapingSpeed  0.5          % sets speed of CM correction
 
 TimeBegin           0.0        % Begin of the simulation
 TimeMax	            1.0        % End of the simulation
-BoxSize             75000.0
+BoxSize             7500.0     % subbox0
 
 %---- Basic code options that set the type of simulation
 
@@ -71,7 +72,7 @@ OutputListOn              0
 TimeBetSnapshot           0.1
 TimeOfFirstSnapshot       0.0
 TimeBetStatistics         0.01
-NumFilesPerSnapshot       1
+NumFilesPerSnapshot       512
 NumFilesWrittenInParallel 1
 
 %---- Accuracy of time integration
@@ -115,13 +116,13 @@ GravityConstantInternal  0
 
 MinGasHsmlFractional 0.25   % in principal obsolete
 GasSoftFactor      2.5
-SofteningGas       0
+SofteningGas       1.0
 SofteningHalo      0
 SofteningDisk      0
 SofteningBulge     0
 SofteningStars     0
 SofteningBndry     0
-SofteningGasMaxPhys       0  % obsolete
+SofteningGasMaxPhys       0.5
 SofteningHaloMaxPhys      0
 SofteningDiskMaxPhys      0
 SofteningBulgeMaxPhys     0           
@@ -134,6 +135,17 @@ SofteningBndryMaxPhys     0
 %SpecialBoundaryMotion 4
 %SpecialBoundaryType   1
 %OutflowPressure       0
+
+%---- Parameters for star formation model
+%CritPhysDensity      0       % critical physical density for star formation(in cm^(-3))
+%MaxSfrTimescale      2.27    % in internal time units (1.5)
+%CritOverDensity      57.7    % overdensity threshold value
+%TempSupernova        5.73e7  % in Kelvin (1.0e8)
+%TempClouds           1000.0  % in Kelvin
+%FactorSN             0.1     % changed internally
+%FactorEVP            573.0   % (1000.0)
+%TemperatureThresh    0
+%TreecoolFile         ../Arepo/data/TREECOOL_fg_dec11
 
 % End
 

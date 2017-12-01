@@ -111,25 +111,33 @@ Version Roadmap:
  +v0.44
   - within custom loading, load DM, Stars, and BHs for rendering (one at a time)
    - transfer functions fields for each that make sense for Illustris
-  - stars: use BC03 stellar photometric tables for U,B,V,K,g,r,i,z band images
+  - fisheye (180 deg) and environment (360 deg) non-linear cameras
+  - QuadIntersectionIntegrator (based on single-pass wireframe rendering)
+  - remove RasterizeLine approach, do bbox lines inside rays based on bbox intersection
+   - attenuation based on ray optical depth before reaching line
 
  +v0.45
+  - visualization voronoi mesh based within rays upon each edge intersection
+  - "splat" integrator via disc intersection testing + kdtree?
+  - stars: use BC03 stellar photometric tables for U,B,V,K,g,r,i,z band images
+
+ +v0.46
   - keyframe transfer function settings
   - time navigation (multiple snapshots, time interpolation)
    - subboxes: render bbox's, update from disk at different interval than fullbox
   - movie pipeline
    - frame metadata (XML/MKV container?)  
 
- +v0.46
+ +v0.47
   - fix/verify exact NNI
   - Watson-Sambridge NNI
   - Liang-Hale NNI
 
- +v0.47
+ +v0.48
   - load group catalogs, merger trees
    - track halos in time
 
- +v0.48
+ +v0.49
   - 2D transfer functions, e.g. f(rho,T)	 
   - derived fields for TFs (e.g. temp, coolingrate)
   - johnston convolved planck BB temp emission TF

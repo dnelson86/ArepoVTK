@@ -111,9 +111,25 @@ TransferFunc1D::TransferFunc1D(short int ty, short int vn,
 				
 				ctStep = (ctMinMax[1]-ctMinMax[0]) / colorTableLen;
 		}
+		
+		// linear (segmented)
+		if (type == 7) {
+				if (spec.empty() || spec.size() != 2 || params.size() != 2) {
+						IF_DEBUG(cout << "TF1D: Error! Linear type but spec/params out of bounds." << endl);
+						exit(1112);
+				}
+				
+				range[0] = params[0]; // min data value
+				range[1] = params[1]; // max data value
+				
+				spec[0].ToRGB(rgb_a); // min color
+				spec[1].ToRGB(rgb_b); // max color
+				//le       = spec[0]; 
+				//le_end   = spec[1]; 
+		}
 
 		// unrecognized type / val
-		if (type < 0 || type > 6)
+		if (type < 0 || type > 7)
 				exit(1110);
 		if (valNum < 0 || valNum >= TF_NUM_VALS)
 				exit(1112);
@@ -140,7 +156,6 @@ void TransferFunc1D::CheckReverse()
 		}
 		
 		// calculate a max/min of all the RGB values
-
 		float curMax = 0.0, curMin = INFINITY;
 		
 		for (size_t i = 0; i < colorTableVals.size()/4; i++) {
@@ -245,6 +260,18 @@ Spectrum TransferFunc1D::Lve(const vector<float> &vals) const
 				rgb[1] = alpha * mult * Lerp(t,colorTableVals[left*4+1],colorTableVals[right*4+1]);
 				rgb[2] = alpha * mult * Lerp(t,colorTableVals[left*4+2],colorTableVals[right*4+2]);
 		}		
+		
+		// linear segmented
+		if (type == 7) {
+			float t = Clamp( (vals[valNum] - range[0]) / (range[1]-range[0]), 0.0, 1.0 );
+			
+			float alpha = 1.0;
+			//float alpha = 1.0 * vals[TF_VAL_DENS]/1e-6;
+			
+			rgb[0] = alpha * Lerp(t,rgb_a[0],rgb_b[0]);
+			rgb[1] = alpha * Lerp(t,rgb_a[1],rgb_b[1]);
+			rgb[2] = alpha * Lerp(t,rgb_a[2],rgb_b[2]);
+		}
 				
 		return Spectrum::FromRGB(rgb);
 
@@ -269,6 +296,8 @@ TransferFunction::TransferFunction(const Spectrum &sig_a)
 		valNums["Metal"]   = 4;
 		valNums["SzY"]     = 5;
 		valNums["XRay"]    = 6;
+		valNums["BMag"]    = 7;
+		valNums["ShockDeDt"] = 8;
 		
 		// scattering
 		sig_s = 0.0f;
@@ -461,6 +490,32 @@ bool TransferFunction::AddGaussianDiscrete(int valNum, string ctName, float ctMi
 		return true;
 }
 
+bool TransferFunction::AddLinear(int valNum, float min, float max, Spectrum &s_min, Spectrum &s_max)
+{
+		IF_DEBUG(cout << "TF::AddLinear(" << valNum << ",sp) range [" << min << "," << max 
+									<< "] new numFuncs = " << numFuncs+1 << endl);
+		
+		TransferFunc1D *f;
+		vector<float> params;
+		vector<Spectrum> spec;
+		string ctName; // dummy
+		
+		// set constant type and spectrum
+		short int type = 7;
+		spec.push_back(s_min);
+		spec.push_back(s_max);
+		params.push_back(min);
+		params.push_back(max);
+		
+		// create and store
+		f = new TransferFunc1D(type, valNum, params, spec, ctName);
+		
+		f_1D.push_back(f);
+		numFuncs++;
+		
+		return true;
+}
+
 bool TransferFunction::AddParseString(string &addTFstr)
 {
 		if (Config.verbose)
@@ -588,6 +643,32 @@ bool TransferFunction::AddParseString(string &addTFstr)
 				float sigma = atof(p[6].c_str());
 				
 				AddGaussianDiscrete(valNum,p[2],ctMin,ctMax,mean,sigma);
+		} else if (p[0] == "linear") {
+				Spectrum spec_end;
+				
+				if (p.size() == 6) {
+						spec = Spectrum::FromNamed(p[4]);
+						spec_end = Spectrum::FromNamed(p[5]);
+				} else if (p.size() == 10) {
+						rgb[0] = atof(p[4].c_str());
+						rgb[1] = atof(p[5].c_str());
+						rgb[2] = atof(p[6].c_str());
+						spec = Spectrum::FromRGB(rgb);
+						
+						rgb[0] = atof(p[7].c_str());
+						rgb[1] = atof(p[8].c_str());
+						rgb[2] = atof(p[9].c_str());
+						spec_end = Spectrum::FromRGB(rgb);
+				} else {
+						//cout << "ERROR: addTF linear string bad: " << addTFstr << endl;
+						//exit(1128);
+						terminate( "ERROR: addTF linear string bad: %s ", addTFstr.c_str() );
+				}
+				
+				float min = atof(p[2].c_str());
+				float max = atof(p[3].c_str());
+				
+				AddLinear(valNum,min,max,spec,spec_end);
 		}
 		
 		return true;

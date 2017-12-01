@@ -4,6 +4,7 @@
  */
 
 #include "fileio.h"
+#include "fileio_img.h"
 
 // ConfigSet
 void ConfigSet::ReadFile(string cfgfile)
@@ -25,7 +26,6 @@ void ConfigSet::ReadFile(string cfgfile)
 		while (is || nextLine.length() > 0) {
 				// read line
 				string line = "";
-				//bool term   = false;
 				
 				if (nextLine.length() > 0) {
 						line     = nextLine;
@@ -67,8 +67,11 @@ void ConfigSet::ReadFile(string cfgfile)
 		// Input/Output
 		imageFile     = readValue<string>("imageFile",  "frame.tga");
 		rawRGBFile    = readValue<string>("rawRGBFile", "frame.raw.txt");
-		filename      = readValue<string>("filename");
+		filename      = readValue<string>("filename", "none");
 		paramFilename = readValue<string>("paramFilename");
+		writeRGB8bit  = readValue<bool>("writeRGB8bit",  true); // png
+		writeRGB16bit = readValue<bool>("writeRGB16bit", false); // png
+		writeRGBA8bit = readValue<bool>("writeRGBA8bit", false); // png
 		
 		// General
 		nTasks        = readValue<int> ("nTasks",        1);
@@ -90,57 +93,87 @@ void ConfigSet::ReadFile(string cfgfile)
 		imageXPixels  = readValue<int>  ("imageXPixels", 500);
 		imageYPixels  = readValue<int>  ("imageYPixels", 500);
 		swScale       = readValue<float>("swScale",      1.0f);
-		cameraFOV     = readValue<float>("cameraFOV",    0.0f); // 0 = ortho
+		cameraType    = readValue<string>("cameraType",  "ortho");
+		cameraFOV     = readValue<float>("cameraFOV",    0.0f); // degrees
 		splitStrArray( readValue<string>("cameraPosition") , &cameraPosition[0]   );
 		splitStrArray( readValue<string>("cameraLookAt")   , &cameraLookAt[0] );
 		splitStrArray( readValue<string>("cameraUp")       , &cameraUp[0] );
 	
 		// Data Processing
+		readPartType          = readValue<int>("readPartType", 0);
 		splitStrArray( readValue<string>("recenterBoxCoords", "-1 -1 -1") , &recenterBoxCoords[0] );
 		convertUthermToKelvin = readValue<bool>("convertUthermToKelvin", false);
+		takeLogUtherm         = readValue<bool>("takeLogUtherm", false);
+		takeLogDens           = readValue<bool>("takeLogDens", false);
 
 		// Animation
 		startFrame    = readValue<int>("startFrame",     0);	
 		numFrames     = readValue<int>("numFrames",      1);
 		timePerFrame  = readValue<float>("timePerFrame", 1.0);
-		maxInv        = -1;
+		minScale      = readValue<float>("minScale", -1.0);
+		maxScale      = readValue<float>("maxScale", -1.0);
+		minAlpha      = readValue<float>("minAlpha", -1.0);
+		maxAlpha      = readValue<float>("maxAlpha", -1.0);
 	
 		// Render
 		drawBBox      = readValue<bool>("drawBBox",      true);
 		drawTetra     = readValue<bool>("drawTetra",     true);	
 		drawVoronoi   = readValue<bool>("drawVoronoi",   false);
+		drawSphere    = readValue<bool>("drawSphere",    false);
 
-		projColDens      = readValue<bool>("projColDens",     false); // write raw values
-
-		nTreeNGB         = readValue<int>("nTreeNGB",             0); // disabled by default
-		viStepSize       = readValue<float>("viStepSize",      0.0f); // disabled by default
-		rayMaxT          = readValue<float>("rayMaxT",         0.0f);
+		projColDens   = readValue<bool>("projColDens",     false); // write raw values
+		nTreeNGB      = readValue<int>("nTreeNGB",             0); // disabled by default
+		viStepSize    = readValue<float>("viStepSize",      0.0f); // disabled by default
+		rayMaxT       = readValue<float>("rayMaxT",         0.0f);
 		
 		// rgb triplets input		
 		splitStrArray( readValue<string>("rgbLine",     "0.1  0.1  0.1")  , &rgbLine[0]    );
 		splitStrArray( readValue<string>("rgbTetra",    "0.01 0.01 0.01") , &rgbTetra[0]   );
 		splitStrArray( readValue<string>("rgbVoronoi",  "0.0  0.05 0.0")  , &rgbVoronoi[0] );
-		splitStrArray( readValue<string>("rgbAbsorb",   "0.0  0.05 0.0")  , &rgbAbsorb[0]  );
+		splitStrArray( readValue<string>("rgbAbsorb",   "0.0  0.0  0.0")  , &rgbAbsorb[0]  );
 		
 		// basic validation
-		if (projColDens && !totNumJobs)
-			terminate("Config: ERROR! projColDens only with totNumJobs>0 (custom load).");
+		//if (projColDens && !totNumJobs)
+		//	terminate("Config: ERROR! projColDens only with totNumJobs>0 (custom load).");
 		if (totNumJobs < 0 || totNumJobs > 16*16)
 			terminate("Config: ERROR! Strange totNumJobs value, should be >=0 and <256");
-		//if (convertUthermToKelvin && !totNumJobs)
-		//	terminate("Config: ERROR! convertUthermToKelvin only with totNumJobs>0 (custom load).");
-		//if (recenterBoxCoords[0] > 0 && !totNumJobs)
-		//	terminate("Config: ERROR! Currently can only recenter box with totNumJobs>0 (custom load).");
-		//if (!convertUthermToKelvin && projColDens)
-		//	terminate("Config: ERROR! Cannot write raw field of SZ_Y without assuming Utherm is in Kelvin.");
+		if (jobExpansionFac != 1 && jobExpansionFac != 2 && jobExpansionFac != 4)
+			terminate("Config: ERROR! Odd choice of jobExpansionFac.");
+			
+		// data read/TFs
+		if (readPartType != 0 && readPartType != 1)
+			terminate("Config: ERROR! Unsupported readPartType.");
+		if (takeLogDens && (rgbAbsorb[0] > 0.0 || rgbAbsorb[1] > 0.0 || rgbAbsorb[2] > 0.0))
+			terminate("Config: WARNING: Will be using log(density) weighting due to nonzero absorption (maybe ok).");
+			
+		// render setup validation
 		if (viStepSize == 0.0 && nTreeNGB)
 			terminate("Config: ERROR! Need to specify viStepSize!=0 if nTreeNGB>0.");
 #if !defined(NATURAL_NEIGHBOR_IDW) && !defined(NATURAL_NEIGHBOR_SPHKERNEL)
 		if (nTreeNGB)
 			terminate("Config: ERROR! Must enable IDW or SPHKERNEL for nTreeNGB>0.");
 #endif
-		if (jobExpansionFac != 1 && jobExpansionFac != 2 && jobExpansionFac != 4)
-			terminate("Config: ERROR! Odd choice of jobExpansionFac.");
+			
+		// camera type mappings
+		if (cameraType == "ortho") { cameraType = "orthographic"; }
+		if (cameraType == "persp") { cameraType = "perspective"; }
+		if (cameraType == "env")   { cameraType = "environmental"; }
+		if (cameraType == "fish")  { cameraType = "fisheye"; }
+		if (cameraType == "rift")  { cameraType = "oculusrift"; }
+			
+		// camera validation
+		if (cameraType == "fisheye" && imageXPixels != imageYPixels)
+			terminate("Config: ERROR! Fisheye camera only supports square images.");
+		if (cameraType == "environmental" && imageXPixels != 2*imageYPixels)
+			terminate("Config: ERROR! Environment camera requires image width equal to twice the height.");
+		if ((cameraType == "fisheye" || cameraType == "environmental") && swScale != 1.0 )
+			terminate("Config: ERROR! swScale not used for fisheye or environmental (leave at 1.0).");
+		if (cameraType == "environmental" && cameraFOV != 360.0)
+			terminate("Config: ERROR! Environment camera requires 360 degree fov.");
+		if (cameraType == "orthographic" && cameraFOV != 0.0)
+			terminate("Config: ERROR! FOV not used for ortho camera (leave at 0.0).");
+		if (cameraType == "perspective" && (cameraFOV <= 0.0 || cameraFOV >= 180.0))
+			terminate("Config: ERROR! Perspective camera expects sane FOV.");
 			
 		// validation not directly related to config file
 #if defined(NATURAL_NEIGHBOR_INTERP) && !defined(NATURAL_NEIGHBOR_INNER)
@@ -154,7 +187,7 @@ void ConfigSet::print()
 		
 		cout << endl << "CONFIGURATION PARAMETERS USED:" << endl << endl;
 		for (pi = parsedParams.begin(); pi != parsedParams.end(); ++pi) {
-				cout << " " << setw(16) << pi->first << " " << delim << " " << pi->second << endl;
+				cout << " " << setw(22) << pi->first << " " << delim << " " << pi->second << endl;
 		}
 		cout << endl;
 
@@ -226,12 +259,6 @@ void ConfigSet::splitStrArray(const string str, float *rgb) //size=3
 		}
 		delete[] t;
 }
-
-// Image Output
-
-static void WriteImageTGA(const string &name, float *pixels, float *alpha, int xRes, int yRes,
-                          int totalXRes, int totalYRes, int xOffset, int yOffset);
-//static RGBSpectrum *ReadImageTGA(const string &name, int *w, int *h);
 
 bool ReadFloatFile(const char *filename, vector<float> *values)
 {
@@ -407,6 +434,8 @@ int parseSceneFile(const string &filename, int &nx, int &ny, int &nz, vector<flo
 		return ni;
 }
 
+// Image Output
+
 void WriteImage(const string &name, float *pixels, float *alpha, int xRes,
                 int yRes, int totalXRes, int totalYRes, int xOffset, int yOffset)
 {
@@ -419,350 +448,13 @@ void WriteImage(const string &name, float *pixels, float *alpha, int xRes,
                           totalYRes, xOffset, yOffset);
             return;
         }
+				
+        if (!strcmp(name.c_str() + suffixOffset, ".png") ||
+            !strcmp(name.c_str() + suffixOffset, ".PNG")) {
+            WriteImagePNG(name, pixels, alpha, xRes, yRes, totalXRes,
+                          totalYRes, xOffset, yOffset);
+            return;
+        }
     }
     cout << "WriteImage: Can't determine image file type from suffix of filename '" << name << "'!" << endl;
 }
-
-// TGA Function Definitions
-/**\file
- *\section License
- * License: GPL
- * Online License Link: http://www.gnu.org/licenses/gpl.html
- *
- *\author Copyright (c) 2003-2009 Jaakko Keranen <jaakko.keranen@iki.fi>
- *\author Copyright (c) 2009 Daniel Swanson <danij@dengine.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor,
- * Boston, MA  02110-1301  USA
- */
-
-/**
- * gl_tga.c: TGA file format (TARGA) reader/writer.
- */
-
-// HEADER FILES ------------------------------------------------------------
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <stdint.h>
-typedef uint8_t byte;
-
-typedef unsigned char uchar;
-
-// MACROS ------------------------------------------------------------------
-
-#undef SHORT
-#ifdef __BIG_ENDIAN__
-#define SHORT(x)            shortSwap(x)
-# else // Little-endian.
-#define SHORT(x)            (x)
-#endif
-
-// TYPES -------------------------------------------------------------------
-
-typedef struct {
-    uchar           idLength; // Identification field size in bytes.
-    uchar           colorMapType; // Type of the color map.
-    uchar           imageType; // Image type code.
-} tga_header_t;
-
-// Color map specification.
-typedef struct {
-    int16_t         index; // Index of first color map entry.
-    int16_t         length; // Number of color map entries.
-    uchar           entrySize; // Number of bits in a color map entry (16/24/32).
-} tga_colormapspec_t;
-
-// Image specification.
-typedef struct {
-    int16_t         xOrigin; // X coordinate of lower left corner.
-    int16_t         yOrigin; // Y coordinate of lower left corner.
-    int16_t         width; // Width of the image in pixels.
-    int16_t         height; // Height of the image in pixels.
-    uchar           pixelDepth; // Number of bits in a pixel (16/24/32).
-    uchar           attributeBits;
-} tga_imagespec_t;
-
-
-#ifdef __BIG_ENDIAN__
-static int16_t shortSwap(int16_t n)
-{
-    return ((n & 0xff) << 8) | ((n & 0xff00) >> 8);
-}
-#endif
-
-static bool writeByte(FILE* f, uchar b)
-{
-    return (fwrite(&b, 1, 1, f) == 1);
-}
-
-static bool writeShort(FILE* f, int16_t s)
-{
-    int16_t             v = SHORT(s);
-    return (fwrite(&v, sizeof(v), 1, f) == 1);
-}
-
-/* static uchar readByte(FILE* f)
-{
-    uchar               v;
-    fread(&v, sizeof(v), 1, f);
-    return v;
-}
-
-static int16_t readShort(FILE* f)
-{
-    int16_t             v;
-    fread(&v, sizeof(v), 1, f);
-    return v;
-} */
-
-/**
- * @param idLength      Identification field size in bytes (max 255).
- *                      @c 0 indicates no identification field.
- * @param colorMapType  Type of the color map, @c 0 or @c 1:
- *                      @c 0 = color map data is not present.
- *                      @c 1 = color map data IS present.
- * @param imageType     Image data type code, one of:
- *                      @c 0 = no image data is present.
- *                      @c 1 = uncompressed, color mapped image.
- *                      @c 2 = uncompressed, true-color image.
- *                      @c 3 = uncompressed, grayscale image.
- *                      @c 9 = run-length encoded, color mapped image.
- *                      @c 10 = run-length encoded, true-color image.
- *                      @c 11 = run-length encoded, grayscale image.
- * @param file          Handle to the file to be written to.
- */
-static void writeHeader(uchar idLength, uchar colorMapType, uchar imageType,
-                        FILE* file)
-{
-    writeByte(file, idLength);
-    writeByte(file, colorMapType? 1 : 0);
-    writeByte(file, imageType);
-}
-
-/* static void readHeader(tga_header_t* dst, FILE* file)
-{
-    dst->idLength = readByte(file);
-    dst->colorMapType = readByte(file);
-    dst->imageType = readByte(file);
-} */
-
-/**
- * @param index         Index of first color map entry.
- * @param length        Total number of color map entries.
- * @param entrySize     Number of bits in a color map entry; 15/16/24/32.
- * @param file          Handle to the file to be written to.
- */
-static void writeColorMapSpec(int16_t index, int16_t length,
-                              uchar entrySize, FILE* file)
-{
-    writeShort(file, index);
-    writeShort(file, length);
-    writeByte(file, entrySize);
-}
-
-/* static void readColorMapSpec(tga_colormapspec_t* dst, FILE* file)
-{
-    dst->index = readShort(file);
-    dst->length = readShort(file);
-    dst->entrySize = readByte(file);
-} */
-
-/**
- * @param xOrigin       X coordinate of lower left corner.
- * @param yOrigin       Y coordinate of lower left corner.
- * @param width         Width of the image in pixels.
- * @param height        Height of the image in pixels.
- * @param pixDepth      Number of bits per pixel, one of; 16/24/32.
- * @param file          Handle to the file to be written to.
- */
-static void writeImageSpec(int16_t xOrigin, int16_t yOrigin,
-                           int16_t width, int16_t height, uchar pixDepth,
-                           FILE* file)
-{
-    writeShort(file, xOrigin);
-    writeShort(file, yOrigin);
-    writeShort(file, width);
-    writeShort(file, height);
-    writeByte(file, pixDepth);
-
-    /**
-     * attributeBits:4; // Attribute bits associated with each pixel.
-     * reserved:1; // A reserved bit; must be 0.
-     * screenOrigin:1; // Location of screen origin; must be 0.
-     * dataInterleave:2; // TGA_INTERLEAVE_*
-     */
-    writeByte(file, 0);
-}
-
-/* static void readImageSpec(tga_imagespec_t* dst, FILE* file)
-{
-    dst->xOrigin = readShort(file);
-    dst->yOrigin = readShort(file);
-    dst->width = readShort(file);
-    dst->height = readShort(file);
-    dst->pixelDepth = readByte(file);
-    dst->attributeBits = readByte(file);
-} */
-
-/**
- * Save the rgb8888 buffer as Targa 24.
- *
- * @param filename      Path to the file to be written to (need not exist).
- * @param w             Width of the image in pixels.
- * @param h             Height of the image in pixels.
- * @param buf           Ptr to the image data to be written.
- *
- * @return              Non-zero iff successful.
- */
-void WriteImageTGA(const string &name, float *pixels,
-        float *alpha, int xRes, int yRes,
-        int totalXRes, int totalYRes,
-        int xOffset, int yOffset)
-{
-    FILE*               file;
-    uchar*              outBuf;
-
-    if ((file = fopen(name.c_str(), "wb")) == NULL) {
-        cout << "WriteImageTGA: Unable to open output file!" << endl;
-        return;
-    }
-
-    // No identification field, no color map, Targa type 2 (unmapped RGB).
-    writeHeader(0, 0, 2, file);
-    writeColorMapSpec(0, 0, 0, file);
-    writeImageSpec(0, 0, xRes, yRes, 24, file);
-
-    // The save format is BGR.
-    outBuf = (uchar *)malloc(xRes * yRes * 3);
-    uchar *dst = outBuf;
-    for (int y = yRes-1; y >= 0; --y) {
-        for (int x = 0; x < xRes; ++x) {
-#define TO_BYTE(v) (uint8_t(Clamp(255.f * powf((v), 1.f/2.3f), 0.f, 255.f)))
-            dst[0] = TO_BYTE(pixels[3*(y*xRes+x)+2]);
-            dst[1] = TO_BYTE(pixels[3*(y*xRes+x)+1]);
-            dst[2] = TO_BYTE(pixels[3*(y*xRes+x)+0]);
-            dst += 3;
-        }
-    }
-    if (fwrite(outBuf, 1, 3 * xRes * yRes, file) != uint32_t(3*xRes*yRes))
-        cout << "WriteImageTGA: Error writing file!" << endl;
-    free(outBuf);
-    fclose(file);
-}
-
-/**
- * Loads a TGA image (not the RLE types though)
- */
- /*
-static RGBSpectrum *ReadImageTGA(const string &name, int *width, int *height)
-{
-    int                 x, y, pixbytes;
-    tga_header_t        header;
-    tga_colormapspec_t  colorMapSpec;
-    tga_imagespec_t     imageSpec;
-    uchar*              srcBuf;
-    const uchar*        src;
-
-    FILE *file = fopen(name.c_str(), "rb");
-    if (!file) {
-        cout << "ReadImageTGA: Unable to open input file!" << endl;
-        return NULL;
-    }
-
-    // Read and check the header.
-    readHeader(&header, file);
-    readColorMapSpec(&colorMapSpec, file);
-    readImageSpec(&imageSpec, file);
-
-    if (((imageSpec.attributeBits & 0xf) != 8 &&  // num attribute bits
-         (imageSpec.attributeBits & 0xf) != 0) ||
-        ((imageSpec.attributeBits & 0xc0) != 0) || // no interleaving
-        (header.imageType == 2 &&
-          (imageSpec.pixelDepth != 32 && imageSpec.pixelDepth != 24)) ||
-        (header.imageType == 3 &&
-          (imageSpec.pixelDepth != 8)) ||
-        (header.imageType != 2 && header.imageType != 3)) {
-        cout << "ReadImageTGA: Unrecognized format!" << "type=" <, header.imageType 
-				     << " pxsize=" << imageSpec.pixelDepth << " abits=" << imageSpec.attributeBits << ")" << endl;
-        fclose(file);
-        return NULL;
-    }
-
-    *width = imageSpec.width;
-    *height = imageSpec.height;
-
-    // Determine format.
-    if (imageSpec.pixelDepth == 32)
-        pixbytes = 4;
-    else if (imageSpec.pixelDepth == 24)
-        pixbytes = 3;
-    else if (imageSpec.pixelDepth == 8) {
-        pixbytes = 1;
-    } else {
-				cout << "ReadImageTGA: pixelDepth error!" << endl;
-				return NULL;
-		}
-
-    // Read the pixel data.
-    int size = *width * *height * pixbytes;
-    srcBuf = (uchar *)malloc(size);
-    if (fread(srcBuf, 1, size, file) != (uint32_t)size) {
-        cout << "ReadImageTGA: Premature end of file!" << endl;
-        free(srcBuf);
-        fclose(file);
-        return NULL;
-    }
-
-    // "Unpack" the pixels (origin in the lower left corner).
-    // TGA pixels are in BGRA format.
-    src = srcBuf;
-    RGBSpectrum *ret = new RGBSpectrum[*width * *height];
-    RGBSpectrum *dst = ret;
-    for (y = *height - 1; y >= 0; y--)
-        for (x = 0; x < *width; x++) {
-            if (pixbytes == 1)
-                *dst++ = RGBSpectrum((*src++) / 255.f);
-            else {
-                float c[3];
-                c[2] = (*src++) / 255.f;
-                c[1] = (*src++) / 255.f;
-                c[0] = (*src++) / 255.f;
-                *dst++ = RGBSpectrum::FromRGB(c);
-                if (pixbytes == 4)
-                    ++src;
-            }
-    }
-
-    bool flipH = ((imageSpec.attributeBits & 0x10) == 0x10);
-    bool flipV = ((imageSpec.attributeBits & 0x20) == 0x20);
-    if (flipH) {
-        for (y = 0; y < *height; ++y)
-            for (x = 0; x < *width / 2; ++x)
-                swap(ret[y * *width + x], ret[y * *width + (*width - 1 - x)]);
-    }
-    if (flipV) {
-        for (y = 0; y < *height/2; ++y)
-            for (x = 0; x < *width; ++x)
-                swap(ret[y * *width + x], ret[(*height - 1 - y) * *width + x]);
-    }
-    free(srcBuf);
-    fclose(file);
-    cout << "ReadTGAImage: Read " << name << " (" << *width << " x " << *height << ")" << endl;
-    return ret;
-}
-*/

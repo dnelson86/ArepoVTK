@@ -88,6 +88,11 @@ public:
             c[i] /= a;
         return *this;
     }
+    bool operator==(float a) const {
+        for (int i = 0; i < nSamples; ++i)
+            if (c[i] != a) return false;
+        return true;
+    }
     bool operator==(const CoefficientSpectrum &sp) const {
         for (int i = 0; i < nSamples; ++i)
             if (c[i] != sp.c[i]) return false;
@@ -162,6 +167,14 @@ public:
 				} else if (name == "blue") {
 						s.c[0] = 0.0f;
 						s.c[1] = 0.0f;
+						s.c[2] = 0.1f;
+				} else if (name == "black") {
+						s.c[0] = 0.0f;
+						s.c[1] = 0.0f;
+						s.c[2] = 0.0f;
+				} else if (name == "white") {
+						s.c[0] = 0.1f;
+						s.c[1] = 0.1f;
 						s.c[2] = 0.1f;
 				}
 				return s;

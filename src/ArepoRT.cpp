@@ -50,7 +50,7 @@ void rtRenderFrames()
 	     << Config.numFrames << "] frames:" << endl;		
 	
 	// loop for requested frames	
-	for(int i = Config.startFrame; i < Config.numFrames; i++)
+	for(int i = Config.startFrame; i < Config.startFrame+Config.numFrames; i++)
 	{
 		// set all frame properties based on current frame and requested keyframes
 		fm->Advance(i);
@@ -64,13 +64,12 @@ void rtRenderFrames()
 			vi = CreateTreeSearchVolumeIntegrator();
 		else
 			vi = CreateVoronoiVolumeIntegrator();
+			
+		//vi = CreateQuadIntersectionIntegrator();
 
 		Filter *filter       = CreateBoxFilter();
 		Film *film           = CreateFilm(filter);
-		Camera *camera       = NULL;
-		
-		if (Config.cameraFOV)	camera = CreatePerspectiveCamera(Inverse(world2camera), film);
-		else                  camera = CreateOrthographicCamera(Inverse(world2camera), film);
+		Camera *camera       = CreateCamera(Inverse(world2camera), film);
 			
 		Sampler *sampler     = CreateStratifiedSampler(film, camera);
 		Renderer *re         = new Renderer(sampler, camera, vi);
@@ -84,11 +83,6 @@ void rtRenderFrames()
 	
 	delete scene;
 	
-	for( int i=0; i < NumGas; i++ )
-		if( SphP[i].OldMass < 0.0 ) {
-			cout << "Error: After finished, found [" << i << "] entropy = " << SphP[i].OldMass << endl;
-			exit(1207);
-		}
 }
 
 void arepoTestOverrides()
@@ -221,14 +215,15 @@ int main (int argc, char* argv[])
 
 	cout     << endl << endl
 	     << "   v" << AREPO_RT_VERSION << " (" << __DATE__      << ")"
-			 << ". Author: Dylan Nelson (dnelson@cfa.harvard.edu)" << endl << endl;
+			 << ". Author: Dylan Nelson (dnelson@mpa-garching.mpg.de)" << endl << endl;
 	IF_DEBUG(cout << "DEBUGGING ENALBED.\n\n");
 	
 	// command line arguments
 	int c;
 	int curJobNum = -1;
 	int expJobNum = -1;
-	string snapNum = "";
+	int snapNum = -1;
+	string snapNumStr = "";
 	
 	opterr = 0;
 	
@@ -251,7 +246,8 @@ int main (int argc, char* argv[])
 			}
 			case 's':
 			{
-				string snapNum = optarg;
+				snapNumStr = optarg;
+				istringstream( snapNumStr ) >> snapNum;
 
 				break;
 			}
@@ -313,25 +309,45 @@ int main (int argc, char* argv[])
 	}
 	
 	// process 's' input
-	if( snapNum != "" )
+	if( snapNumStr != "" )
 	{
 		const char padChar = '0';
 
 		 // snapshot file number
-		if( snapNum.size() < 3 )
-			snapNum.insert(0, 3-snapNum.size(), padChar);
-		size_t start_pos = Config.filename.find("NUM");
+		if( snapNumStr.size() < 3 )
+			snapNumStr.insert(0, 3-snapNumStr.size(), padChar);
+			
+		size_t start_pos = Config.filename.find("NUMM");
 		if( start_pos == string::npos ) {
-			cout << "ERROR: Snapshot specified but no wildcard 'NUM' in path string." << endl;
+			cout << "ERROR: Snapshot specified but no wildcard 'NUMM' in path string." << endl;
 			return 0;
 		}
-		Config.filename.replace(start_pos, 3, snapNum);
+		Config.filename.replace(start_pos, 4, snapNumStr);
+		
+		// second search (filename instead of directory name)
+		start_pos = Config.filename.find("NUMM");
+		if( start_pos != string::npos )
+			Config.filename.replace(start_pos, 4, snapNumStr);
 
 		 // output image numbering
-		if( snapNum.size() < 4 )
-			snapNum.insert(0, 4-snapNum.size(), padChar);
+		if( snapNumStr.size() < 4 )
+			snapNumStr.insert(0, 4-snapNumStr.size(), padChar);
 			
-		Config.imageFile += "_" + snapNum;
+		// replace in output filename
+		start_pos = Config.imageFile.find("NUMM");
+		if( start_pos != string::npos ) {
+			Config.imageFile.replace(start_pos, 4, snapNumStr);
+		}
+		else {
+			cout << "ERROR: Snapshot specified but no wildcard 'NUMM' in imagePath string." << endl;
+			return 0;
+		}
+		
+		// subbox0 render: set frame number equal to snapshot number
+		cout << "Subbox0 Render: setting frame number equal to snap number!" << endl;
+		Config.startFrame = snapNum;
+		Config.numFrames = 1;
+		// end subbox0 render
 	}
 	
 	if (Config.verbose)

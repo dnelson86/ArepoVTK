@@ -64,7 +64,7 @@ nTreeNGB         = 40                 % use tree-based search integrator instead
 viStepSize       = 50.0               % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
 rayMaxT          = 1000000.0         % maximum ray integration parametric length
-rgbLine          = 5.0 5.0 5.0       % (RGB) bounding box
+rgbLine          = 1.0 1.0 1.0       % (RGB) bounding box
 rgbTetra         = 0.01 0.01 0.01    % (RGB) tetra edges
 rgbVoronoi       = 0.0 0.05 0.0      % (RGB) voronoi edges
 rgbAbsorb        = 0.0 0.0 0.0       % (RGB) absorption

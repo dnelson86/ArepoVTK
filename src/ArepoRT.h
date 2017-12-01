@@ -7,7 +7,7 @@
 #define AREPO_RT_H
 
 // defines
-#define AREPO_RT_VERSION    0.42
+#define AREPO_RT_VERSION    0.44
 #define L1_CACHE_LINE_SIZE  64
 #define FILTER_TABLE_SIZE   16
 #define TASK_MULT_FACT      8 //32
@@ -15,12 +15,13 @@
 #define INFINITY            FLT_MAX
 #define INSIDE_EPS          1.0e-6
 #define AUXMESH_ALLOC_SIZE  4000
-#define TF_NUM_VALS         7 // see transfer.h
+#define TF_NUM_VALS         9 // see transfer.h
 
 #define MSUN_PER_PC3_IN_CGS 6.769e-23
 
 // for selective load (temporary)
-#define READ_PARTTYPE 0
+#define PARTTYPE_GAS  0
+#define PARTTYPE_DM   1
 #define TILESIZE      256
 
 // behavior options
@@ -41,7 +42,7 @@
 
 /* interpolation method options */
 
-//#define NO_GHOST_CONTRIBS // only for SPHKERNEL, do not use
+#define NO_GHOST_CONTRIBS // only for SPHKERNEL, do not use
                             // ghosts for hsml/TF (i.e. for reflective BCs but we are doing
                             // periodic meshing, the ghosts are incorrect and should be skipped)
 //#define NNI_DISABLE_EXACT // for bruteforce NNI disable exact geometry computations
@@ -60,7 +61,7 @@
  *   (at least some some neighbors will not contribute, and if this is too big, the
  *    containing cell may also not contribute, leading to black holes)
  */
-#define HSML_FAC 1.0
+#define HSML_FAC 1.2
 
 /* special behavior */
 //#define DEBUG_VERIFY_INCELL_EACH_STEP

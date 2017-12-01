@@ -109,7 +109,7 @@ public:
 		// methods
     virtual float GenerateRay(const CameraSample &sample, Ray *ray) const = 0;
 		
-		bool RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L);
+		virtual bool RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L) const = 0;
 
     // data
     Transform CameraToWorld;
@@ -120,18 +120,8 @@ protected:
     // private data
     Transform CameraToScreen, RasterToCamera;
     Transform ScreenToRaster, RasterToScreen;
+		Transform WorldToRaster;
     float lensRadius, focalDistance;
-};
-
-class ProjCamera : public Camera {
-public:
-		ProjCamera(const Transform &cam2world, const Transform &proj, const float screenWindow[4],
-							 float sopen, float sclose, float lensr, float focald, Film *film);
-protected:
-		// private data
-    //Transform CameraToScreen, RasterToCamera;
-    //Transform ScreenToRaster, RasterToScreen;
-    //float lensRadius, focalDistance;
 };
 
 class OrthoCamera : public Camera {
@@ -140,26 +130,46 @@ public:
     OrthoCamera(const Transform &cam2world, const float screenWindow[4],
         float sopen, float sclose, float lensr, float focald, Film *film);
     float GenerateRay(const CameraSample &sample, Ray *) const;
+		bool RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L) const;
 		
 private:
     // data
     Vector dxCamera, dyCamera;
 };
 
-class PerspectiveCamera : public ProjCamera {
+class PerspectiveCamera : public Camera {
 public:
 		// methods
     PerspectiveCamera(const Transform &cam2world, const float screenWindow[4],
 											float sopen, float sclose, float lensr, float focald, float fov, Film *film);
     float GenerateRay(const CameraSample &sample, Ray *) const;
+		bool RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L) const;
 		
 private:
 		// data
 		Vector dxCamera, dyCamera;
-
 };
 
+class FisheyeCamera : public Camera {
+public:
+		// methods
+    FisheyeCamera(const Transform &cam2world, float sopen, float sclose, Film *film);
+    float GenerateRay(const CameraSample &sample, Ray *) const;
+		bool RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L) const;
+};
+
+class EnvironmentCamera : public Camera {
+public:
+		// methods
+    EnvironmentCamera(const Transform &cam2world, float sopen, float sclose, Film *film);
+    float GenerateRay(const CameraSample &sample, Ray *) const;
+		bool RasterizeLine(const Point &p1, const Point &p2, const Spectrum &L) const;
+};
+
+Camera *CreateCamera(const Transform &cam2world, Film *film);
 OrthoCamera *CreateOrthographicCamera(const Transform &cam2world, Film *film);
 PerspectiveCamera *CreatePerspectiveCamera(const Transform &cam2world, Film *film);
+FisheyeCamera *CreateFisheyeCamera(const Transform &cam2world, Film *film);
+EnvironmentCamera *CreateEnvironmentCamera(const Transform &cam2world, Film *film);
 
 #endif

@@ -55,7 +55,7 @@ void FrameManager::AddParseString(string &addTFstr)
 	// temporary sanity checks
 	if (qName != "cameraX" && qName != "cameraY" && qName != "cameraZ" && 
 	    qName != "lookAtX" && qName != "lookAtY" && qName != "lookAtZ" && 
-	    qName != "rotXY") {
+	    qName != "rotXY" && qName != "rotXZ") {
 		cout << "ERROR: addKF unsupported parameter to keyframe: " << qName << endl;
 		exit(1165);
 	}
@@ -80,6 +80,8 @@ void FrameManager::AddParseString(string &addTFstr)
 		startVal = Config.cameraLookAt[2];
 	if( qName == "rotXY" )
 		startVal = -1.0; // angle in radians, override when rotation starts
+	if( qName == "rotXZ" )
+		startVal = -1.0;
 	
 	// add to keyframe arrays
 	start.push_back(startTime);
@@ -118,13 +120,25 @@ void FrameManager::Advance(int curFrame)
 			continue;
 	
 		// set start_val for rotation (angle offset) if needed
-                float rad = sqrt( pow(cameraPosition[0]-cameraLookAt[0],2) +
-                                  pow(cameraPosition[1]-cameraLookAt[1],2) ); // only for rotXY
+		float rad = 0.0;
 
 		if( quantity[i] == "rotXY" && start_val[i] < 0.0 )
 		{
 			start_val[i] = asin( (cameraPosition[0] - cameraLookAt[0]) / rad );
 			stop_val[i] += start_val[i];	
+			
+			rad = sqrt( pow(cameraPosition[0]-cameraLookAt[0],2) +
+								  pow(cameraPosition[1]-cameraLookAt[1],2) );
+		}
+		
+		if( quantity[i] == "rotXZ" && start_val[i] < 0.0 )
+		{
+			start_val[i] = 0.0;
+			stop_val[i] += start_val[i];
+			
+			// this is to re-produce Mark's inside subbox0 movie rotation
+			rad = sqrt( pow(cameraPosition[0]-cameraLookAt[0],2) +
+								  pow(cameraPosition[2]-cameraLookAt[2],2) );
 		}
 
 		float duration = (stop[i]-start[i]);
@@ -167,6 +181,15 @@ void FrameManager::Advance(int curFrame)
 			// progress camera along rotation
 			cameraPosition[0] = rad * sin( curVal + start_val[i] ) + cameraLookAt[0];
 			cameraPosition[1] = rad * cos( curVal + start_val[i] ) + cameraLookAt[1];
+		}
+		
+		// "rotXZ": do a continual orbit/rotation in the y-plane (curVal, from 0 to 2pi)
+		if( quantity[i] == "rotXZ" )
+		{
+			cout << " curVal : " << curVal << " sin: " << sin(curVal) << endl;
+			// progress camera along rotation
+			cameraPosition[0] = rad * cos( curVal + start_val[i] ) + cameraLookAt[0];
+			cameraPosition[2] = rad * sin( curVal + start_val[i] ) + cameraLookAt[2];
 		}
 		
 	}

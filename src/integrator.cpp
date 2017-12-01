@@ -145,6 +145,9 @@ Spectrum VoronoiIntegrator::Li(const Scene *scene, const Renderer *renderer, con
 		IF_DEBUG(cout << " t0 = " << t0 << " t1 = " << t1
 									<< " ray.min_t = " << ray.min_t << " ray.max_t = " << ray.max_t << endl);		
 		
+		// no actual gas cells (no snapshot loaded, doing something else)?
+		if( !NumGas )
+			return Lv;
 
 		// find the voronoi cell the ray will enter (or be in) first
 		scene->arepoMesh->LocateEntryCell(ray, prevEntryCell);
@@ -342,4 +345,161 @@ Spectrum TreeSearchIntegrator::Li(const Scene *scene, const Renderer *renderer, 
 TreeSearchIntegrator *CreateTreeSearchVolumeIntegrator()
 {
     return new TreeSearchIntegrator();
+}
+
+// ------------------------------- QuadIntersectionIntegrator -------------------------------
+void QuadIntersectionIntegrator::Preprocess(const Scene *scene, const Camera *camera, const Renderer *renderer)
+{
+		// calculate quads for hemisphere
+		Point p0,p1,p2,p3;
+		float theta[4], phi[4], rr[4];
+		int N = 72; //36;
+		
+		for(int j=0; j < N/2; j++)
+		{
+			for(int i=-N/2; i < N/2; i++)
+			{
+				theta[0] = (j+0) * M_PI / N;
+				theta[1] = (j+1) * M_PI / N;
+				theta[2] = theta[1];
+				theta[3] = theta[0];
+				
+				phi[0] = i * 2 * M_PI / N;
+				phi[1] = phi[0];
+				phi[2] = (i+1) * 2 * M_PI / N;
+				phi[3] = phi[2];
+										
+				p0.x = sin(theta[0]) * sin(phi[0]);
+				p0.y = sin(theta[0]) * cos(phi[0]);
+				p0.z = cos(theta[0]);
+				p1.x = sin(theta[1]) * sin(phi[1]);
+				p1.y = sin(theta[1]) * cos(phi[1]);
+				p1.z = cos(theta[1]);
+				p2.x = sin(theta[2]) * sin(phi[2]);
+				p2.y = sin(theta[2]) * cos(phi[2]);
+				p2.z = cos(theta[2]);
+				p3.x = sin(theta[3]) * sin(phi[3]);
+				p3.y = sin(theta[3]) * cos(phi[3]);
+				p3.z = cos(theta[3]);
+				
+				rr[0] = p0.x * p0.x + p0.y * p0.y;
+				rr[1] = p1.x * p1.x + p1.y * p1.y;
+				rr[2] = p2.x * p2.x + p2.y * p2.y;
+				rr[3] = p3.x * p3.x + p3.y * p3.y;
+				
+				if (rr[0] > 1 || rr[1] > 1 || rr[2] > 1 || rr[3] > 1)
+					continue;
+					
+				p0.z = sqrt(1.0 - rr[0]);
+				p1.z = sqrt(1.0 - rr[1]);
+				p2.z = sqrt(1.0 - rr[2]);
+				p3.z = sqrt(1.0 - rr[3]);
+				
+				// save P0, compute S0 and S1 from 0-1 and 0-3, compute normal of S0xS1
+				Vector s1_local = p0-p1;
+				Vector s2_local = p1-p2;
+				Vector qN_local = Normalize(Cross(s1_local,s2_local));
+				
+				P0.push_back(p2);
+				S1.push_back(s1_local);
+				S2.push_back(s2_local);
+				QN.push_back(qN_local);
+				
+				nQuads++;
+				
+			} //i
+		} //j
+		
+		// DEBUG:
+		//nQuads = 1;
+		//P0.push_back( Point(0.0,0.0,1.0) );
+		//S1.push_back( Vector(0.0,0.5,0.0) );
+		//S2.push_back( Vector(0.8,0.0,0.0) );
+		//QN.push_back( Normalize(Cross(S1[0],S2[0])) );
+				
+		cout << "QuadIntersection::Preprocess(): made [" << nQuads << "] quads." << endl;
+}
+
+void QuadIntersectionIntegrator::RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene)
+{
+    tauSampleOffset = sample->Add1D(1);
+    scatterSampleOffset = sample->Add1D(1);
+}
+
+Spectrum QuadIntersectionIntegrator::Transmittance(const Scene *scene, const Renderer *renderer, const Ray &ray,
+																					   const Sample *sample, RNG &rng) const
+{
+		cout << "CHECK" << endl;
+		endrun(1196);
+		return Spectrum(1.0f); // added just to suppress return warning, CHECK
+}
+
+Spectrum QuadIntersectionIntegrator::Li(const Scene *scene, const Renderer *renderer, const Ray &ray,
+															    const Sample *sample, RNG &rng, Spectrum *T,
+																  int *prevEntryCell, int *prevEntryTetra, int threadNum) const
+{
+		IF_DEBUG(cout << "QuadIntersectionIntegrator::Li()" << endl);
+		
+		// config
+		Spectrum Ledge = Spectrum::FromRGB(Config.rgbLine);
+		Spectrum Lint  = Spectrum::FromRGB(Config.rgbTetra);
+		Spectrum Lv(0.0);
+		Spectrum Tr(1.0f);
+		
+		float edge_thickness = 0.005; // world coordinates
+		float dn,a,d1_len,d2_len,d1_len_b,d2_len_b,I_edge;
+		Vector d1,d2,P0P;
+		Point Pi; // intersection point
+		
+		// loop over each quad
+		for( int i=0; i < nQuads; i++ )
+		{
+			// check intersection with plane of quad
+			dn = Dot(ray.d,QN[i]);
+			
+			if( dn > 0 )
+				continue;
+			
+			// compute intersection coordinates of quad
+			a = Dot(P0[i]-ray.o,QN[i]) / dn;
+			Pi = ray.o + a * ray.d;
+			
+			P0P = Pi - P0[i];
+			
+			d1_len = Dot( P0P, S1[i] ) / S1[i].Length(); // scalar projection
+			d2_len = Dot( P0P, S2[i] ) / S2[i].Length();
+			
+			// actually outside quad? then skip
+			if( d1_len < 0 || d1_len > S1[i].Length() || d2_len < 0 || d2_len > S2[i].Length() )
+			//if( d1_len < -edge_thickness || d1_len > S1[i].Length() || d2_len < 0 || d2_len > S2[i].Length() )
+				continue;
+			
+			// no AA on outside edge, only inside edge, could get around by allowing the poly hit test 
+			// to fail out to e.g. 3*sigma, then making sure the distances are the right sign below
+			//d1_len = fabs(d1_len);
+			//d2_len = fabs(d2_len);
+			
+			// compute distance to closest edge		
+			d1_len_b = S1[i].Length() - d1_len;
+			d2_len_b = S2[i].Length() - d2_len;
+						
+			d1_len = (d1_len < d2_len) ? d1_len : d2_len;
+			d2_len = (d1_len_b < d2_len_b) ? d1_len_b : d2_len_b;
+			d1_len = (d1_len < d2_len) ? d1_len : d2_len;
+			
+			// add to Lv as function of distance to nearest edge
+			I_edge = exp(-2.0 * pow(d1_len/edge_thickness,2));
+			
+			Lv += Tr * I_edge * Ledge;
+			Lv += Tr * (1.0-I_edge) * Lint; // interior of polygon
+
+		}
+			
+    *T = Tr;
+		return Lv;
+}
+
+QuadIntersectionIntegrator *CreateQuadIntersectionIntegrator()
+{
+    return new QuadIntersectionIntegrator();
 }
