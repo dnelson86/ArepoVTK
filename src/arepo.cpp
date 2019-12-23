@@ -104,14 +104,12 @@ bool Arepo::LoadSnapshot()
 			All.TreeAllocFactor = 0.7;
 			All.NgbTreeAllocFactor = 0.7;
 			
+			/*
 			if(All.ComovingIntegrationOn)	//  change to new velocity variable
-			{
 				for(i = 0; i < NumPart; i++)
-				{
 					for(j = 0; j < 3; j++)
 						P[i].Vel[j] *= sqrt(All.Time) * All.Time;	// for dm/gas particles, p = a^2 xdot
-				}
-			}
+			*/
 			
 			domain_Decomposition();
 			set_softenings();
@@ -216,7 +214,7 @@ bool Arepo::LoadSnapshot()
 ArepoMesh::ArepoMesh(const TransferFunction *tf)
 {
 		IF_DEBUG(cout << "ArepoMesh() constructor." << endl);
-		
+
 		// transfer function and sampling setup
 		transferFunction = tf;
 		
@@ -473,9 +471,7 @@ void addValsContribution( vector<float> &vals, int SphP_ind, double weight )
 		{
 			vals[TF_VAL_DENS]    += SphP[SphP_ind].Density * weight;
 			vals[TF_VAL_TEMP]    += SphP[SphP_ind].Utherm * weight;
-			vals[TF_VAL_VMAG]    += sqrt( P[SphP_ind].Vel[0] * P[SphP_ind].Vel[0] + 
-										  							P[SphP_ind].Vel[1] * P[SphP_ind].Vel[1] + 
-										  							P[SphP_ind].Vel[2] * P[SphP_ind].Vel[2] ) * weight;
+			vals[TF_VAL_VMAG]    += P[SphP_ind].Vel[0] * weight;
 			vals[TF_VAL_ENTROPY] += SphP[SphP_ind].OldMass * weight;
 			vals[TF_VAL_METAL]   += SphP[SphP_ind].Metallicity * weight;
 			// SZ y-parameter (no constants, not real units)
@@ -498,9 +494,7 @@ void addValsContribution( vector<float> &vals, int SphP_ind, double weight )
 		{
 			vals[TF_VAL_DENS]    += SphP[SphP_ind].Density * weight;
 			vals[TF_VAL_TEMP]    += 0.0;
-			vals[TF_VAL_VMAG]    += sqrt( P[SphP_ind].Vel[0] * P[SphP_ind].Vel[0] + 
-										  							P[SphP_ind].Vel[1] * P[SphP_ind].Vel[1] + 
-										  							P[SphP_ind].Vel[2] * P[SphP_ind].Vel[2] ) * weight;
+			vals[TF_VAL_VMAG]    += P[SphP_ind].Vel[0] * weight;
 			vals[TF_VAL_ENTROPY] += 0.0;
 			vals[TF_VAL_METAL]   += 0.0;
 			vals[TF_VAL_SZY]     += 0.0;
@@ -890,8 +884,9 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 #ifdef DEBUG
 					double fracstep = 1.0 / nSamples;
 					cout << "  segment[" << i << "] fractrange [" << (i*fracstep) << "," 
-							<< (i*fracstep)+fracstep << "] rho = " << SphP[SphP_ID].Density
-							<< " rho subSample = " << vals[TF_VAL_DENS];
+							<< (i*fracstep)+fracstep << "]";
+					cout << " rho = " << SphP[SphP_ID].Density << " (sS = " << vals[TF_VAL_DENS] << ")";
+					cout << " vmag = " << P[SphP_ID].Vel[0] << " (sS = " << vals[TF_VAL_VMAG] << ")";
 					samplept.print(" ");
 #endif
 
@@ -901,17 +896,23 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 
 					// accumulate optical depth during sampling (reduce transmittance accordingly)
 					// note: Transmittance=1-Opacity
-					stepTau += transferFunction->sigma_t() * vals[TF_VAL_DENS] * stepSize;
 					Spectrum localAlpha(1.0);
-					localAlpha += -1.0*Exp(-stepTau); // similar to DVR (essentially density weighting)
-					//localAlpha = 1.0; // old behavior
+					if( !(transferFunction->sigma_t() == 0) )
+					{
+						stepTau += transferFunction->sigma_t() * vals[TF_VAL_DENS] * stepSize;
+						localAlpha += -1.0*Exp(-stepTau); // essentially density weighting
+						//localAlpha = 1.0; // old behavior
+					}
 					
 					// compute emission-only source term using transfer function
 					if(status)
 						Lv += Tr * localAlpha * transferFunction->Lve(vals) * stepSize;
-							
+					
+					//TODO: try disabling this Tr*= below, and/or add modifier factor (seems much too 
+					//strong, e.g. stepTau=10 reduces this to zero and kills the ray, i.e. going through one 
+					//cell with Density ten times above rgbAbsorb)		
 					Tr *= Exp(-stepTau); // normal pbrt
-					//Tr -= localAlpha * Tr; // similar to DVR
+					//Tr -= localAlpha * Tr; // essentially density weighting
 							
 					// update raw column density integrals, same weighting procedure as in voronoi_makeimage_new()
 					// e.g. weight (Temp,Vmag,Ent,Metal) by rho*len and then normalize out at the end
@@ -1017,6 +1018,10 @@ void ArepoMesh::ComputeQuantityBounds()
 		float umax = -INFINITY;
 		float umin = INFINITY;
 		float umean = 0.0;
+
+		float vmax = -INFINITY;
+		float vmin = INFINITY;
+		float vmean = 0.0;
 		
 		for (int i=0; i < NumGas; i++) {
 				if (SphP[i].Density > pmax)
@@ -1030,6 +1035,13 @@ void ArepoMesh::ComputeQuantityBounds()
 				if (SphP[i].Utherm < umin)
 						umin = SphP[i].Utherm;
 				umean += SphP[i].Utherm;
+
+				if (P[i].Vel[0] > vmax)
+						vmax = P[i].Vel[0];
+				if (P[i].Vel[0] < vmin)
+						vmin = P[i].Vel[0];
+				vmean += P[i].Vel[0];
+
 		}
 		
 		valBounds[TF_VAL_DENS*3 + 0] = pmin;
@@ -1039,6 +1051,10 @@ void ArepoMesh::ComputeQuantityBounds()
 		valBounds[TF_VAL_TEMP*3 + 0] = umin;
 		valBounds[TF_VAL_TEMP*3 + 1] = umax;
 		valBounds[TF_VAL_TEMP*3 + 2] = umean / NumGas;
+
+		valBounds[TF_VAL_VMAG*3 + 0] = vmin;
+		valBounds[TF_VAL_VMAG*3 + 1] = vmax;
+		valBounds[TF_VAL_VMAG*3 + 2] = vmean / NumGas;
 		
 		cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0] 
 									<< " max = " << valBounds[TF_VAL_DENS*3 + 1] 
@@ -1047,6 +1063,10 @@ void ArepoMesh::ComputeQuantityBounds()
 		cout << " Temp  min = " << valBounds[TF_VAL_TEMP*3 + 0] 
 							 << " max = " << valBounds[TF_VAL_TEMP*3 + 1] 
 							 << " mean = " << valBounds[TF_VAL_TEMP*3 + 2] << endl;
+
+		cout << " VelMag  min = " << valBounds[TF_VAL_VMAG*3 + 0] 
+							 << " max = " << valBounds[TF_VAL_VMAG*3 + 1] 
+							 << " mean = " << valBounds[TF_VAL_VMAG*3 + 2] << endl;				 
 }
 
 int ArepoMesh::ComputeVoronoiEdges()
