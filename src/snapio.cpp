@@ -236,6 +236,12 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 			for( j=0; j < quantity.size(); j++ )
 				P[offset + j].Vel[k] = quantity[j];
 		}
+
+		// convert first entry to scalar magnitude
+		for( j=0; j < quantity.size(); j++ )
+			P[offset + j].Vel[0] = sqrt(P[offset + j].Vel[0]*P[offset + j].Vel[0] + 
+		                                P[offset + j].Vel[1]*P[offset + j].Vel[1] + 
+		                                P[offset + j].Vel[2]*P[offset + j].Vel[2]);
 		
 		// Mass
 		if( massTable[Config.readPartType] ) {
@@ -473,6 +479,12 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 			for( j=0; j < quantity.size(); j++ )
 				P[offset + j].Vel[k] = quantity[j];
 		}
+
+		// convert first entry to scalar magnitude
+		for( j=0; j < quantity.size(); j++ )
+			P[offset + j].Vel[0] = sqrt(P[offset + j].Vel[0]*P[offset + j].Vel[0] + 
+		                                P[offset + j].Vel[1]*P[offset + j].Vel[1] + 
+		                                P[offset + j].Vel[2]*P[offset + j].Vel[2]);
 		
 		// Mass
 		if( massTable[Config.readPartType] ) {
@@ -565,6 +577,10 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 					SphP[offset + j].VelVertex[0] = sqrt(SphP[offset + j].VelVertex[0]*SphP[offset + j].VelVertex[0] + 
 				                                       SphP[offset + j].VelVertex[1]*SphP[offset + j].VelVertex[1] + 
 				                                       SphP[offset + j].VelVertex[2]*SphP[offset + j].VelVertex[2]);
+				// take log
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].VelVertex[0] = log10( SphP[offset + j].VelVertex[0] );
+                                
 			} else {
 				for( j=0; j < quantity.size(); j++ )
 					SphP[offset + j].VelVertex[0] = 0.0;

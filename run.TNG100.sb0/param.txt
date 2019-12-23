@@ -26,8 +26,7 @@ ResubmitCommand           unused
 
 %----- Memory alloction
 
-%MaxMemSize        32000 % subbox0.2000 for mesh
-MaxMemSize        22000       % sets maximum memory use in MByte
+MaxMemSize        42000       % sets maximum memory use in MByte
 BufferSize        100          % in MByte
 BufferSizeGravity 100
 

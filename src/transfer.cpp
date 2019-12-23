@@ -235,8 +235,9 @@ Spectrum TransferFunc1D::Lve(const vector<float> &vals) const
 				
 				// TODO: note below
 				//float prefactor = 1.0 * alpha * vals[TF_VAL_DENS];
-				float prefactor = 1.0 * alpha * log(vals[TF_VAL_DENS]/1e-11);
-				
+				//float prefactor = 1.0 * alpha * log(vals[TF_VAL_DENS]/1e-11);
+			        float prefactor = 1.0 * alpha;
+	
 				rgb[0] = prefactor * Lerp(t,colorTableVals[left*4+0],colorTableVals[right*4+0]);
 				rgb[1] = prefactor * Lerp(t,colorTableVals[left*4+1],colorTableVals[right*4+1]);
 				rgb[2] = prefactor * Lerp(t,colorTableVals[left*4+2],colorTableVals[right*4+2]);
