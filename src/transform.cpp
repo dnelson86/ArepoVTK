@@ -203,6 +203,10 @@ Transform LookAt(const Point &pos, const Point &look, const Vector &up)
     Vector dir = Normalize(look - pos);
     Vector left = Normalize(Cross(Normalize(up), dir));
     Vector newUp = Cross(dir, left);
+
+    if(isnan(left.x))
+        terminate("ERROR: Failed to construct view matrix, likely degenerate camera position, look, and up vectors.")
+
     m[0][0] = left.x;
     m[1][0] = left.y;
     m[2][0] = left.z;
@@ -216,6 +220,7 @@ Transform LookAt(const Point &pos, const Point &look, const Vector &up)
     m[2][2] = dir.z;
     m[3][2] = 0.;
     Matrix4x4 camToWorld(m);
+    
     return Transform(Inverse(camToWorld), camToWorld);
 }
 

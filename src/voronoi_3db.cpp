@@ -765,7 +765,7 @@ void periodic_wrap_point(double pos[3], double ref[3])
   dx = pos[0] - ref[0];
   dy = pos[1] - ref[1];
   dz = pos[2] - ref[2];
-#ifdef PERIODIC
+
   if(dx > boxHalf_X)
     pos[0] -= boxSize_X;
   if(dx < -boxHalf_X)
@@ -778,7 +778,6 @@ void periodic_wrap_point(double pos[3], double ref[3])
     pos[2] -= boxSize_Z;
   if(dz < -boxHalf_Z)
     pos[2] += boxSize_Z;
-#endif
 }
 
 

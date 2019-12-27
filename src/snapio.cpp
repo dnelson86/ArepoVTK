@@ -301,6 +301,7 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 			}
 
 			// Metallicity
+			/*
 			string metalObjName = "";
 			if( groupExists(snapFilenames[i], groupName, "Metallicity") )
 				metalObjName = "Metallicity";
@@ -317,6 +318,7 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 				for( j=0; j < quantity.size(); j++ )
 					SphP[offset + j].Metallicity = 0.0;
 			}
+			*/
 		} // readPartType==1
 		
 		// increment global snapshot offset as we move to next chunk
@@ -503,10 +505,13 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 		if( Config.readPartType == PARTTYPE_GAS )
 		{
 			// Density
-			readGroupDataset( snapFilenames[i], groupName, "Density", -1, quantity );
-			
-			for( j=0; j < quantity.size(); j++ )
-				SphP[offset + j].Density = quantity[j];
+			if( groupExists(snapFilenames[i], groupName, "Density") )
+			{
+				readGroupDataset( snapFilenames[i], groupName, "Density", -1, quantity );
+				
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].Density = quantity[j];
+			}
 				
 			// Utherm
 			readGroupDataset( snapFilenames[i], groupName, "InternalEnergy", -1, quantity );
@@ -544,6 +549,7 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 			}
 
 			// Metallicity
+			/*
 			string metalObjName = "";
 			if( groupExists(snapFilenames[i], groupName, "Metallicity") )
 				metalObjName = "Metallicity";
@@ -560,6 +566,7 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 				for( j=0; j < quantity.size(); j++ )
 					SphP[offset + j].Metallicity = 0.0;
 			}
+			*/
 
 			// MagneticField
 			if( groupExists(snapFilenames[i], groupName, "MagneticField") )
@@ -583,9 +590,11 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
                                 
 			} else {
 				for( j=0; j < quantity.size(); j++ )
+				{
 					SphP[offset + j].VelVertex[0] = 0.0;
 					SphP[offset + j].VelVertex[1] = 0.0;
 					SphP[offset + j].VelVertex[2] = 0.0;
+				}
 			}
 
 			// EnergyDissipation (SHOCK_FINDER)

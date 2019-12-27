@@ -298,8 +298,7 @@ float ArepoMesh::calcNeighborHSML(int sphInd, Point &pt)
 #ifdef NATURAL_NEIGHBOR_INTERP
 void inline periodic_wrap_DP_point(point &dp_pt, Point &ref)
 {
-#ifdef PERIODIC
-	// conditional: wrap points to be in same quadrant as ref
+  // conditional: wrap points to be in same quadrant as ref
   double dx, dy, dz;
 
   dx = dp_pt.x - ref.x;
@@ -333,7 +332,6 @@ void inline periodic_wrap_DP_point(point &dp_pt, Point &ref)
   if(dp_pt.z < -boxHalf_Z)
     dp_pt.z += boxSize_Z;
 */
-#endif
 }
 #endif
 

@@ -13,7 +13,7 @@
 #define TASK_MULT_FACT      8 //32
 #define TASK_MAX_PIXEL_SIZE 100 //16
 #define INFINITY            FLT_MAX
-#define INSIDE_EPS          1.0e-6
+#define INSIDE_EPS          1.0e-11 //1.0e-6
 #define AUXMESH_ALLOC_SIZE  4000
 #define TF_NUM_VALS         9 // see transfer.h
 
@@ -65,11 +65,8 @@
 
 /* special behavior */
 //#define DEBUG_VERIFY_INCELL_EACH_STEP
-//#define DEBUG_VERIFY_ENTRY_CELLS
+#define DEBUG_VERIFY_ENTRY_CELLS
 //#define DISABLE_MEMORY_MANAGER
-
-//#define DUMP_VORONOI_MESH
-//#define DUMP_MESH_TEXT
 
 #ifdef DEBUG
 #define IF_DEBUG(expr) (expr)

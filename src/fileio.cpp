@@ -65,13 +65,17 @@ void ConfigSet::ReadFile(string cfgfile)
 		}
 		
 		// Input/Output
-		imageFile     = readValue<string>("imageFile",  "frame.tga");
+		imageFile     = readValue<string>("imageFile",  "frame.png");
 		rawRGBFile    = readValue<string>("rawRGBFile", "frame.raw.txt");
 		filename      = readValue<string>("filename", "none");
 		paramFilename = readValue<string>("paramFilename");
 		writeRGB8bit  = readValue<bool>("writeRGB8bit",  true); // png
 		writeRGB16bit = readValue<bool>("writeRGB16bit", false); // png
 		writeRGBA8bit = readValue<bool>("writeRGBA8bit", false); // png
+
+		dumpMeshText   = readValue<bool>("dumpMeshText", false);
+		dumpMeshBinary = readValue<bool>("dumpMeshBinary", false);
+		dumpMeshCells  = readValue<bool>("dumpMeshCells", false);
 		
 		// General
 		nTasks        = readValue<int> ("nTasks",        1);

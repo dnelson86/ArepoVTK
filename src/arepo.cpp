@@ -12,15 +12,6 @@
 #include "util.h" // for numberOfCores()
 #include "snapio.h"
 
-// check for required Arepo compilation options
-
-#ifndef VORONOI
-#error ERROR. Missing required Arepo compilation option VORONOI.
-#endif
-#ifndef VORONOI_DYNAMIC_UPDATE
-#error ERROR. Missing required Arepo compilation option VORONOI_DYNAMIC_UPDATE.
-#endif
-
 void Arepo::Init(int *argc, char*** argv)
 {
 		MPI_Init(argc, argv);
@@ -38,7 +29,7 @@ void Arepo::Init(int *argc, char*** argv)
 #endif
 		
 		cout << "AREPO ENABLED. (OpenMP NThreads = " << num_threads << ", MPI NTask = " << NTask 
-		     << " ThisTask = " << ThisTask << ")" << endl;
+		     << ", ThisTask = " << ThisTask << ")" << endl;
 }
 
 void Arepo::Cleanup()
@@ -57,7 +48,7 @@ bool Arepo::LoadSnapshot()
 		// set startup options
 		WriteMiscFiles = 0;
 		RestartSnapNum = -1;
-		RestartFlag    = SUNRISE_CODE;
+		RestartFlag    = 0; // normal startup
 
 		strcpy(ParameterFile,paramFilename.c_str());
 
@@ -85,20 +76,15 @@ bool Arepo::LoadSnapshot()
 				terminate("1140");
 		}
 		
-		//if( Config.totNumJobs >= 1 ) {
-			// custom selective load snapshot, make/use maskfile for job splitting
-			ArepoSnapshot arepoSnap( snapFilename );
-			arepoSnap.read_ic();
-		//} else {		
-		//	// load snapshot (GAS ONLY) with Arepo function
-		//	read_ic(snapFilename.c_str(), 0x01);
-		//}
-		
+		// custom selective load snapshot, make/use maskfile for job splitting
+		ArepoSnapshot arepoSnap(snapFilename);
+		arepoSnap.read_ic();
+		// load snapshot (GAS ONLY) with Arepo function
+		//read_ic(snapFilename.c_str(), 0x01);
+
 		if( Config.nTreeNGB /*&& Config.readPartType == 0*/ )
 		{
 			// sampling based on tree searches only, custom (minimal) init
-			int i, j;
-			
 			All.TotNumOfForces = 0;
 			All.TopNodeAllocFactor = 0.08;
 			All.TreeAllocFactor = 0.7;
@@ -106,11 +92,11 @@ bool Arepo::LoadSnapshot()
 			
 			/*
 			if(All.ComovingIntegrationOn)	//  change to new velocity variable
-				for(i = 0; i < NumPart; i++)
-					for(j = 0; j < 3; j++)
+				for(int i = 0; i < NumPart; i++)
+					for(int j = 0; j < 3; j++)
 						P[i].Vel[j] *= sqrt(All.Time) * All.Time;	// for dm/gas particles, p = a^2 xdot
 			*/
-			
+
 			domain_Decomposition();
 			set_softenings();
 			
@@ -126,8 +112,8 @@ bool Arepo::LoadSnapshot()
 		}
 		else
 		{
-			// Voronoi mesh based sampling: call full init
-			if (init() != SUNRISE_CODE) {
+			// want the Voronoi mesh: call full init, including create_mesh()
+			if (init() != -2) {
 				cout << "Arepo::LoadSnapshot() ERROR: Arepo did not return successfully." << endl;
 				return false;
 			}
@@ -137,9 +123,6 @@ bool Arepo::LoadSnapshot()
 		{
 			// we will need a density estimate from the Voronoi mesh
 			// for all other particle types (for which a local density estimate is not saved in snapshots)
-			for(int i = 0; i < TIMEBINS; i++)
-				TimeBinActive[i] = 1;
-
 			reconstruct_timebins();
 			voronoi_init_connectivity(&Mesh);
 			setup_smoothinglengths(); // build grav tree
@@ -380,7 +363,7 @@ void ArepoMesh::VerifyPointInCell(int parInd, Point &pos)
 			for (int i=0; i < NumGas; i++)
 			{		
 				celldist = Vector(pos.x - P[i].Pos[0], pos.y - P[i].Pos[1], pos.z - P[i].Pos[2]);
-			
+				
 				if(celldist.PeriodicLengthSquared()/dist2point < 1 - INSIDE_EPS)
 				{
 					cout << "VerifyPointInCell FAILED! pt.x = " << setprecision(10) <<  pos.x << " pt.y = " << pos.y << " pt.z = " << pos.z << endl 
@@ -473,7 +456,7 @@ void addValsContribution( vector<float> &vals, int SphP_ind, double weight )
 			vals[TF_VAL_TEMP]    += SphP[SphP_ind].Utherm * weight;
 			vals[TF_VAL_VMAG]    += P[SphP_ind].Vel[0] * weight;
 			vals[TF_VAL_ENTROPY] += SphP[SphP_ind].OldMass * weight;
-			vals[TF_VAL_METAL]   += SphP[SphP_ind].Metallicity * weight;
+			vals[TF_VAL_METAL]   += 0.0; //SphP[SphP_ind].Metallicity * weight;
 			// SZ y-parameter (no constants, not real units)
 			// line integral of: n_e*T = (x_e*rho*T) = (x_e*rho*(U/mu))
 			// require/assume: Utherm is temperature in units of Kelvin already
@@ -756,7 +739,7 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 		
 #ifdef DEBUG
 		cout << "  NEW intersection t = " << min_t << " setting new min_t, next_sphID = " << qmin 
-		     << " next_dpID = " << qmin_dp << endl;
+		     << " next_dpID = " << qmin_dp << " (cur_sphID = " << SphP_ID << ")" << endl;
 #endif
 
 #ifdef DEBUG_VERIFY_INCELL_EACH_STEP
@@ -819,6 +802,17 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 					
 				// compute total path length through cell
 				double len = norm.Length();
+
+				// zero pathlength in this cell, can occur for idealized cases, skip to next
+				if(len <= INSIDE_EPS)
+				{
+					ray.task  = DP[qmin_dp].task;
+					ray.prev_index = ray.index;
+					ray.index = qmin;
+					ray.min_t = Clamp(min_t + INSIDE_EPS,ray.min_t,ray.max_t);
+					IF_DEBUG(cout << " move ray to min_t = " << ray.min_t << endl);
+					return true;
+				}
 					
 				// find interpolated density at midpoint of line segment through voronoi cell
 				Vector midpt(hitcell[0] + 0.5 * norm[0],hitcell[1] + 0.5 * norm[1],hitcell[2] + 0.5 * norm[2]);
@@ -1055,18 +1049,21 @@ void ArepoMesh::ComputeQuantityBounds()
 		valBounds[TF_VAL_VMAG*3 + 0] = vmin;
 		valBounds[TF_VAL_VMAG*3 + 1] = vmax;
 		valBounds[TF_VAL_VMAG*3 + 2] = vmean / NumGas;
-		
-		cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0] 
+	
+	        if(Config.verbose)
+		{	
+		  cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0] 
 									<< " max = " << valBounds[TF_VAL_DENS*3 + 1] 
 									<< " mean = " << valBounds[TF_VAL_DENS*3 + 2] << endl;
 									
-		cout << " Temp  min = " << valBounds[TF_VAL_TEMP*3 + 0] 
+		  cout << " Temp  min = " << valBounds[TF_VAL_TEMP*3 + 0] 
 							 << " max = " << valBounds[TF_VAL_TEMP*3 + 1] 
 							 << " mean = " << valBounds[TF_VAL_TEMP*3 + 2] << endl;
 
-		cout << " VelMag  min = " << valBounds[TF_VAL_VMAG*3 + 0] 
+		  cout << " VelMag  min = " << valBounds[TF_VAL_VMAG*3 + 0] 
 							 << " max = " << valBounds[TF_VAL_VMAG*3 + 1] 
-							 << " mean = " << valBounds[TF_VAL_VMAG*3 + 2] << endl;				 
+							 << " mean = " << valBounds[TF_VAL_VMAG*3 + 2] << endl;
+		}
 }
 
 int ArepoMesh::ComputeVoronoiEdges()
@@ -1253,15 +1250,12 @@ int ArepoMesh::ComputeVoronoiEdges()
 		
 }
 
-#ifdef DUMP_VORONOI_MESH
 void ArepoMesh::OutputMesh()
 {
 	char buf[500];
 	sprintf(buf,"voronoi_mesh_0");
 	write_voronoi_mesh(&Mesh,buf,0,0);
-	cout << "MESH WRITTEN." << endl;
 }
-#endif
 
 void ArepoMesh::DumpMesh()
 {

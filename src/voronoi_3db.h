@@ -8,7 +8,10 @@
  
 #include "ArepoRT.h"
 // otherwise this file doesn't seem to know about the preprocessor definitions from Config.sh
-#include "../Arepo/build/arepoconfig.h"
+#include "../arepo/build/arepoconfig.h"
+#include "../arepo/src/utils/dtypes.h"
+
+#define MAX_DOUBLE_NUMBER 1e306
 
 #ifndef SPECIAL_BOUNDARY
 #ifndef LONGIDS
@@ -59,11 +62,13 @@ typedef double MyDouble;
 #include "gmp.h"
 
 extern "C" {
-#include "../Arepo/build/arepoconfig.h"
-#include "../Arepo/src/mesh.h"
-#include "../Arepo/src/voronoi.h" //gmp
+#include "../arepo/build/arepoconfig.h"
+#include "../arepo/src/utils/dtypes.h"
+#include "../arepo/src/mesh/mesh.h"
+#include "../arepo/src/mesh/voronoi/voronoi.h" //gmp
 }
 
+//#include "../arepo/src/main/allvars.h"
 #include "allvars.h"
 
 void init_clear_auxmesh(tessellation * T);

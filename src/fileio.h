@@ -30,6 +30,8 @@ public:
     string imageFile, rawRGBFile;
 		string filename, paramFilename;
 		bool writeRGB8bit, writeRGB16bit, writeRGBA8bit;
+
+		bool dumpMeshText, dumpMeshBinary, dumpMeshCells;
 		
 		// General
     int nTasks, nCores;

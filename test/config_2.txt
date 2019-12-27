@@ -1,0 +1,62 @@
+% Sample ArepoVTK Configuration File
+
+% Input/Output
+% ------------
+imageFile      = frame2.png          % output: TGA/PNG image filename
+filename       = test/grid_2         % input: AREPO hdf5 snapshot
+paramFilename  = test/param.txt      % input: AREPO parameterfile
+
+% General
+% -------
+nCores         = 2                   % number of cores to use (0=all)
+nTasks         = 40                  % number of tasks/threads to run (0=auto)
+quickRender    = false               % unused
+openWindow     = false               % unused
+verbose        = false               % report more information
+totNumJobs     = 0                   % set >1 to split single image render across multiple jobs
+maskFileBase   = mask                % create/use maskfile for job based frustrum culling
+maskPadFac     = 0.0                 % frustrum padding factor in code spatial units
+dumpMeshCells  = false               % write cell positions and gradients to stdout
+
+% Frame/Camera
+% ------------
+imageXPixels   = 600                 % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 600                 % frame resolution (Y), e.g. 768,  1080
+swScale        = 0.52                % screenWindow mult factor * [-1,1]
+                                     % 0.52 ortho face, 0.80 angled above, boxsize/2 in
+                                     % general if centering camera at [boxsize/2,boxsize/2,0]
+cameraFOV      = 0.0                 % degrees (0=orthographic camera)
+cameraPosition = 0.5 0.5 1e-2        % (XYZ) camera position in world coord system
+cameraLookAt   = 0.5 0.5 0.5         % (XYZ) point centered in camera FOV
+cameraUp       = 0.0 1.0 0.0         % (XYZ) camera "up" vector
+
+% Data Processing
+% ---------------
+recenterBoxCoords     = -1 -1 -1     % (XYZ) shift all points for new center (-1 tuple=disable)
+convertUthermToKelvin = false        % convert SphP.Utherm field to temp in Kelvin
+
+% Transfer Function
+% -----------------
+addTF_01 = constant_table Density idl_33_blue-red 0.5 20
+
+% Animation
+% ---------
+numFrames        = 1                 % total number of frames
+timePerFrame     = 1.0               % establish unit system of time/frame
+
+% Render
+% ------
+drawBBox         = true              % draw simulation bounding box
+drawTetra        = false             % draw delaunay tetrahedra
+drawVoronoi      = true              % draw voronoi polyhedra faces
+projColDens      = false             % integrate quantities (density, etc) along each path 
+                                     % length, to make e.g. a "projected column density" image
+viStepSize       = 0                 % volume integration sub-stepping size (0=disabled)
+                                     % in (Arepo) code units
+rayMaxT          = 0.0               % maximum ray integration parametric length
+rgbLine          = 0.6 0.6 0.6       % (RGB) bounding box
+rgbTetra         = 0.02 0.0 0.0      % (RGB) tetra edges
+rgbVoronoi       = 0.02 0.02 0.02    % (RGB) voronoi edges
+rgbAbsorb        = 0.0 0.0 0.0       % (RGB) absorption
+
+% End.

@@ -1,5 +1,5 @@
 /*
- * allvars.h derived (July 2012)
+ * allvars.h derived
  * dnelson
  */
 
@@ -12,6 +12,10 @@
 #define  MIN_FLOAT_NUMBER 1e-37
 #define  MAX_DOUBLE_NUMBER 1e306
 #define  MIN_DOUBLE_NUMBER 1e-306
+
+#define  NTYPES 6
+#define  NSOFTTYPES NTYPES
+#define  NSOFTTYPES_HYDRO 0
 
 #ifdef DOUBLEPRECISION
 #if (DOUBLEPRECISION==2)
@@ -58,12 +62,11 @@
 #define MAXLEN_OUTPUTLIST    1100
 #define TIMEBINS             29
 #define GRAVCOSTLEVELS       6
-#define CPU_PARTS            51
+#define CPU_LAST             43
 
 #define NUMBER_OF_MEASUREMENTS_TO_RECORD  6
 
 #define FACT1                0.366025403785    /* FACT1 = 0.5 * (sqrt(3)-1) */
-#define SUNRISE_CODE              4711
 #define MAXLEN_PATH          256
 
 typedef int integertime;
@@ -89,24 +92,35 @@ extern MyDouble boxSize, boxHalf; // NOTE: this is maybe not the boxSize global 
 #define boxSize_Z boxSize
 #define boxHalf_Z boxHalf
 
-#ifdef PERIODIC
-#define NGB_PERIODIC_LONG_X(x) (xtmp=fabs(x),(xtmp>boxHalf_X)?(boxSize_X-xtmp):xtmp)
-#define NGB_PERIODIC_LONG_Y(x) (ytmp=fabs(x),(ytmp>boxHalf_Y)?(boxSize_Y-ytmp):ytmp)
-#define NGB_PERIODIC_LONG_Z(x) (ztmp=fabs(x),(ztmp>boxHalf_Z)?(boxSize_Z-ztmp):ztmp)
-
-#define NEAREST_X(x) (xtmp=(x),(xtmp>boxHalf_X)?(xtmp-boxSize_X):( (xtmp< -boxHalf_X)?(xtmp+boxSize_X):(xtmp) ) )
-#define NEAREST_Y(x) (ytmp=(x),(ytmp>boxHalf_Y)?(ytmp-boxSize_Y):( (ytmp< -boxHalf_Y)?(ytmp+boxSize_Y):(ytmp) ) )
-#define NEAREST_Z(x) (ztmp=(x),(ztmp>boxHalf_Z)?(ztmp-boxSize_Z):( (ztmp< -boxHalf_Z)?(ztmp+boxSize_Z):(ztmp) ) )
-#else
-
+#ifndef REFLECTIVE_X
+#define NGB_PERIODIC_LONG_X(x) (xtmp = fabs(x), (xtmp > boxHalf_X) ? (boxSize_X - xtmp) : xtmp)
+#define NEAREST_X(x) (xtmp = (x), (xtmp > boxHalf_X) ? (xtmp - boxSize_X) : ((xtmp < -boxHalf_X) ? (xtmp + boxSize_X) : (xtmp)))
+#define WRAP_X(x) (xtmp = (x), (xtmp > boxSize_X) ? (xtmp - boxSize_X) : ((xtmp < 0) ? (xtmp + boxSize_X) : (xtmp)))
+#else /* #ifndef REFLECTIVE_X */
 #define NGB_PERIODIC_LONG_X(x) fabs(x)
-#define NGB_PERIODIC_LONG_Y(x) fabs(x)
-#define NGB_PERIODIC_LONG_Z(x) fabs(x)
-
 #define NEAREST_X(x) (x)
+#define WRAP_X(x) (x)
+#endif /* #ifndef REFLECTIVE_X #else */
+
+#ifndef REFLECTIVE_Y
+#define NGB_PERIODIC_LONG_Y(x) (ytmp = fabs(x), (ytmp > boxHalf_Y) ? (boxSize_Y - ytmp) : ytmp)
+#define NEAREST_Y(x) (ytmp = (x), (ytmp > boxHalf_Y) ? (ytmp - boxSize_Y) : ((ytmp < -boxHalf_Y) ? (ytmp + boxSize_Y) : (ytmp)))
+#define WRAP_Y(x) (ytmp = (x), (ytmp > boxSize_Y) ? (ytmp - boxSize_Y) : ((ytmp < 0) ? (ytmp + boxSize_Y) : (ytmp)))
+#else /* #ifndef REFLECTIVE_Y */
+#define NGB_PERIODIC_LONG_Y(x) fabs(x)
 #define NEAREST_Y(x) (x)
+#define WRAP_Y(x) (x)
+#endif /* #ifndef REFLECTIVE_Y #else */
+
+#ifndef REFLECTIVE_Z
+#define NGB_PERIODIC_LONG_Z(x) (ztmp = fabs(x), (ztmp > boxHalf_Z) ? (boxSize_Z - ztmp) : ztmp)
+#define NEAREST_Z(x) (ztmp = (x), (ztmp > boxHalf_Z) ? (ztmp - boxSize_Z) : ((ztmp < -boxHalf_Z) ? (ztmp + boxSize_Z) : (ztmp)))
+#define WRAP_Z(x) (ztmp = (x), (ztmp > boxSize_Z) ? (ztmp - boxSize_Z) : ((ztmp < 0) ? (ztmp + boxSize_Z) : (ztmp)))
+#else /* #ifndef REFLECTIVE_Z */
+#define NGB_PERIODIC_LONG_Z(x) fabs(x)
 #define NEAREST_Z(x) (x)
-#endif
+#define WRAP_Z(x) (x)
+#endif /* #ifndef REFLECTIVE_Z #else */
 
 #define ALLOC_TOLERANCE 0.1
 
@@ -143,15 +157,7 @@ extern struct global_data_all_processes
   int MaxPartSph;
   
 #ifdef COOLING
-  char TreecoolFile[255];
-#endif
-
-#if defined(REFINEMENT_SPLIT_CELLS) || defined(REFINEMENT_MERGE_CELLS) 
-  double ReferenceGasPartMass;
-  double TargetGasMass;
-	double TargetGasMassFactor;
-  int RefinementCriterion;
-  int DerefinementCriterion;
+  char TreecoolFile[MAXLEN_PATH];
 #endif
 
   double TotGravCost;
@@ -162,9 +168,6 @@ extern struct global_data_all_processes
   int SnapFormat;
   int NumFilesPerSnapshot;
   int NumFilesWrittenInParallel;
-  int BufferSize;
-	int BufferSizeGravity;
-  int BunchSize;
   double TreeAllocFactor;
   double TopNodeAllocFactor;
   double NgbTreeAllocFactor;
@@ -175,6 +178,7 @@ extern struct global_data_all_processes
   int DesNumNgb;		/**< Desired number of SPH neighbours */
   double TotCountReducedFluxes;
   double TotCountFluxes;
+  double DtDisplacement;
   double MaxNumNgbDeviation;	/**< Maximum allowed deviation neighbour number */
   double InitGasTemp;		/**< may be used to set the temperature in the IC's */
   double InitGasU;		/**< the same, but converted to thermal energy per unit mass */
@@ -190,18 +194,9 @@ extern struct global_data_all_processes
 
   long long TotNumOfForces;	/**< counts total number of force computations  */
 
-#ifdef SUBBOX_SNAPSHOTS
-  char SubboxCoordinatesPath[255];
-  double SubboxMinTime, SubboxMaxTime;
-  int SubboxSyncCounter;
-  int SubboxSyncModulo;
-  int SubboxNumFilesPerSnapshot;
-  int SubboxNumFilesWrittenInParallel;
-  int SubboxNumber;
-#endif
-
   double cf_atime, cf_a2inv, cf_a3inv, cf_afac1, cf_afac2, cf_afac3, cf_hubble_a, cf_time_hubble_a, cf_redshift;
 	double cf_H;
+  double cf_Hrate;
 
   /* system of units  */
   double UnitTime_in_s,		/**< factor to convert internal time unit to seconds/h */
@@ -243,16 +238,20 @@ extern struct global_data_all_processes
   int CoolingOn;		/**< flags that cooling is enabled */
   int StarformationOn;		/**< flags that star formation is enabled */
 
+  int NParameters;
+
   int LowestActiveTimeBin;
   int HighestActiveTimeBin;
+  int LowestOccupiedTimeBin;
   int HighestOccupiedTimeBin;
+  int LowestOccupiedGravTimeBin;
+  int HighestOccupiedGravTimeBin;
+  int HighestSynchronizedTimeBin;
   int SmallestTimeBinWithDomainDecomposition;
-  int MaxTimeBinsWithoutDomainDecomposition;
+  double ActivePartFracForNewDomainDecomp;
 
   int SnapshotFileCount;	/**< number of snapshot that is written next */
-#ifdef SUBBOX_SNAPSHOTS
-  int SubboxSnapshotFileCount;  /**< number of subbox snapshot that is written next */
-#endif
+
   double TimeBetSnapshot,	/**< simulation time interval between snapshot files */
     TimeOfFirstSnapshot,	/**< simulation time of first snapshot files */
     CpuTimeBetRestartFile,	/**< cpu-time between regularly generated restart files */
@@ -278,12 +277,15 @@ extern struct global_data_all_processes
 
   integertime Ti_begstep[TIMEBINS];    /**< marks start of current step of each timebin on integer timeline */
 
+  long long GlobalNSynchronizedHydro;
+  long long GlobalNSynchronizedGravity;
+
   int LevelToTimeBin[GRAVCOSTLEVELS];
   int LevelHasBeenMeasured[GRAVCOSTLEVELS];
 
   /* variables that keep track of cumulative CPU consumption */
   double TimeLimitCPU;
-  double CPU_Sum[CPU_PARTS];
+  double CPU_Sum[CPU_LAST];
 
   /* tree code opening criterion */
   double ErrTolTheta;
@@ -294,7 +296,6 @@ extern struct global_data_all_processes
   double MinSizeTimestep,
     MaxSizeTimestep;
 
-  double MaxRMSDisplacementFac;	
   double IsoSoundSpeed;
   double CourantFac;
 
@@ -308,62 +309,29 @@ extern struct global_data_all_processes
   int CPU_TimeBinCountMeasurements[TIMEBINS];
   double CPU_TimeBinMeasurements[TIMEBINS][NUMBER_OF_MEASUREMENTS_TO_RECORD];
 
-  double MinGasHsmlFractional,	/**< minimum allowed SPH smoothing length in units of SPH gravitational
-				   softening length */
-    MinGasHsml;			/**< minimum allowed SPH smoothing length */
+  int SofteningTypeOfPartType[NTYPES];
 
-  double SofteningGas,		/**< for type 0 */
-    SofteningHalo,		/**< for type 1 */
-    SofteningDisk,		/**< for type 2 */
-    SofteningBulge,		/**< for type 3 */
-    SofteningStars,		/**< for type 4 */
-    SofteningBndry;		/**< for type 5 */
+  double SofteningComoving[NSOFTTYPES];
+  double SofteningMaxPhys[NSOFTTYPES];
 
-  double SofteningGasMaxPhys,	/**< for type 0 */
-    SofteningHaloMaxPhys,	/**< for type 1 */
-    SofteningDiskMaxPhys,	/**< for type 2 */
-    SofteningBulgeMaxPhys,	/**< for type 3 */
-    SofteningStarsMaxPhys,	/**< for type 4 */
-    SofteningBndryMaxPhys;	/**< for type 5 */
-
-  double SofteningTable[6];	/**< current (comoving) gravitational softening lengths for each particle type */
-  double ForceSoftening[6];	/**< the same, but multiplied by a factor 2.8 - at that scale the force is Newtonian */
-
-  double MassTable[6];
+  double
+      SofteningTable[NSOFTTYPES + NSOFTTYPES_HYDRO];
+  double ForceSoftening[NSOFTTYPES + NSOFTTYPES_HYDRO + 1];
+  double MassTable[NTYPES];
 
   /* some filenames */
   char InitCondFile[MAXLEN_PATH],
     OutputDir[MAXLEN_PATH],
     SnapshotFileBase[MAXLEN_PATH],
-    EnergyFile[MAXLEN_PATH],
-    CpuFile[MAXLEN_PATH],
-    InfoFile[MAXLEN_PATH], TimingsFile[MAXLEN_PATH], RestartFile[MAXLEN_PATH], ResubmitCommand[MAXLEN_PATH], OutputListFilename[MAXLEN_PATH];
+    ResubmitCommand[MAXLEN_PATH],
+    OutputListFilename[MAXLEN_PATH];
 
   /** table with desired output times */
   double OutputListTimes[MAXLEN_OUTPUTLIST];
   char OutputListFlag[MAXLEN_OUTPUTLIST];
   int OutputListLength;		/**< number of times stored in table of desired output times */
 
-
-#ifdef USE_SFR			/* star formation and feedback sector */
-  double CritOverDensity;
-  double CritPhysDensity;
-  double OverDensThresh;
-  double PhysDensThresh;
-  double TemperatureThresh;
-  double EgySpecSN;
-  double EgySpecCold;
-  double FactorEVP;
-  double TempSupernova;
-  double TempClouds;
-#endif
-
-  double MaxSfrTimescale;
-  double FactorSN; 
-
-#if defined(REFINEMENT_SPLIT_CELLS) || defined(USE_SFR)
   MyIDType MaxID;
-#endif
 
 #ifdef SPECIAL_BOUNDARY
   double BoundaryLayerScaleFactor;
@@ -373,27 +341,27 @@ extern struct global_data_all_processes
   double OutflowPressure;
 #endif
 
+  double GlobalDisplacementVector[3];
 }
 All;
 
 extern struct particle_data
 {
-  MyDouble Pos[3] __attribute__((__aligned__(16)));
+  MyDouble Pos[3]; // __attribute__((__aligned__(16)));
   MyDouble Mass;
-  MyFloat  Vel[3] __attribute__((__aligned__(16)));
+  MyFloat  Vel[3]; // __attribute__((__aligned__(16)));
   MyFloat  GravAccel[3];
   MyIDType ID;
 
-  float OldAcc; // ArepoVTK: used to store ElectronAbundance (Ne)
-  float Soft;
+  integertime Ti_Current; /*!< current time on integer timeline */
 
-#ifdef METALS
-  MyFloat Metallicity;          /**< metallicity of gas or star particle */
-#endif
+  float OldAcc; // ArepoVTK: used to store ElectronAbundance (Ne)
 	
   float GravCost[GRAVCOSTLEVELS];	/**< weight factors used for balancing the work-load */
-  short int Type;		/**< flags particle type.  0=gas, 1=halo, 2=disk, 3=bulge, 4=stars, 5=bndry */
-  short int TimeBin;
+  unsigned char Type;		/**< flags particle type.  0=gas, 1=halo, 2=disk, 3=bulge, 4=stars, 5=bndry */
+  unsigned char SofteningType;
+  signed char TimeBinGrav;
+  signed char TimeBinHydro;
 }
  *P,				/**< holds particle data on local processor */
  *DomainPartBuf;		/**< buffer for particle data used in domain decomposition */
@@ -409,33 +377,26 @@ extern struct sph_particle_data
   /* primitive variables */
   MyFloat Density;
   MyFloat Pressure;		/**< current pressure */
-  MyFloat Utherm;
+  MySingle Utherm;
 
   /* variables for mesh  */
-  MyFloat Center[3];		/* center of mass of cell */
-  MyFloat VelVertex[3];		/* current vertex velocity (primitive variable) */ /* ArepoVTK: used to store {Bmag,ShockDEDT,empty} */
-  MyFloat MaxDelaunayRadius;
-  MyFloat Hsml;		        /* auxiliary search radius for points around a delaunay triangle */
-  MyFloat SurfaceArea;
-  MyFloat ActiveArea;
+  MyDouble Center[3];		/* center of mass of cell */
+  MySingle VelVertex[3];		/* current vertex velocity (primitive variable) */ /* ArepoVTK: used to store {Bmag,ShockDEDT,empty} */
+  MySingle MaxDelaunayRadius;
+  MySingle Hsml;		        /* auxiliary search radius for points around a delaunay triangle */
+  MySingle SurfaceArea;
+  MySingle ActiveArea;
 
-  MyFloat Metallicity; // ArepoVTK: moved outside METALS!!!
-	
 #ifdef METALS
   MyFloat MassMetallicity;
 #endif
 
-#ifdef TRACER_FIELD
-  MyFloat Tracer;
-  MyFloat ConservedTracer;
-#endif
-	
 #ifdef COOLING
   MyFloat Ne;
 #endif
 
 #ifdef USE_SFR
-  MyFloat Sfr;
+  MySingle Sfr;
 #endif
 
   struct grad_data Grad;
@@ -444,14 +405,14 @@ extern struct sph_particle_data
   struct hessian_data Hessian;
 #endif
 
-#ifdef VORONOI_DYNAMIC_UPDATE
   int first_connection;
   int last_connection;
-#endif
 
 #ifdef SPECIAL_BOUNDARY
   MyFloat MinDistBoundaryCell;
 #endif
+  double TimeLastPrimUpdate;
+
 }
  *SphP,				/**< holds SPH particle data on local processor */
  *DomainSphBuf;			/**< buffer for SPH particle data in domain decomposition */
@@ -462,23 +423,22 @@ extern struct NODE
 {
   union
   {
-    int suns[8];		/**< temporary pointers to daughter nodes */
+    int suns[8];
     struct
     {
-      MyFloat s[3] __attribute__((__aligned__(16)));		/**< center of mass of node */
-      MyFloat mass;		/**< mass of node */
-      float maxsoft;		/**< hold the maximum gravitational softening of particles */
+      MyDouble s[3];
+      MyDouble mass;
       int sibling;		
-      int nextnode;		
-      /** The parent node of the node. (Is -1 for the root node.) */
-      int father;		
+      int nextnode;
+      int father;
+      unsigned char maxsofttype; // #if(NSOFTTYPES > 1)
     }
     d;
   }
   u;
 
-  float center[3];           /**< geometrical center of node */
-  float len;                 /**< sidelength of treenode */
+  MyDouble center[3];           /**< geometrical center of node */
+  MyFloat len;                 /**< sidelength of treenode */
 }
  *Nodes;	
  
@@ -491,8 +451,14 @@ extern int Ngb_NumNodes;
 extern int Ngb_MaxNodes;
 extern int Ngb_FirstNonTopLevelNode;
 extern int Ngb_NextFreeNode;
+extern int *Ngb_Father;
+extern int *Ngb_Marker;
+extern int Ngb_MarkerValue;
 
 extern int *Ngb_DomainNodeIndex;
+extern int *DomainListOfLocalTopleaves;
+extern int *DomainNLocalTopleave;
+extern int *DomainFirstLocTopleave;
 extern int *Ngb_Nextnode;
 
 /** The ngb-tree data structure
@@ -504,19 +470,24 @@ extern struct NgbNODE
     int suns[8];                /**< temporary pointers to daughter nodes */
     struct
     {
-      float range_min[3];
       int sibling;
-      float range_max[3];
       int nextnode;
-    }
-    d;
-  }
-  u;
+      MyNgbTreeFloat range_min[3];
+      MyNgbTreeFloat range_max[3];
+    } d;
+  } u;
+
+  MyNgbTreeFloat vertex_vmin[3];
+  MyNgbTreeFloat vertex_vmax[3];
+
+  int father;
+
+  integertime Ti_Current;
 }
  *Ngb_Nodes; 
  
 /*
- * proto.h derived (July 2012)
+ * proto.h derived
  */
 
 extern "C" { 

@@ -503,32 +503,43 @@ void Film::WriteImage(int frameNum, float splatScale)
     offset = 0;
 
     // scale the intensity into [0.0,1.0] based on the FIRST frame, or based on input
-    if( Config.maxScale <= 0.0 ) {
+    if( Config.maxScale <= 0.0 )
+    {
       Config.maxScale = maxScale;
-			cout << "Set Config.maxScale = " << Config.maxScale << endl;
-		} else {
-			cout << "Using Config.maxScale = " << Config.maxScale << " current maxScale = " << maxScale << endl;
-		}
-    if( Config.minScale < 0.0 ) {
+	if(Config.numFrames > 1)
+          cout << "Set Config.maxScale = " << Config.maxScale << endl;
+      } else {
+        cout << "Using Config.maxScale = " << Config.maxScale << " current maxScale = " << maxScale << endl;
+    }
+
+    if( Config.minScale < 0.0 )
+    {
       Config.minScale = minScale;
-			cout << "Set Config.minScale = " << Config.minScale << endl;
-		} else {
-			cout << "Using Config.minScale = " << Config.minScale << " current minScale = " << minScale << endl;
-		}
-    if( Config.maxAlpha <= 0.0 ) {
+      if(Config.numFrames > 1)
+	cout << "Set Config.minScale = " << Config.minScale << endl;
+    } else {
+	cout << "Using Config.minScale = " << Config.minScale << " current minScale = " << minScale << endl;
+    }
+
+    if( Config.maxAlpha <= 0.0 )
+    {
       Config.maxAlpha = maxAlpha;
-			cout << "Set Config.maxAlpha = " << Config.maxAlpha << endl;
-		} else {
-			cout << "Using Config.maxAlpha = " << Config.maxAlpha << " current maxAlpha = " << maxAlpha << endl;
-		}
-    if( Config.minAlpha < 0.0 ) {
+      if(Config.numFrames > 1)
+	cout << "Set Config.maxAlpha = " << Config.maxAlpha << endl;
+    } else {
+	cout << "Using Config.maxAlpha = " << Config.maxAlpha << " current maxAlpha = " << maxAlpha << endl;
+    }
+
+    if( Config.minAlpha < 0.0 )
+    {
       Config.minAlpha = minAlpha;
-			cout << "Set Config.minAlpha = " << Config.minAlpha << endl;
-		} else {
-			cout << "Using Config.maxAlpha = " << Config.maxAlpha << " current maxAlpha = " << maxAlpha << endl;
-		}
-		
-		float invFac = 1.0 / (Config.maxScale - Config.minScale);
+      if(Config.numFrames > 1)
+	cout << "Set Config.minAlpha = " << Config.minAlpha << endl;
+    } else {
+      cout << "Using Config.maxAlpha = " << Config.maxAlpha << " current maxAlpha = " << maxAlpha << endl;
+    }
+
+    float invFac = 1.0 / (Config.maxScale - Config.minScale);
 		
     for (int y = 0; y < yPixelCount; ++y) {
         for (int x = 0; x < xPixelCount; ++x) {

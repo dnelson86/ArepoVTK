@@ -2,14 +2,9 @@
 
 %----  Relevant files 
 
-InitCondFile	      ./Arepo2
-OutputDir           ./output/
+InitCondFile	    ./dummy
+OutputDir           ./output
 
-EnergyFile          energy.txt
-InfoFile            info.txt
-TimingsFile         timings.txt
-CpuFile             cpu.txt
-RestartFile         restart
 SnapshotFileBase    snap
 OutputListFilename  output_list.txt
 
@@ -28,14 +23,12 @@ ResubmitCommand           my-scriptfile
 %----- Memory alloction
 
 MaxMemSize        500         % sets maximum memory use in MByte
-BufferSize        200          % in MByte
-BufferSizeGravity 100
 
 %----- New
 
 MultipleDomains 1
 TopNodeFactor   5
-MaxTimeBinsWithoutDomainDecomposition 5
+ActivePartFracForNewDomainDecomp 0.1
 
 %----- Mesh regularization options
 
@@ -80,7 +73,6 @@ NumFilesWrittenInParallel 1
 TypeOfTimestepCriterion  0
 ErrTolIntAccuracy        0.025 
 CourantFac               0.4
-MaxRMSDisplacementFac    0.2
 MaxSizeTimestep          1e-2
 MinSizeTimestep          1e-10
 
@@ -114,23 +106,28 @@ GravityConstantInternal  0
 
 %---- Gravitational softening lengths
 
-MinGasHsmlFractional 0.25   % in principal obsolete
-
 GasSoftFactor      1.5
 
-SofteningGas       2.0     % obsolete
-SofteningHalo      2.0
-SofteningDisk      0.0
-SofteningBulge     0.0
-SofteningStars     2.0
-SofteningBndry     0.0
+SofteningComovingType0 1.0 % obsolete
+SofteningComovingType1 0.0
+SofteningComovingType2 0.0
+SofteningComovingType3 0.0
+SofteningComovingType4 0.0
+SofteningComovingType5 0.0
 
-SofteningGasMaxPhys       2.0  % obsolete
-SofteningHaloMaxPhys      2.0
-SofteningDiskMaxPhys      2.0
-SofteningBulgeMaxPhys     2.0           
-SofteningStarsMaxPhys     2.0
-SofteningBndryMaxPhys     2.0
+SofteningMaxPhysType0  1.0
+SofteningMaxPhysType1  0.0
+SofteningMaxPhysType2  0.0
+SofteningMaxPhysType3  0.0
+SofteningMaxPhysType4  0.0
+SofteningMaxPhysType5  0.0
+
+SofteningTypeOfPartType0 0
+SofteningTypeOfPartType1 1
+SofteningTypeOfPartType2 1
+SofteningTypeOfPartType3 1
+SofteningTypeOfPartType4 1
+SofteningTypeOfPartType5 1
 
 % End
 
