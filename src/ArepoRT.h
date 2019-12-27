@@ -58,7 +58,7 @@
 
 /* use <1 for more smoothing, makes hsml_used bigger than hsml_ngb_max
  * use >1 for less smoothing, make hsml_used smaller than hsml_ngb_max 
- *   (at least some some neighbors will not contribute, and if this is too big, the
+ *   (at least some neighbors will not contribute, and if this is too big, the
  *    containing cell may also not contribute, leading to black holes)
  */
 #define HSML_FAC 1.2

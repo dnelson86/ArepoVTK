@@ -2,7 +2,7 @@
 
 % Input/Output
 % ------------
-imageFile      = output/frame_NUMM.png                % output: TGA image filename
+imageFile      = output/frames_360/frame_1k360_NUMM.png               % output: TGA image filename
 rawRGBFile     = frame.raw.txt                             % output: raw dump of floats (debug only)
 filename       = output/subbox0/snapdir_subbox0_NUMM/snap_subbox0_NUMM      % input: snapshot file
 paramFilename  = param.txt                                                 % input: Arepo parameter file
@@ -11,8 +11,8 @@ writeRGB16bit  = true                  % output 16 bit png
 
 % General
 % -------
-nCores          = 4                    % number of cores to use (0=all)
-nTasks          = 512                  % number of tasks/threads to run (0=auto)
+nCores          = 8                    % number of cores to use (0=all)
+nTasks          = 256                  % number of tasks/threads to run (0=auto)
 quickRender     = false                % unused
 openWindow      = false                % unused
 verbose         = true                 % report more information
@@ -23,20 +23,14 @@ maskPadFac      = 0.0                  % frustrum padding factor in code spatial
 
 % Frame/Camera
 % ------------
-imageXPixels   = 960                    % frame resolution (X), e.g. 1024, 1920
-imageYPixels   = 540                    % frame resolution (Y), e.g. 768, 1080
+imageXPixels   = 2048                   % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 2048                   % frame resolution (Y), e.g. 768,  1080
 swScale        = 1.0                    % screenWindow mult factor * [-1,1]
-cameraType     = perspective            % ortho, perspective, fisheye, env, rift
-cameraFOV      = 60.0                   % degrees
-cameraPosition = 7400 3750 3750         % (XYZ) camera position in world coord system
-cameraLookAt   = 3750 3750 3750         % (XYZ) point centered in camera FOV
+cameraType     = fisheye                % ortho, perspective, fisheye, env, rift
+cameraFOV      = 360.0                  % degrees
+cameraPosition = 3750 3750 3750         % (XYZ) camera position in world coord system
+cameraLookAt   = 7500 3750 3750         % (XYZ) point centered in camera FOV
 cameraUp       = 0.0 1.0 0.0            % (XYZ) camera "up" vector
-
-%imageXPixels   = 8192                   % frame resolution (X), e.g. 1024, 1920
-%imageYPixels   = 8192                   % frame resolution (Y), e.g. 768,  1080
-%swScale        = 1.0                    % screenWindow mult factor * [-1,1]
-%cameraType     = fisheye                % ortho, perspective, fisheye, env, rift
-%cameraFOV      = 180.0                  % degrees
 
 % Data Processing
 % ---------------
@@ -61,7 +55,6 @@ numFrames        = -1       % set to 1
 startFrame       = -1       % set by -s cmdline flag
 timePerFrame     = 1.0      % establish unit system of time/frame
 
-addKF_01 = 0.0 4320.0 rotXZ 18.8495559 linear % 3 total orbits (1440 frames, 48 sec per 2pi orbit)
 %addKF_01 = 0.0 4320.0 rotXZ 28.2743339 linear % 4.5 total orbits (960 frames, 32 sec per 2pi orbit)
 %addKF_01 = 0.0 4320.0 rotXZ 37.699112 linear % 720 frames (24 sec) per 2pi orbit (Mark's setup)
 
@@ -76,7 +69,7 @@ drawVoronoi      = false             % draw voronoi polyhedra faces
 drawSphere       = false             % draw test sphere lat/long lines
 projColDens      = false             % calculate/save raw line integrals
 nTreeNGB         = 28                % use tree-based search integrator instead of mesh (0=disabled)
-viStepSize       = 4.0               % volume integration sub-stepping size (0=disabled)
+viStepSize       = 4                 % volume integration sub-stepping size (0=disabled)
 rayMaxT          = 15000.0           % maximum ray integration parametric length
 rgbLine          = 5.0 5.0 5.0       % (RGB) bounding box
 rgbTetra         = 0.01 0.01 0.01    % (RGB) tetra edges

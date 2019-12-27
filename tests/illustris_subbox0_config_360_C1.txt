@@ -1,0 +1,86 @@
+% Sample ArepoVTK Configuration File
+
+% A1 = 400 separation, same look point
+% B1 = 100 separation, same look point
+% C1 = 25 separation, same look point
+% X2 = shifted look point, such that view directions are orthogonal
+% shift this (second eye) in the positive z direction from the box center (first eye)
+
+% Input/Output
+% ------------
+imageFile      = output/frames_360_C1/frame_1k360_NUMM.png               % output: TGA image filename
+rawRGBFile     = frame.raw.txt                             % output: raw dump of floats (debug only)
+filename       = output/subbox0/snapdir_subbox0_NUMM/snap_subbox0_NUMM      % input: snapshot file
+paramFilename  = param.txt                                                 % input: Arepo parameter file
+writeRGB8bit   = false                 % output 8 bit png
+writeRGB16bit  = true                  % output 16 bit png
+
+% General
+% -------
+nCores          = 8                    % number of cores to use (0=all)
+nTasks          = 256                  % number of tasks/threads to run (0=auto)
+quickRender     = false                % unused
+openWindow      = false                % unused
+verbose         = true                 % report more information
+totNumJobs      = 0                    % set >=1 to split single image render across multiple jobs (0=disable)
+jobExpansionFac = 1                    % increase number of jobs by this factor, only for render not mask (per dim)
+maskFileBase    =                      % create/use maskfile for job based frustrum culling
+maskPadFac      = 0.0                  % frustrum padding factor in code spatial units
+
+% Frame/Camera
+% ------------
+imageXPixels   = 2048                   % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 2048                   % frame resolution (Y), e.g. 768,  1080
+swScale        = 1.0                    % screenWindow mult factor * [-1,1]
+cameraType     = fisheye                % ortho, perspective, fisheye, env, rift
+cameraFOV      = 360.0                  % degrees
+cameraPosition = 3750 3750 3775         % (XYZ) camera position in world coord system
+cameraLookAt   = 7500 3750 3750         % (XYZ) point centered in camera FOV
+cameraUp       = 0.0 1.0 0.0            % (XYZ) camera "up" vector
+
+% Data Processing
+% ---------------
+readPartType          = 0                % 0=gas, 1=dm, 4=stars, 5=bhs
+recenterBoxCoords     = 9000 17000 63000 % (XYZ) shift all points for new center (false=disable)
+convertUthermToKelvin = true             % convert SphP.Utherm field to temp in Kelvin
+takeLogUtherm         = true             % convert K to log(K)
+
+% Transfer Function
+% -----------------
+addTF_01 = linear Temp 2.0 3.5 0.0 0.0 0.0 0.0 0.0 0.2
+addTF_02 = linear Temp 3.5 4.1 0.0 0.0 0.2 0.0 0.0 0.6
+addTF_03 = linear Temp 4.1 5.5 0.0 0.0 0.6 0.0 1.0 0.4
+addTF_04 = linear Temp 5.5 6.0 0.0 1.0 0.4 1.0 0.5 0.0
+addTF_05 = linear Temp 6.0 6.8 1.0 0.5 0.0 1.0 0.0 0.0
+addTF_06 = linear Temp 6.8 7.0 1.0 0.0 0.0 1.0 1.0 1.0
+addTF_07 = linear Temp 7.0 9.9 1.0 1.0 1.0 1.0 1.0 1.0
+
+% Animation
+% ---------
+numFrames        = -1       % set to 1
+startFrame       = -1       % set by -s cmdline flag
+timePerFrame     = 1.0      % establish unit system of time/frame
+
+%addKF_01 = 0.0 4320.0 rotXZ 28.2743339 linear % 4.5 total orbits (960 frames, 32 sec per 2pi orbit)
+%addKF_01 = 0.0 4320.0 rotXZ 37.699112 linear % 720 frames (24 sec) per 2pi orbit (Mark's setup)
+
+minScale         = 0.0      % based on 0.0 for orig_frame 2000
+maxScale         = 4.4      % based on 3.59629 for orig_frame 2000
+
+% Render
+% ------
+drawBBox         = false             % draw simulation bounding box
+drawTetra        = false             % draw delaunay tetrahedra
+drawVoronoi      = false             % draw voronoi polyhedra faces
+drawSphere       = false             % draw test sphere lat/long lines
+projColDens      = false             % calculate/save raw line integrals
+nTreeNGB         = 28                % use tree-based search integrator instead of mesh (0=disabled)
+viStepSize       = 4                 % volume integration sub-stepping size (0=disabled)
+rayMaxT          = 15000.0           % maximum ray integration parametric length
+rgbLine          = 5.0 5.0 5.0       % (RGB) bounding box
+rgbTetra         = 0.01 0.01 0.01    % (RGB) tetra edges
+rgbVoronoi       = 0.0 0.05 0.0      % (RGB) voronoi edges
+rgbAbsorb        = 15000 15000 15000 %10000 10000 10000    % (RGB) absorption, 0=none
+
+% End.
+

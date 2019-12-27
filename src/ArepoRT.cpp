@@ -49,6 +49,33 @@ void rtRenderFrames()
 	cout << endl << "Raytracer Init: [" << (float)timer.Time() << "] seconds, now rendering [" 
 	     << Config.numFrames << "] frames:" << endl;		
 	
+  // debugging: dump mesh in VORONOI_MESHOUTPUT format
+  if(Config.dumpMeshBinary)
+  {
+	arepoMesh->OutputMesh();
+	return;
+  }
+
+  // debugging: dump all mesh related structures in text format
+  if(Config.dumpMeshText)
+  {
+	arepoMesh->DumpMesh();
+	return;
+  }
+
+  // debugging: write SphP into stdout  
+  if(Config.dumpMeshCells)
+  {
+	for (int i=0; i < NumGas; i++) {
+			cout << "SphP[" << setw(2) << i << "] pos = " << P[i].Pos[0] << " " << P[i].Pos[1] << 
+			" " << P[i].Pos[2] << " dens = " << setw(10) << SphP[i].Density 
+			 << " grad.x = " << setw(10) << SphP[i].Grad.drho[0] << " grad.y = " 
+			 << setw(10) << SphP[i].Grad.drho[1] << " grad.z = " << setw(10) << SphP[i].Grad.drho[2] << endl;
+	}
+	
+	if(arepoMesh) arepoMesh->WorldBound().print("ArepoMesh WorldBound ");
+  }
+
 	// loop for requested frames	
 	for(int i = Config.startFrame; i < Config.startFrame+Config.numFrames; i++)
 	{
@@ -83,117 +110,6 @@ void rtRenderFrames()
 	
 	delete scene;
 	
-}
-
-void arepoTestOverrides()
-{
-	// debugging only (Arepo2b/3b overrides)
-	for (int i=0; i < NumGas; i++) {
-		SphP[i].Density      = 0.1;
-		SphP[i].Grad.drho[0] = 0.0;
-		SphP[i].Grad.drho[1] = 0.0;
-		SphP[i].Grad.drho[2] = 0.0;
-	}
-	
-	// Arepo3b zero outer boundary
-	if ( Config.filename == "test/grid_3b" ) {
-	  for(int i=0; i < NumGas; i++) {
-		  if( (P[i].Pos[0] < 0.2 || P[i].Pos[0] > 0.8) ||
-			    (P[i].Pos[1] < 0.2 || P[i].Pos[1] > 0.8) ||
-					(P[i].Pos[2] < 0.2 || P[i].Pos[2] > 0.8) )
-				SphP[i].Density = 0.0;
-		}
-	}
-	
-	// Arepo2b/3b overrides (central point)
-	int dpInd;
-  if ( Config.filename == "test/grid_2" )
-		dpInd = 6;
-	else if ( Config.filename == "test/grid_3b" )
-		dpInd = 45;
-	else
-		terminate("probably don't want these overrides");
-	
-	SphP[dpInd].Density      = 20.0;
-	SphP[dpInd].Grad.drho[0] = 10.0;
-	SphP[dpInd].Grad.drho[1] = 10.0;
-	SphP[dpInd].Grad.drho[2] = 2.0;	
-}
-
-void rtTestRenderScene(string filename)
-{
-	// config - camera
-	Transform world2camera = LookAt(Point(Config.cameraPosition), 
-	                                Point(Config.cameraLookAt), Vector(Config.cameraUp));
-	
-	IF_DEBUG(world2camera.print("world2camera:"));
-	IF_DEBUG(Inverse(world2camera).print("camera2world:"));
-	
-	// Camera (Filter, Film), Sampler
-	Filter *filter       = CreateBoxFilter();
-	Film *film           = CreateFilm(filter);
-	Camera *camera       = NULL;
-	
-	if (Config.cameraFOV)
-		camera = CreatePerspectiveCamera(Inverse(world2camera), film);
-	else
-		camera = CreateOrthographicCamera(Inverse(world2camera), film);
-		
-	Sampler *sampler     = CreateStratifiedSampler(film, camera);
-
-	// make primary classes
-	VolumeIntegrator *vi  = CreateVoronoiVolumeIntegrator();
-	Renderer *re          = new Renderer(sampler, camera, vi);
-	VolumeRegion *vr      = NULL;
-	
-	// transfer function
-	const Spectrum sig_a = Spectrum::FromRGB(Config.rgbAbsorb);
-	TransferFunction *tf = new TransferFunction(sig_a);
-
-	// setup transfer functions from file
-	for (unsigned int i=0; i < Config.tfSet.size(); i++)
-		tf->AddParseString(Config.tfSet[i]);
-	
-	// voronoi mesh
-	ArepoMesh *arepoMesh  = new ArepoMesh(tf);
-	Scene *scene          = new Scene(vr, arepoMesh, NULL);
-	
-	//arepoTestOverrides(); // after mesh to override Voronoi gradients for cellgrad
-
-  // debugging: dump mesh in VORONOI_MESHOUTPUT format
-  if(Config.dumpMeshBinary)
-  {
-	arepoMesh->OutputMesh();
-	return;
-  }
-
-  // debugging: dump all mesh related structures in text format
-  if(Config.dumpMeshText)
-  {
-	arepoMesh->DumpMesh();
-	return;
-  }
-
-  // debugging: write SphP into stdout  
-  if(Config.dumpMeshCells)
-  {
-	for (int i=0; i < NumGas; i++) {
-			cout << "SphP[" << setw(2) << i << "] pos = " << P[i].Pos[0] << " " << P[i].Pos[1] << 
-			" " << P[i].Pos[2] << " dens = " << setw(10) << SphP[i].Density 
-			 << " grad.x = " << setw(10) << SphP[i].Grad.drho[0] << " grad.y = " 
-			 << setw(10) << SphP[i].Grad.drho[1] << " grad.z = " << setw(10) << SphP[i].Grad.drho[2] << endl;
-	}
-	
-	if(arepoMesh) arepoMesh->WorldBound().print("ArepoMesh WorldBound ");
-	if(vr)        vr->WorldBound().print("VolumeRegion WorldBound ");
-  }
-				 
-	// render
-	if (scene && re)
-		re->Render(scene,0);
-			
-	delete re;
-	delete scene;
 }
 
 ConfigSet Config;
@@ -368,10 +284,7 @@ int main (int argc, char* argv[])
 	// setup handler which recieves the SIGTERM, then sets sigTermGlobalVarFlag=1
 	
 	// render
-	if ( Config.filename.substr(0,9) == "test/grid" )
-		rtTestRenderScene(Config.filename);
-	else
-		rtRenderFrames();
+	rtRenderFrames();
 	
 	// cleanup
 	arepo.Cleanup();

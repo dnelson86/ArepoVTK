@@ -3,8 +3,8 @@
 % Input/Output
 % ------------
 imageFile      = frame3b.tga             % output: TGA image filename
-filename       = test/test_grid_3
-paramFilename  = test/test_param.txt
+filename       = tests/test_grid_3
+paramFilename  = tests/test_param.txt
 
 % General
 % -------
