@@ -68,12 +68,12 @@ Usage: ArepoRT <configfile.txt> [-s snapNum] [-j jobNum] [-e expandedJobNum]
 After compilation succeeds, run the first basic test:
 
 ```bash
-./ArepoRT test/test2_config.txt
+./ArepoRT tests/test2_config.txt
 ```
 
 this should produce a 600x600 pixel image `test_frame2.png` which is identical to the following:
 
-![ArepoVTK test2 result](test/test_frame2.png?raw=true "ArepoVTK test2 result")
+![ArepoVTK test2 result](tests/test_frame2.png?raw=true "ArepoVTK test2 result")
 
 This is a result of a simple ray-tracing through a small test setup of a uniform grid of 2^3 (i.e. eight) cells within a box [0,1], each with uniform mass. A ninth, central point at [0.5, 0.5, 0.5] is inserted with higher mass. As a result, the gas density field peaks in the center and falls off radially, modulo the imprint of the tessellation geometry.
 
@@ -82,19 +82,19 @@ The transfer function is defined in the configuration file: in this case, there 
 Next, let's run a permutation of this test on the same "simulation snapshot":
 
 ```bash
-./ArepoRT test/test2b_config.txt
+./ArepoRT tests/test2b_config.txt
 ```
 
 which should produce the image `test_frame2b.png` as shown below:
 
-![ArepoVTK test2b result](test/test_frame2b.png?raw=true "ArepoVTK test2b result")
+![ArepoVTK test2b result](tests/test_frame2b.png?raw=true "ArepoVTK test2b result")
 
 Several configuration choices were changed from the first image. First, the camera was moved such that it views the simulation domain from an oblique angle, rather than directly 'face-on'. The geometry of the bounding box and the single octagonal Voronoi cell in the center of the domain is clear. Second, we have changed the transfer function to `constant Density 1.0 0.2 0.0` which is even simpler than above: a fixed color specified by the RGB triplet {R=1, G=0.2, B=0} (i.e. orange) is added to a ray each time it samples gas 'Density', weighted by the value of that density. Finally, we have changed the `viStepSize` parameter from zero to `0.05`. If `viStepSize = 0`, then ArepoVTK samples each Voronoi cell exactly once, at the midpoint of the line segment defined by the two intersection points of a ray as it enters and exits that cell. On the other hand, if `viStepSize > 0` as in the second example, we take strictly step along each ray and take equally spaced samples 0.05 (world space, i.e. code units) apart.
 
 Third, the test:
 
 ```bash
-./ArepoRT test/test3_config.txt
+./ArepoRT tests/test3_config.txt
 ```
 
 explores a slighly larger case. This is a 4^3 uniform grid of cell generating sites, again within a simulation volume defined as [0,1], with a single centered cell added, for 65 total cells.
@@ -122,9 +122,9 @@ Please contact us with any questions or comments. If you make any changes, updat
 
 ### Version Roadmap
 
-* Current Version: 0.44.alpha1
+Current Version: 0.44.alpha1
 
- + v0.1
+ +v0.1
   - program shell and commandline functionality
   - radiative transfer framework:
    - pts, vector, matrices, rays, bboxes
