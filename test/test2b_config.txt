@@ -3,8 +3,8 @@
 % Input/Output
 % ------------
 imageFile      = frame2b.png         % output: TGA/PNG image filename
-filename       = test/grid_2         % input: AREPO hdf5 snapshot
-paramFilename  = test/param.txt      % input: AREPO parameterfile
+filename       = test/test_grid_2    % input: AREPO hdf5 snapshot
+paramFilename  = test/test_param.txt % input: AREPO parameterfile
 
 % General
 % -------

@@ -2,10 +2,10 @@
 
 % Input/Output
 % ------------
-imageFile      = output/455_2k_nni/frame_455     % output: TGA image filename
-rawRGBFile     = frame.raw.txt                     % output: raw dump of floats (debug only)
-filename       = output/snapdir_135_455/snap_135   % input: snapshot file
-paramFilename  = param_455.txt                     % input: Arepo parameter file
+imageFile      = output/1820_256_128k_cellgrad/frame_1820  % output: TGA image filename
+rawRGBFile     = frame.raw.txt                            % output: raw dump of floats (debug only)
+filename       = output/snapdir_135_1820/snap_135         % input: snapshot file
+paramFilename  = param_1820.txt                           % input: Arepo parameter file
 
 % General
 % -------
@@ -14,14 +14,14 @@ nTasks         = 256                  % number of tasks/threads to run (0=auto)
 quickRender    = false                % unused
 openWindow     = false                % unused
 verbose        = true                 % report more information
-totNumJobs     = 16                   % set >=1 to split single image render across multiple jobs (0=disable)
-maskFileBase   = output/mask455       % create/use maskfile for job based frustrum culling
-maskPadFac     = 1000.0               % frustrum padding factor in code spatial units
+totNumJobs     = 256                  % set >=1 to split single image render across multiple jobs (0=disable)
+maskFileBase   = output/mask1820_256  % create/use maskfile for job based frustrum culling
+maskPadFac     = 500.0                % frustrum padding factor in code spatial units
 
 % Frame/Camera
 % ------------
-imageXPixels   = 2048                    % frame resolution (X), e.g. 1024, 1920
-imageYPixels   = 2048                    % frame resolution (Y), e.g. 768,  1080
+imageXPixels   = 131072                  % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 131072                  % frame resolution (Y), e.g. 768,  1080
 swScale        = 37500.0                 % screenWindow mult factor * [-1,1]
 cameraFOV      = 0.0                     % degrees (0=orthographic camera)
 cameraPosition = 37500 37500 30000       % (XYZ) camera position in world coord system
@@ -66,9 +66,9 @@ timePerFrame     = 1.0               % establish unit system of time/frame
 drawBBox         = false             % draw simulation bounding box
 drawTetra        = false             % draw delaunay tetrahedra
 drawVoronoi      = false             % draw voronoi polyhedra faces
-projColDens      = true              % calculate/save raw line integrals 
+projColDens      = true              % calculate/save raw line integrals
 nTreeNGB         = 0                 % use tree-based search integrator instead of mesh (0=disabled)
-viStepSize       = 0.0              % volume integration sub-stepping size (0=disabled)
+viStepSize       = 0.0               % volume integration sub-stepping size (0=disabled)
                                      % in (Arepo) code units
 rayMaxT          = 15000.0           % maximum ray integration parametric length
 rgbLine          = 5.0 5.0 5.0       % (RGB) bounding box

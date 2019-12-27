@@ -3,9 +3,8 @@
 % Input/Output
 % ------------
 imageFile      = frame3b.tga             % output: TGA image filename
-rawRGBFile     = frame3b.raw.txt         % output: raw dump of floats (debug only)
-filename       = test/grid_3b
-paramFilename  = test/param.txt
+filename       = test/test_grid_3
+paramFilename  = test/test_param.txt
 
 % General
 % -------
