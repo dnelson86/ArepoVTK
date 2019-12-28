@@ -75,12 +75,12 @@ Usage: ArepoRT <configfile.txt> [-s snapNum] [-j jobNum] [-e expandedJobNum]
 After compilation succeeds, run the first basic test:
 
 ```bash
-./ArepoRT tests/test2_config.txt
+./ArepoRT tests/config_2.txt
 ```
 
 this should produce a 600x600 pixel image `test_frame2.png` which is identical to the following:
 
-![ArepoVTK test2 result](tests/test_frame2.png?raw=true "ArepoVTK test2 result")
+![ArepoVTK test2 result](tests/frame2.png?raw=true "ArepoVTK test2 result")
 
 This is a result of a simple ray-tracing through a small test setup of a uniform grid of 2^3 (i.e. eight) cells within a box [0,1], each with uniform mass. A ninth, central point at [0.5, 0.5, 0.5] is inserted with higher mass. As a result, the gas density field peaks in the center and falls off radially, modulo the imprint of the tessellation geometry. You can get a sense of the geometry with the [interactive WebGL Voronoi mesh visualizer](https://wwwmpa.mpa-garching.mpg.de/~dnelson/webgl/vormesh3.htm).
 
@@ -89,12 +89,12 @@ The transfer function is defined in the configuration file: in this case, there 
 Next, let's run a permutation of this test on the same "simulation snapshot":
 
 ```bash
-./ArepoRT tests/test2b_config.txt
+./ArepoRT tests/config_2b.txt
 ```
 
-which should produce the image `test_frame2b.png` as shown below:
+which should produce the image `frame2b.png` as shown below:
 
-![ArepoVTK test2b result](tests/test_frame2b.png?raw=true "ArepoVTK test2b result")
+![ArepoVTK test2b result](tests/frame2b.png?raw=true "ArepoVTK test2b result")
 
 Several configuration choices were changed from the first image. First, the camera was moved such that it views the simulation domain from an oblique angle, rather than directly 'face-on'. The geometry of the bounding box and the single octagonal Voronoi cell in the center of the domain is clear. Second, we have changed the transfer function to `constant Density 1.0 0.2 0.0` which is even simpler than above: a fixed color specified by the RGB triplet {R=1, G=0.2, B=0} (i.e. orange) is added to a ray each time it samples gas 'Density', weighted by the value of that density. Finally, we have changed the `viStepSize` parameter from zero to `0.05`. If `viStepSize = 0`, then ArepoVTK samples each Voronoi cell exactly once, at the midpoint of the line segment defined by the two intersection points of a ray as it enters and exits that cell. On the other hand, if `viStepSize > 0` as in the second example, we take strictly step along each ray and take equally spaced samples 0.05 (world space, i.e. code units) apart.
 
@@ -105,24 +105,24 @@ Note that the lines of the bounding box, Delaunay tetrahedra, and Voronoi polyhe
 
 ![Illustris Explorer Thumbnail](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_illustris_explorer2.png)
 
-* All of the gas images of the [Illustris Explorer](https://www.illustris-project.org/explorer/) were generated with ArepoVTK, using the natural neighbor interpolation (NNI) method. The configuration files are available under `tests/illustris_box*`.
+* All of the gas images of the [Illustris Explorer](https://www.illustris-project.org/explorer/) were generated with ArepoVTK, using the natural neighbor interpolation (NNI) method. The configuration files are available under `examples/illustris_box*`.
 
 ![Universe in Gas Thumbnail](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_universe_in_gas2.png)
 
-* [The Universe in Gas](https://vimeo.com/77612968) (vimeo) video was made with ArepoVTK, showing gas iso-density and iso-temperature contours within a 20 Mpc/h cosmological volume, each using a set of `gaussian_table` transfer functions. The configuration files are available under `tests/cosmoRot*`.
+* [The Universe in Gas](https://vimeo.com/77612968) (vimeo) video was made with ArepoVTK, showing gas iso-density and iso-temperature contours within a 20 Mpc/h cosmological volume, each using a set of `gaussian_table` transfer functions. The configuration files are available under `examples/cosmoRot*`.
 
 ![Spoon3D Thumbnail](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_spoon3d.png)
 
-* [Stirring Coffee with a Spoon in 3D](https://vimeo.com/72435369) (vimeo) video was made with ArepoVTK, using gaussian transfer functions on gas density. It is made up of three sequences: the initial rotation, the time-evolving sequence, and the ending. The configuration files are available under `tests/spoon*`.
+* [Stirring Coffee with a Spoon in 3D](https://vimeo.com/72435369) (vimeo) video was made with ArepoVTK, using gaussian transfer functions on gas density. It is made up of three sequences: the initial rotation, the time-evolving sequence, and the ending. The configuration files are available under `examples/spoon*`.
 
 ![Spoon3D Thumbnail](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_nelson16_fig13.png)
 
-* Figure 13 of [Nelson et al. (2016)](https://arxiv.org/abs/1503.02665) shows gas iso-temperature contours around a single galaxy halo. The configuration files are available under `tests/zoom_Nelson16*`.
+* Figure 13 of [Nelson et al. (2016)](https://arxiv.org/abs/1503.02665) shows gas iso-temperature contours around a single galaxy halo. The configuration files are available under `examples/zoom_Nelson16*`.
 
 ![Illustris Fulldome Thumbnail](https://www.illustris-project.org/static/illustris/movies/illustris_moviethumb_dome180mono_2k_gastemp.jpg)
 ![Illustris 360 Oculus Rift Thumbnail](https://www.illustris-project.org/static/illustris/movies/illustris_moviethumb_rift360stereo_gastemp.jpg)
 
-* The 4K and 8K [180 degree fulldome animation](https://www.illustris-project.org/media/) of the Illustris temperature evolution were made with ArepoVTK, as was the full [360 degree stereoscopic render](https://www.illustris-project.org/media/) (left/right) meant for a HMD like the Oculus Rift. These are picture above. The configuration files are available under `tests/illustris_subbox0*`.
+* The 4K and 8K [180 degree fulldome animation](https://www.illustris-project.org/media/) of the Illustris temperature evolution were made with ArepoVTK, as was the full [360 degree stereoscopic render](https://www.illustris-project.org/media/) (left/right) meant for a HMD like the Oculus Rift. These are picture above. The configuration files are available under `examples/illustris_subbox0*`.
 
 ![ArepoVTK Dev Gallery](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_gallery6.png)
 
@@ -325,6 +325,7 @@ Current Version: 0.44.alpha1
   - johnston convolved planck BB temp emission TF
 
  +v0.50
+  - remove dependency on libpng with https://lodev.org/lodepng/
   - custom memory downsizing (minimize P,SphP)
   - robust restart functionality
   - load multiple particle types simultaneously: gas/dm, gas/stars
