@@ -102,7 +102,7 @@ void RendererTask::Run(int threadNum) {
 		}
 		else {
 			cout << ".";
-			if( taskNum % 80 == 0 && taskCount > 100 )
+			if( taskNum % 80 == 0 && taskNum > 0 && taskCount > 100 )
 				cout << "]" << endl << " [";
 			fflush(stdout);
 		}

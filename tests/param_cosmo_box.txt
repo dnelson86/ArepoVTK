@@ -39,7 +39,7 @@ CellShapingSpeed  0.5          % sets speed of CM correction
 
 TimeBegin           0.0        % Begin of the simulation
 TimeMax	            1.0        % End of the simulation
-BoxSize             1.0
+BoxSize             7500       % examples/cosmo_box_star_formation_3d
 
 %---- Basic code options that set the type of simulation
 
@@ -94,11 +94,10 @@ DesNumNgb              32
 MaxNumNgbDeviation     2
 
 %---- System of units
-
-UnitLength_in_cm         1.0
-UnitMass_in_g            1.0
-UnitVelocity_in_cm_per_s 1.0
-GravityConstantInternal  0
+UnitLength_in_cm                        3.085678e21    %  1.0 kpc
+UnitMass_in_g                           1.989e43       %  1.0e10 solar masses
+UnitVelocity_in_cm_per_s                1e5           %  1 km/sec
+GravityConstantInternal                 0
 
 %---- Gravitational softening lengths
 

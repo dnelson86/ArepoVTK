@@ -100,6 +100,32 @@ Several configuration choices were changed from the first image. First, the came
 
 Note that the lines of the bounding box, Delaunay tetrahedra, and Voronoi polyhedra (if drawn) are added in a final pass, rasterization phase. Thus they are not (yet) ray-traced, i.e. cannot be occluded by density along the line of sight.
 
+Moving on to a cosmologically interesting use case, we will run and analyze the output of the AREPO example `cosmo_box_star_formation_3d`. This is a 32^3 gravity + hydrodynamics simulation (i.e. about 32,000 total gas cells) of a small, 7.5 Mpc/h cosmological volume. You can execute this yourself by
+
+```bash
+cd arepo/examples/
+./test.py --print-all-output --no-cleanup cosmo_box_star_formation_3d
+```
+
+this takes about 20-30 minutes to run (on 16 cores). It will produce, among other outputs, the `z=0` snapshot: `arepo/run/examples/cosmo_box_star_formation_3d/output/snap_005.hdf5`. To skip running this test and download the HDF5 file directly:
+
+```bash
+mkdir -p arepo/run/examples/cosmo_box_star_formation_3d/output
+wget -P !$ https://www.tng-project.org/files/arepo_tests/cosmo_box_star_formation_3d/snap_005.hdf5
+```
+
+Now, we will execute a render to highlight the temperature structure of the evolved intergalactic medium:
+
+```bash
+./ArepoRT tests/config_cosmo_box.txt
+```
+
+which should produce the image `frame_cosmo_box.png` as shown below:
+
+![ArepoVTK test_cosmo_box result](tests/frame_cosmo_box.png?raw=true "ArepoVTK test_cosmo_box result")
+
+here we have switched away from an orthographic projection by setting `cameraType = perspective`, placing the camera at a distance from the box, pointed towards its center, and with a field of view of 18 degrees. We also use a constant `viStepSize = 20` (i.e. code units, `ckpc/h` in this case), which provides a better sampling of our narrow gaussian transfer functions. You can try setting `nTreeNGB = 16` to skip the Voronoi mesh construction and switch to a tree-based interpolation (with the same step size), or try setting `viStepSize = 0` to see the impact of only one sample per Voronoi cell, at this rather low resolution.
+
 
 ### Gallery of Examples
 
@@ -141,9 +167,9 @@ Reference and Usage
 
 ### Transfer Function
 
-* `addTF_`
+* `addTF_{N} {spec}`
 
-A transfer function is built up from one or more specifications, each of which is a string:
+A transfer function is built up from one or more specifications `{spec}`, each of which is a string:
 
 * `constant {field} {colormap}`
 * `constant {field} {R} {G} {B}`
@@ -161,47 +187,65 @@ Here `{field}` is the snapshot property to apply to (e.g. `Density`), and `{min}
 
 If using manual specification of `{R,G,B}` color triplets, these should be in floating point values between `0.0` and `1.0`.
 
+* `rgbAbsorb` - if nonzero enable line-of-sight attenuation/occlusion, {R} {G} {B} triplet
+
 ### Camera
 
-* `imageXPixels`
-* `imageYPixels`
-* `swScale`
-* `cameraFOV` - if zero, orthographic, otherwise perspective
-* `cameraPosition`
-* `cameraLookAt`
-* `cameraUp`
+* `imageXPixels` - image width (e.g. 800, 1920).
+* `imageYPixels` - image height (e.g. 800, 1080).
+* `swScale` - multiplicative scale factor by which to adjust the size of the view window.
+* `cameraType` - orthographic, perspective, environmental, fisheye
+* `cameraFOV` - field of view (must be zero for orthographic, >0<180 for perspective, 360 for environmental).
+* `cameraPosition` - location of the camera in space, {x} {y} {z} coordinate triplet.
+* `cameraLookAt` - location that the camera looks at in space, {x} {y} {z} coordinate triplet.
+* `cameraUp` - vector denoting the "up" direction of the camera, {x} {y} {z} coordinate triplet.
 
 ### Animation and Keyframes
 
-* `numFrames`
-* `timePerFrame`
-* `addKF_`
+* `startFrame` - 
+* `numFrames` - leave at 1 to render a single frame.
+* `timePerFrame` - establish the unit of "time", with respect to the frame number.
+* `minScale` - 
+* `maxScale` - 
+* `minAlpha` - 
+* `maxAlpha` -  
+
+Key frames are added with a series of string specifications, similar to transfer functions:
+
+* `addKF_{N} {startTime} {stopTime} {quantity} {stopVal} {interpMethod}`
+
+where currently `{quantity}` can be one of `cameraX, cameraY, cameraZ, lookAtX, lookAtY, lookAtZ, rotXY, rotXZ` and `{interpMethod}` can be one of `linear, quadratic_inout`, the latter being a smooth easing function.
 
 ### Render Execution, Data Loading, Masking, Multi-Job Renders
 
-* `nCores`
-* `nTasks`
-* `totNumJobs`
-* `maskFileBase`
-* `maskPadFac`
-* `recenterBoxCoords`
-* `convertUthermToKelvin`
+* `nCores` - number of CPU cores to use for multi-threading (1 = serial).
+* `nTasks` - number of independent tasks to decompose the render into, which are then distributed among the threads.
+* `totNumJobs` - 
+* `jobExpansionFac` - 
+* `readPartType` - particle type to read from snapshot (0 = gas, 1 = dark matter). Currently only one particle type can be loaded and visualized at once.
+* `maskFileBase` - 
+* `maskPadFac` - 
+* `recenterBoxCoords` - 
+* `takeLogDens` - 
+* `takeLogUtherm` - 
+* `convertUthermToKelvin` - 
 
 ### Interpolation/Sampling
 
 * `viStepSize` - if zero, one sample per Voronoi cell. if positive, fixed sample spacing in world space. if negative, should be integer, then adaptive number of sub-samples per cell.
-* `rayMaxT`
+* `nTreeNGB` - number of nearest neighbors to use for kernel sampling. If zero or omitted, then a Voronoi mesh based sampling is performed. If >0, then no mesh is constructed, and `viStepSize` must be specified and nonzero.
+* `rayMaxT` - maximum length of rays before termination. If zero (by default), then integrate rays until they exit the simulation box.
 
 Note that, for efficiency reasons, the interpolation algorithm is chosen via preprocessor definition in `ArepoRT.h`, and the user should choose exactly one of the following:
 
-* `NATURAL_NEIGHBOR_INTERP`
-* `NATURAL_NEIGHBOR_IDW`
-* `NATURAL_NEIGHBOR_SPHKERNEL`
-* `NNI_WATSON_SAMBRIDGE`
-* `NNI_LIANG_HALE`
-* `DTFE_INTERP`
-* `CELL_GRADIENTS_DENS`
-* `CELL_PIECEWISE_CONSTANT`
+* `NATURAL_NEIGHBOR_INTERP` - 
+* `NATURAL_NEIGHBOR_IDW` - 
+* `NATURAL_NEIGHBOR_SPHKERNEL` - 
+* `NNI_WATSON_SAMBRIDGE` - 
+* `NNI_LIANG_HALE` - 
+* `DTFE_INTERP` - 
+* `CELL_GRADIENTS_DENS` - 
+* `CELL_PIECEWISE_CONSTANT` - 
 
 Further options:
 
@@ -214,13 +258,14 @@ Further options:
 
 ### Line and Geometry Rendering
 
-* `drawBBox`
-* `drawTetra`
-* `drawVoronoi`
+* `drawBBox` - draw bounding box of simulation domain
+* `drawTetra` - draw lines for every Delaunay tetrahedron
+* `drawVoronoi` - draw lines for every Voronoi face
+* `drawSphere` - draw all-sky spherical test grid (for fisheye camera)
 
 ### Raw Integrals and Non-Image (Scientific) Output
 
-* `projColDens`
+* `projColDens` - output raw integrals rather than image (i.e. no transfer function)
 
 
 Version Roadmap
