@@ -149,9 +149,9 @@ extern int TimeBinActive[TIMEBINS];
 extern struct global_data_all_processes
 {
   // ArepoVTK note: this has to match with the compiled Arepo version to read the parameterfile ok
-	
-  long long TotNumPart;		/**<  total particle numbers (global value) */
-  long long TotNumGas;		/**<  total gas particle number (global value) */
+  
+  long long TotNumPart;   /**<  total particle numbers (global value) */
+  long long TotNumGas;    /**<  total gas particle number (global value) */
 
   int MaxPart;
   int MaxPartSph;
@@ -175,15 +175,15 @@ extern struct global_data_all_processes
 
   /* some SPH parameters */
 
-  int DesNumNgb;		/**< Desired number of SPH neighbours */
+  int DesNumNgb;    /**< Desired number of SPH neighbours */
   double TotCountReducedFluxes;
   double TotCountFluxes;
   double DtDisplacement;
-  double MaxNumNgbDeviation;	/**< Maximum allowed deviation neighbour number */
-  double InitGasTemp;		/**< may be used to set the temperature in the IC's */
-  double InitGasU;		/**< the same, but converted to thermal energy per unit mass */
-  double MinGasTemp;		/**< may be used to set a floor for the gas temperature */
-  double MinEgySpec;		/**< the minimum allowed temperature expressed as energy per unit mass */
+  double MaxNumNgbDeviation;  /**< Maximum allowed deviation neighbour number */
+  double InitGasTemp;   /**< may be used to set the temperature in the IC's */
+  double InitGasU;    /**< the same, but converted to thermal energy per unit mass */
+  double MinGasTemp;    /**< may be used to set a floor for the gas temperature */
+  double MinEgySpec;    /**< the minimum allowed temperature expressed as energy per unit mass */
 
   double MinimumDensityOnStartUp;
   double GasSoftFactor;
@@ -192,51 +192,51 @@ extern struct global_data_all_processes
 
   /* some force counters  */
 
-  long long TotNumOfForces;	/**< counts total number of force computations  */
+  long long TotNumOfForces; /**< counts total number of force computations  */
 
   double cf_atime, cf_a2inv, cf_a3inv, cf_afac1, cf_afac2, cf_afac3, cf_hubble_a, cf_time_hubble_a, cf_redshift;
-	double cf_H;
+  double cf_H;
   double cf_Hrate;
 
   /* system of units  */
-  double UnitTime_in_s,		/**< factor to convert internal time unit to seconds/h */
-    UnitMass_in_g,		/**< factor to convert internal mass unit to grams/h */
-    UnitVelocity_in_cm_per_s,	/**< factor to convert internal velocity unit to cm/sec */
-    UnitLength_in_cm,		/**< factor to convert internal length unit to cm/h */
-    UnitPressure_in_cgs,	/**< factor to convert internal pressure unit to cgs units (little 'h' still
-				   around!) */
-    UnitDensity_in_cgs,		/**< factor to convert internal length unit to g/cm^3*h^2 */
-    UnitCoolingRate_in_cgs,	/**< factor to convert internal cooling rate to cgs units */
-    UnitEnergy_in_cgs,		/**< factor to convert internal energy to cgs units */
-    UnitTime_in_Megayears,	/**< factor to convert internal time to megayears/h */
-    GravityConstantInternal,	/**< If set to zero in the parameterfile, the internal value of the
-				   gravitational constant is set to the Newtonian value based on the system of
-				   units specified. Otherwise the value provided is taken as internal gravity
-				   constant G. */
-    G;				/**< Gravity-constant in internal units */
+  double UnitTime_in_s,   /**< factor to convert internal time unit to seconds/h */
+    UnitMass_in_g,    /**< factor to convert internal mass unit to grams/h */
+    UnitVelocity_in_cm_per_s, /**< factor to convert internal velocity unit to cm/sec */
+    UnitLength_in_cm,   /**< factor to convert internal length unit to cm/h */
+    UnitPressure_in_cgs,  /**< factor to convert internal pressure unit to cgs units (little 'h' still
+           around!) */
+    UnitDensity_in_cgs,   /**< factor to convert internal length unit to g/cm^3*h^2 */
+    UnitCoolingRate_in_cgs, /**< factor to convert internal cooling rate to cgs units */
+    UnitEnergy_in_cgs,    /**< factor to convert internal energy to cgs units */
+    UnitTime_in_Megayears,  /**< factor to convert internal time to megayears/h */
+    GravityConstantInternal,  /**< If set to zero in the parameterfile, the internal value of the
+           gravitational constant is set to the Newtonian value based on the system of
+           units specified. Otherwise the value provided is taken as internal gravity
+           constant G. */
+    G;        /**< Gravity-constant in internal units */
 
   /* Cosmology */
 
-  double Hubble;		/**< Hubble-constant in internal units */
-  double Omega0,		/**< matter density in units of the critical density (at z=0) */
-    OmegaLambda,		/**< vaccum energy density relative to crictical density (at z=0) */
-    OmegaBaryon,		/**< baryon density in units of the critical density (at z=0) */
-    HubbleParam;		/**< little `h', i.e. Hubble constant in units of 100 km/s/Mpc.  Only needed to get absolute
-				 * physical values for cooling physics
-				 */
+  double Hubble;    /**< Hubble-constant in internal units */
+  double Omega0,    /**< matter density in units of the critical density (at z=0) */
+    OmegaLambda,    /**< vaccum energy density relative to crictical density (at z=0) */
+    OmegaBaryon,    /**< baryon density in units of the critical density (at z=0) */
+    HubbleParam;    /**< little `h', i.e. Hubble constant in units of 100 km/s/Mpc.  Only needed to get absolute
+         * physical values for cooling physics
+         */
 
-  double BoxSize;		/**< Boxsize in case periodic boundary conditions are used */
+  double BoxSize;   /**< Boxsize in case periodic boundary conditions are used */
 
-  int ComovingIntegrationOn;	/**< flags that comoving integration is enabled */
-  int PeriodicBoundariesOn;	/**< flags that periodic boundaries are enabled */
-  int ResubmitOn;		/**< flags that automatic resubmission of job to queue system is enabled */
-  int TypeOfOpeningCriterion;	/**< determines tree cell-opening criterion: 0 for Barnes-Hut, 1 for relative
-				   criterion */
-  int TypeOfTimestepCriterion;	/**< gives type of timestep criterion (only 0 supported right now - unlike
-				   gadget-1.1) */
-  int OutputListOn;		/**< flags that output times are listed in a specified file */
-  int CoolingOn;		/**< flags that cooling is enabled */
-  int StarformationOn;		/**< flags that star formation is enabled */
+  int ComovingIntegrationOn;  /**< flags that comoving integration is enabled */
+  int PeriodicBoundariesOn; /**< flags that periodic boundaries are enabled */
+  int ResubmitOn;   /**< flags that automatic resubmission of job to queue system is enabled */
+  int TypeOfOpeningCriterion; /**< determines tree cell-opening criterion: 0 for Barnes-Hut, 1 for relative
+           criterion */
+  int TypeOfTimestepCriterion;  /**< gives type of timestep criterion (only 0 supported right now - unlike
+           gadget-1.1) */
+  int OutputListOn;   /**< flags that output times are listed in a specified file */
+  int CoolingOn;    /**< flags that cooling is enabled */
+  int StarformationOn;    /**< flags that star formation is enabled */
 
   int NParameters;
 
@@ -250,29 +250,29 @@ extern struct global_data_all_processes
   int SmallestTimeBinWithDomainDecomposition;
   double ActivePartFracForNewDomainDecomp;
 
-  int SnapshotFileCount;	/**< number of snapshot that is written next */
+  int SnapshotFileCount;  /**< number of snapshot that is written next */
 
-  double TimeBetSnapshot,	/**< simulation time interval between snapshot files */
-    TimeOfFirstSnapshot,	/**< simulation time of first snapshot files */
-    CpuTimeBetRestartFile,	/**< cpu-time between regularly generated restart files */
-    TimeLastRestartFile,	/**< cpu-time when last restart-file was written */
-    TimeBetStatistics,		/**< simulation time interval between computations of energy statistics */
-    TimeLastStatistics;		/**< simulation time when the energy statistics was computed the last time */
-  int NumCurrentTiStep;		/**< counts the number of system steps taken up to this point */
+  double TimeBetSnapshot, /**< simulation time interval between snapshot files */
+    TimeOfFirstSnapshot,  /**< simulation time of first snapshot files */
+    CpuTimeBetRestartFile,  /**< cpu-time between regularly generated restart files */
+    TimeLastRestartFile,  /**< cpu-time when last restart-file was written */
+    TimeBetStatistics,    /**< simulation time interval between computations of energy statistics */
+    TimeLastStatistics;   /**< simulation time when the energy statistics was computed the last time */
+  int NumCurrentTiStep;   /**< counts the number of system steps taken up to this point */
 
   /* Current time of the simulation, global step, and end of simulation */
 
-  double Time,			/**< current time of the simulation */
-    TimeBegin,			/**< time of initial conditions of the simulation */
-    TimeStep,			/**< difference between current times of previous and current timestep */
-    TimeMax;			/**< marks the point of time until the simulation is to be evolved */
+  double Time,      /**< current time of the simulation */
+    TimeBegin,      /**< time of initial conditions of the simulation */
+    TimeStep,     /**< difference between current times of previous and current timestep */
+    TimeMax;      /**< marks the point of time until the simulation is to be evolved */
 
   /* variables for organizing discrete timeline */
 
-  double Timebase_interval;	/**< factor to convert from floating point time interval to integer timeline */
-  integertime Ti_Current;	/**< current time on integer timeline */
+  double Timebase_interval; /**< factor to convert from floating point time interval to integer timeline */
+  integertime Ti_Current; /**< current time on integer timeline */
   integertime Previous_Ti_Current;
-  integertime Ti_nextoutput;	/**< next output time on integer timeline */
+  integertime Ti_nextoutput;  /**< next output time on integer timeline */
   integertime Ti_lastoutput;
 
   integertime Ti_begstep[TIMEBINS];    /**< marks start of current step of each timebin on integer timeline */
@@ -329,7 +329,7 @@ extern struct global_data_all_processes
   /** table with desired output times */
   double OutputListTimes[MAXLEN_OUTPUTLIST];
   char OutputListFlag[MAXLEN_OUTPUTLIST];
-  int OutputListLength;		/**< number of times stored in table of desired output times */
+  int OutputListLength;   /**< number of times stored in table of desired output times */
 
   MyIDType MaxID;
 
@@ -356,15 +356,15 @@ extern struct particle_data
   integertime Ti_Current; /*!< current time on integer timeline */
 
   float OldAcc; // ArepoVTK: used to store ElectronAbundance (Ne)
-	
-  float GravCost[GRAVCOSTLEVELS];	/**< weight factors used for balancing the work-load */
-  unsigned char Type;		/**< flags particle type.  0=gas, 1=halo, 2=disk, 3=bulge, 4=stars, 5=bndry */
+  
+  float GravCost[GRAVCOSTLEVELS]; /**< weight factors used for balancing the work-load */
+  unsigned char Type;   /**< flags particle type.  0=gas, 1=halo, 2=disk, 3=bulge, 4=stars, 5=bndry */
   unsigned char SofteningType;
   signed char TimeBinGrav;
   signed char TimeBinHydro;
 }
- *P,				/**< holds particle data on local processor */
- *DomainPartBuf;		/**< buffer for particle data used in domain decomposition */
+ *P,        /**< holds particle data on local processor */
+ *DomainPartBuf;    /**< buffer for particle data used in domain decomposition */
 
 extern struct sph_particle_data
 {
@@ -376,14 +376,14 @@ extern struct sph_particle_data
 
   /* primitive variables */
   MyFloat Density;
-  MyFloat Pressure;		/**< current pressure */
+  MyFloat Pressure;   /**< current pressure */
   MySingle Utherm;
 
   /* variables for mesh  */
-  MyDouble Center[3];		/* center of mass of cell */
-  MySingle VelVertex[3];		/* current vertex velocity (primitive variable) */ /* ArepoVTK: used to store {Bmag,ShockDEDT,empty} */
+  MyDouble Center[3];   /* center of mass of cell */
+  MySingle VelVertex[3];    /* current vertex velocity (primitive variable) */ /* ArepoVTK: used to store {Bmag,ShockDEDT,empty} */
   MySingle MaxDelaunayRadius;
-  MySingle Hsml;		        /* auxiliary search radius for points around a delaunay triangle */
+  MySingle Hsml;            /* auxiliary search radius for points around a delaunay triangle */
   MySingle SurfaceArea;
   MySingle ActiveArea;
 
@@ -414,8 +414,8 @@ extern struct sph_particle_data
   double TimeLastPrimUpdate;
 
 }
- *SphP,				/**< holds SPH particle data on local processor */
- *DomainSphBuf;			/**< buffer for SPH particle data in domain decomposition */
+ *SphP,       /**< holds SPH particle data on local processor */
+ *DomainSphBuf;     /**< buffer for SPH particle data in domain decomposition */
 
 extern int NTopnodes, NTopleaves;
  
@@ -428,7 +428,7 @@ extern struct NODE
     {
       MyDouble s[3];
       MyDouble mass;
-      int sibling;		
+      int sibling;    
       int nextnode;
       int father;
       unsigned char maxsofttype; // #if(NSOFTTYPES > 1)
@@ -440,10 +440,10 @@ extern struct NODE
   MyDouble center[3];           /**< geometrical center of node */
   MyFloat len;                 /**< sidelength of treenode */
 }
- *Nodes;	
+ *Nodes;  
  
-extern int *Nextnode;		
-extern int *Father;		 
+extern int *Nextnode;   
+extern int *Father;    
  
 /** Variables for neighbor tree */
 extern int Ngb_MaxPart;

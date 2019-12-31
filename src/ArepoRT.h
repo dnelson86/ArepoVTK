@@ -143,23 +143,23 @@ class Timer;
 // util functions
 template <typename T> string toStr(T num)
 {
-	stringstream ss;
-	ss << num;
-	return ss.str();
+  stringstream ss;
+  ss << num;
+  return ss.str();
 }
 
 #define  terminate(...) {char termbuf1[1000], termbuf2[1000]; sprintf(termbuf1, "Code termination, function %s(), file %s, line %d", __FUNCTION__, __FILE__, __LINE__); sprintf(termbuf2, __VA_ARGS__); printf("%s:\n %s\n", termbuf1, termbuf2); fflush(stdout); exit(0);}
 
 // global inlines
 inline float Lerp(float t, float v1, float v2) {
-    return (1.0f - t) * v1 + t * v2;
+  return (1.0f - t) * v1 + t * v2;
 }
 
 inline float Radians(float deg) {
-    return ((float)M_PI/180.0f) * deg;
+  return ((float)M_PI/180.0f) * deg;
 }
 inline float Degrees(float rad) {
-    return (180.0f/(float)M_PI) * rad;
+  return (180.0f/(float)M_PI) * rad;
 }
 
 /*inline float Clamp(float val, float low, float high) {
@@ -168,21 +168,20 @@ inline float Degrees(float rad) {
     else return val;
 }*/
 inline double Clamp(double val, double low, double high) {
-    if (val < low) return low;
-    else if (val > high) return high;
-    else return val;
+  if (val < low) return low;
+  else if (val > high) return high;
+  else return val;
 }
 inline int Clamp(int val, int low, int high) {
-    if (val < low) return low;
-    else if (val > high) return high;
-    else return val;
+  if (val < low) return low;
+  else if (val > high) return high;
+  else return val;
 }
 inline unsigned int RoundUpPowerOfTwo(int val) {
-    val--;
-    val |= val >> 1; val |= val >> 2; val |= val >> 4; val |= val >> 8; val |= val >> 16;
-    val++;
-    return val;
+  val--;
+  val |= val >> 1; val |= val >> 2; val |= val >> 4; val |= val >> 8; val |= val >> 16;
+  val++;
+  return val;
 }
 
 #endif
-

@@ -201,7 +201,7 @@ Previous use cases of ArepoVTK, showing some of the breadth of its possible visu
 
 * All of the gas images of the [Illustris Explorer](https://www.illustris-project.org/explorer/) were generated with ArepoVTK, using the natural neighbor interpolation (NNI) method. The configuration files are available under `examples/illustris_box*`.
 
-![Universe in Gas Thumbnail](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_universe_in_gas2.png)
+![Universe in Gas Thumbnail](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_universe_in_gas.png)
 
 * [The Universe in Gas](https://vimeo.com/77612968) (vimeo) video was made with ArepoVTK, showing gas iso-density and iso-temperature contours within a 20 Mpc/h cosmological volume, each using a set of `gaussian_table` transfer functions. The configuration files are available under `examples/cosmoRot*`.
 
