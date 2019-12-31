@@ -37,46 +37,8 @@ ArepoTree::ArepoTree(const TransferFunction *tf)
 		if( !All.BoxSize ) {
 			cout << "Error: All.BoxSize=0, likely structure mismatch." << endl;
 			exit(1180);
-		}		
-
-	
-		float pmax = -INFINITY, umax = -INFINITY;
-		float pmin = INFINITY, umin = INFINITY;
-		float pmean = 0.0, umean = 0.0;
-
-		for (int i=0; i < NumGas; i++)
-		{
-			if (SphP[i].Density > pmax)
-			  pmax = SphP[i].Density;
-			if (SphP[i].Density < pmin)
-			  pmin = SphP[i].Density;
-			pmean += SphP[i].Density;
-
-			if (SphP[i].Utherm > umax)
-			  umax = SphP[i].Utherm;
-			if (SphP[i].Utherm < umin)
-			  umin = SphP[i].Utherm;
-			umean += SphP[i].Utherm;
 		}
 
-		valBounds[TF_VAL_DENS*3 + 0] = pmin;
-		valBounds[TF_VAL_DENS*3 + 1] = pmax;
-		valBounds[TF_VAL_DENS*3 + 2] = pmean / NumGas;
-
-		valBounds[TF_VAL_TEMP*3 + 0] = umin;
-		valBounds[TF_VAL_TEMP*3 + 1] = umax;
-		valBounds[TF_VAL_TEMP*3 + 2] = umean / NumGas;
-
-		cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0]
-		                          << " max = " << valBounds[TF_VAL_DENS*3 + 1]
-		                          << " mean = " << valBounds[TF_VAL_DENS*3 + 2] << endl;
-
-		cout << " Temp  min = " << valBounds[TF_VAL_TEMP*3 + 0]
-		           << " max = " << valBounds[TF_VAL_TEMP*3 + 1]
-		           << " mean = " << valBounds[TF_VAL_TEMP*3 + 2] << endl;
-
-
-	
 		IF_DEBUG(extent.print(" ArepoTree extent "));		
 }
 

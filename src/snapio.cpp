@@ -47,6 +47,15 @@ void ArepoSnapshot::read_ic()
 		  snapFilenames.push_back( fileBase + "." + toStr(i) + ".hdf5" );
 
 	}
+
+	// Header
+	vector<double> headerval;
+	readGroupAttribute(snapFilenames[0], "Header", "Time", headerval);
+	All.Time = All.TimeBegin = headerval[0];
+	readGroupAttribute(snapFilenames[0], "Header", "HubbleParam", headerval);
+	All.HubbleParam = headerval[0];
+
+	set_cosmo_factors_for_current_time();
 	
 	// if running multiple jobs/doing selective load, load maskFile now, or if it does not exist, create it now then exit
 	if( Config.totNumJobs >= 1 )
@@ -229,19 +238,22 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 		//	P[offset + j].ID = quantity_id[j];
 		
 		// Velocities
-		for( k=0; k < 3; k++ )
+		if( groupExists(snapFilenames[i], groupName, "Velocities") )
 		{
-			readGroupDatasetSelect( snapFilenames[i], groupName, "Velocities", coord, k, quantity );
-			
-			for( j=0; j < quantity.size(); j++ )
-				P[offset + j].Vel[k] = quantity[j];
-		}
+			for( k=0; k < 3; k++ )
+			{
+				readGroupDatasetSelect( snapFilenames[i], groupName, "Velocities", coord, k, quantity );
+				
+				for( j=0; j < quantity.size(); j++ )
+					P[offset + j].Vel[k] = quantity[j];
+			}
 
-		// convert first entry to scalar magnitude
-		for( j=0; j < quantity.size(); j++ )
-			P[offset + j].Vel[0] = sqrt(P[offset + j].Vel[0]*P[offset + j].Vel[0] + 
-		                                P[offset + j].Vel[1]*P[offset + j].Vel[1] + 
-		                                P[offset + j].Vel[2]*P[offset + j].Vel[2]);
+			// convert first entry to scalar magnitude
+			for( j=0; j < quantity.size(); j++ )
+				P[offset + j].Vel[0] = sqrt(P[offset + j].Vel[0]*P[offset + j].Vel[0] + 
+			                                P[offset + j].Vel[1]*P[offset + j].Vel[1] + 
+			                                P[offset + j].Vel[2]*P[offset + j].Vel[2]);
+		}
 		
 		// Mass
 		if( massTable[Config.readPartType] ) {
@@ -260,32 +272,38 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 		if( Config.readPartType == PARTTYPE_GAS )
 		{
 			// Density
-			readGroupDatasetSelect( snapFilenames[i], groupName, "Density", coord, -1, quantity );
+			if( groupExists(snapFilenames[i], groupName, "Density") )
+			{
+				readGroupDatasetSelect( snapFilenames[i], groupName, "Density", coord, -1, quantity );
 			
-			for( j=0; j < quantity.size(); j++ )
-				SphP[offset + j].Density = quantity[j];
+				for( j=0; j < quantity.size(); j++ )
+					SphP[offset + j].Density = quantity[j];
+			}
 				
 			// Utherm
-			readGroupDatasetSelect( snapFilenames[i], groupName, "InternalEnergy", coord, -1, quantity );
-			
-			// Convert to temperature in Kelvin? if so load electron number density
-			if( Config.convertUthermToKelvin ) {
-				if( !groupExists(snapFilenames[i], groupName, "ElectronAbundance") ) {
-					cout << "Error: Cannot convert Utherm to Kelvin, ElectronAbundance (Ne) does not exist!" << endl;
-					exit(1205);
+			if( groupExists(snapFilenames[i], groupName, "InternalEnergy") )
+			{
+				readGroupDatasetSelect( snapFilenames[i], groupName, "InternalEnergy", coord, -1, quantity );
+				
+				// Convert to temperature in Kelvin? if so load electron number density
+				if( Config.convertUthermToKelvin ) {
+					if( !groupExists(snapFilenames[i], groupName, "ElectronAbundance") ) {
+						cout << "Error: Cannot convert Utherm to Kelvin, ElectronAbundance (Ne) does not exist!" << endl;
+						exit(1205);
+					}
+					
+					readGroupDatasetSelect( snapFilenames[i], groupName, "ElectronAbundance", coord, -1, nelec );
+					
+					convertUthermToKelvin( quantity, nelec );
 				}
 				
-				readGroupDatasetSelect( snapFilenames[i], groupName, "ElectronAbundance", coord, -1, nelec );
+				if( Config.takeLogUtherm )
+					for( j=0; j < quantity.size(); j++ )
+						quantity[j] = log10( quantity[j] );
 				
-				convertUthermToKelvin( quantity, nelec );
-			}
-			
-			if( Config.takeLogUtherm )
 				for( j=0; j < quantity.size(); j++ )
-					quantity[j] = log10( quantity[j] );
-			
-			for( j=0; j < quantity.size(); j++ )
-				SphP[offset + j].Utherm = quantity[j];
+					SphP[offset + j].Utherm = quantity[j];
+			}
 				
 			// ElectrunAbundance (Ne)
 			if( groupExists(snapFilenames[i], groupName, "ElectronAbundance") )
@@ -302,21 +320,25 @@ void ArepoSnapshot::loadAllChunksWithMask( string maskFileName, vector<string> s
 
 			// Metallicity
 			/*
-			string metalObjName = "";
-			if( groupExists(snapFilenames[i], groupName, "Metallicity") )
-				metalObjName = "Metallicity";
-			if( groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
-				metalObjName = "GFM_Metallicity";
-				
-			if( metalObjName != "" )
+			if( groupExists(snapFilenames[i], groupName, "Metallicity") || 
+			    groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
 			{
-				readGroupDatasetSelect( snapFilenames[i], groupName, metalObjName, coord, -1, quantity );
-				
-				for( j=0; j < quantity.size(); j++ )
-					SphP[offset + j].Metallicity = quantity[j];
-			} else {
-				for( j=0; j < quantity.size(); j++ )
-					SphP[offset + j].Metallicity = 0.0;
+				string metalObjName = "";
+				if( groupExists(snapFilenames[i], groupName, "Metallicity") )
+					metalObjName = "Metallicity";
+				if( groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
+					metalObjName = "GFM_Metallicity";
+					
+				if( metalObjName != "" )
+				{
+					readGroupDatasetSelect( snapFilenames[i], groupName, metalObjName, coord, -1, quantity );
+					
+					for( j=0; j < quantity.size(); j++ )
+						SphP[offset + j].Metallicity = quantity[j];
+				} else {
+					for( j=0; j < quantity.size(); j++ )
+						SphP[offset + j].Metallicity = 0.0;
+				}
 			}
 			*/
 		} // readPartType==1
@@ -363,10 +385,21 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 	vector<unsigned long long> numPartTotal_low, numPartTotal_high;
 	unsigned long long partCountsTot;
 	
-	readGroupAttribute( snapFilenames[0], "Header", "NumPart_Total", numPartTotal_low );
-	readGroupAttribute( snapFilenames[0], "Header", "NumPart_Total_HighWord", numPartTotal_high );
+	if(hasGroupAttribute(snapFilenames[0], "Header", "NumPart_Total"))
+	{
+	  readGroupAttribute( snapFilenames[0], "Header", "NumPart_Total", numPartTotal_low );
+	  readGroupAttribute( snapFilenames[0], "Header", "NumPart_Total_HighWord", numPartTotal_high );
 	
-	partCountsTot = numPartTotal_low[Config.readPartType] + (((long long) numPartTotal_high[Config.readPartType]) << 32);
+	  partCountsTot = numPartTotal_low[Config.readPartType] + (((long long) numPartTotal_high[Config.readPartType]) << 32);
+	} else {
+	  // use NumPart_ThisFile instead
+	  if(snapFilenames.size() != 1)
+	  	terminate("Going to use NumPart_ThisFile because NumPart_Total is missing, but more than one input file!");
+
+	  readGroupAttribute( snapFilenames[0], "Header", "NumPart_ThisFile", numPartTotal_low );
+
+	  partCountsTot = numPartTotal_low[Config.readPartType];
+	}
 	
 	if( Config.verbose )
 	  cout << "Reading total of [" << partCountsTot << "] particles across all files." << endl;
@@ -474,19 +507,22 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 		}
 		
 		// Velocities
-		for( k=0; k < 3; k++ )
+		if( groupExists(snapFilenames[i], groupName, "Velocities") )
 		{
-			readGroupDataset( snapFilenames[i], groupName, "Velocities", k, quantity );
-			
-			for( j=0; j < quantity.size(); j++ )
-				P[offset + j].Vel[k] = quantity[j];
-		}
+			for( k=0; k < 3; k++ )
+			{
+				readGroupDataset( snapFilenames[i], groupName, "Velocities", k, quantity );
+				
+				for( j=0; j < quantity.size(); j++ )
+					P[offset + j].Vel[k] = quantity[j];
+			}
 
-		// convert first entry to scalar magnitude
-		for( j=0; j < quantity.size(); j++ )
-			P[offset + j].Vel[0] = sqrt(P[offset + j].Vel[0]*P[offset + j].Vel[0] + 
-		                                P[offset + j].Vel[1]*P[offset + j].Vel[1] + 
-		                                P[offset + j].Vel[2]*P[offset + j].Vel[2]);
+			// convert first entry to scalar magnitude
+			for( j=0; j < quantity.size(); j++ )
+				P[offset + j].Vel[0] = sqrt(P[offset + j].Vel[0]*P[offset + j].Vel[0] + 
+			                                P[offset + j].Vel[1]*P[offset + j].Vel[1] + 
+			                                P[offset + j].Vel[2]*P[offset + j].Vel[2]);
+		}
 		
 		// Mass
 		if( massTable[Config.readPartType] ) {
@@ -514,26 +550,29 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 			}
 				
 			// Utherm
-			readGroupDataset( snapFilenames[i], groupName, "InternalEnergy", -1, quantity );
-			
-			// Convert to temperature in Kelvin? if so load electron number density
-			if( Config.convertUthermToKelvin ) {
-				if( !groupExists(snapFilenames[i], groupName, "ElectronAbundance") ) {
-					cout << "Error: Cannot convert Utherm to Kelvin, ElectronAbundance (Ne) does not exist!" << endl;
-					exit(1205);
+			if( groupExists(snapFilenames[i], groupName, "InternalEnergy") )
+			{
+				readGroupDataset( snapFilenames[i], groupName, "InternalEnergy", -1, quantity );
+				
+				// Convert to temperature in Kelvin? if so load electron number density
+				if( Config.convertUthermToKelvin ) {
+					if( !groupExists(snapFilenames[i], groupName, "ElectronAbundance") ) {
+						cout << "Error: Cannot convert Utherm to Kelvin, ElectronAbundance (Ne) does not exist!" << endl;
+						exit(1205);
+					}
+					
+					readGroupDataset( snapFilenames[i], groupName, "ElectronAbundance", -1, nelec );
+					
+					convertUthermToKelvin( quantity, nelec );
 				}
 				
-				readGroupDataset( snapFilenames[i], groupName, "ElectronAbundance", -1, nelec );
+				if( Config.takeLogUtherm )
+					for( j=0; j < quantity.size(); j++ )
+						quantity[j] = log10( quantity[j] );
 				
-				convertUthermToKelvin( quantity, nelec );
-			}
-			
-			if( Config.takeLogUtherm )
 				for( j=0; j < quantity.size(); j++ )
-					quantity[j] = log10( quantity[j] );
-			
-			for( j=0; j < quantity.size(); j++ )
-				SphP[offset + j].Utherm = quantity[j];
+					SphP[offset + j].Utherm = quantity[j];
+			}
 				
 			// ElectrunAbundance (Ne)
 			if( groupExists(snapFilenames[i], groupName, "ElectronAbundance") )
@@ -550,21 +589,25 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 
 			// Metallicity
 			/*
-			string metalObjName = "";
-			if( groupExists(snapFilenames[i], groupName, "Metallicity") )
-				metalObjName = "Metallicity";
-			if( groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
-				metalObjName = "GFM_Metallicity";
-				
-			if( metalObjName != "" )
+			if( groupExists(snapFilenames[i], groupName, "Metallicity") || 
+			    groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
 			{
-				readGroupDataset( snapFilenames[i], groupName, metalObjName, -1, quantity );
-				
-				for( j=0; j < quantity.size(); j++ )
-					SphP[offset + j].Metallicity = quantity[j];
-			} else {
-				for( j=0; j < quantity.size(); j++ )
-					SphP[offset + j].Metallicity = 0.0;
+				string metalObjName = "";
+				if( groupExists(snapFilenames[i], groupName, "Metallicity") )
+					metalObjName = "Metallicity";
+				if( groupExists(snapFilenames[i], groupName, "GFM_Metallicity") )
+					metalObjName = "GFM_Metallicity";
+					
+				if( metalObjName != "" )
+				{
+					readGroupDataset( snapFilenames[i], groupName, metalObjName, -1, quantity );
+					
+					for( j=0; j < quantity.size(); j++ )
+						SphP[offset + j].Metallicity = quantity[j];
+				} else {
+					for( j=0; j < quantity.size(); j++ )
+						SphP[offset + j].Metallicity = 0.0;
+				}
 			}
 			*/
 
@@ -579,14 +622,22 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 						SphP[offset + j].VelVertex[k] = quantity[j];
 				}
 
+				// convert to physical microGauss
+				double UnitMagneticField_in_cgs = All.HubbleParam * sqrt(All.UnitPressure_in_cgs) / (All.Time*All.Time) * 1e6;
+
+				for(j=0; j < quantity.size(); j++)
+					for(k = 0; k < 3; k++)
+						SphP[offset+j].VelVertex[k] *= UnitMagneticField_in_cgs;
+
 				// convert first entry to scalar magnitude
 				for( j=0; j < quantity.size(); j++ )
 					SphP[offset + j].VelVertex[0] = sqrt(SphP[offset + j].VelVertex[0]*SphP[offset + j].VelVertex[0] + 
 				                                       SphP[offset + j].VelVertex[1]*SphP[offset + j].VelVertex[1] + 
 				                                       SphP[offset + j].VelVertex[2]*SphP[offset + j].VelVertex[2]);
+
 				// take log
-				for( j=0; j < quantity.size(); j++ )
-					SphP[offset + j].VelVertex[0] = log10( SphP[offset + j].VelVertex[0] );
+				//for( j=0; j < quantity.size(); j++ )
+				//	SphP[offset + j].VelVertex[0] = log10( SphP[offset + j].VelVertex[0] );
                                 
 			} else {
 				for( j=0; j < quantity.size(); j++ )
@@ -628,11 +679,6 @@ void ArepoSnapshot::loadAllChunksNoMask( vector<string> snapFilenames )
 	
 	//for(i = 0; i < NTYPES; i++)
 	//	All.MassTable[i] = header.mass[i];
-	
-	vector<float> snapTime;
-	readGroupAttribute( snapFilenames[0], "Header", "Time", snapTime );
-	All.Time = All.TimeBegin = snapTime[0];
-	set_cosmo_factors_for_current_time();
 	
 	NumPart = partCountsTot;
 	NumGas = partCountsTot;
@@ -1058,6 +1104,28 @@ int ArepoSnapshot::getDatasetTypeSize( string fileName, string groupName, string
 	
 	return H5Tget_precision(HDF_Type);
 
+}
+
+bool ArepoSnapshot::hasGroupAttribute(string fileName, string groupName, string objName)
+{
+  // open file and group
+  HDF_FileID = H5Fopen( fileName.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT );
+  HDF_GroupID = H5Gopen( HDF_FileID, groupName.c_str() );
+
+  // open attribute
+  HDF_AttributeID = H5Aopen_name( HDF_GroupID, objName.c_str() );
+
+  bool has_attr = true;
+
+  if( HDF_FileID < 0 || HDF_GroupID < 0 || HDF_AttributeID < 0 )
+    has_attr = false;
+
+  if(HDF_AttributeID >= 0)
+    H5Aclose( HDF_AttributeID );
+  H5Gclose( HDF_GroupID );
+  H5Fclose( HDF_FileID );
+
+  return has_attr;
 }
 
 template<typename T> void ArepoSnapshot::readGroupAttribute( string fileName,

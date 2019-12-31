@@ -21,7 +21,7 @@ TransferFunc1D::TransferFunc1D(short int ty, short int vn,
 						exit(1111);
 				}
 				
-				range[0] = 0.0;
+				range[0] = 0.0; // TODO: negative or logged values?
 				range[1] = INFINITY;
 				le       = spec[0];
 		}

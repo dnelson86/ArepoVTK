@@ -107,7 +107,7 @@ cd arepo/examples/
 ./test.py --print-all-output --no-cleanup cosmo_box_star_formation_3d
 ```
 
-this takes about 20-30 minutes to run (on 16 cores). It will produce, among other outputs, the `z=0` snapshot: `arepo/run/examples/cosmo_box_star_formation_3d/output/snap_005.hdf5`. To skip running this test and download the HDF5 file directly:
+this takes about 20-30 minutes to run (on 16 cores). It will produce, among other outputs, the `z=0` snapshot: `arepo/run/examples/cosmo_box_star_formation_3d/output/snap_005.hdf5`. If you don't want to awit that long, you can skip running this test and download the HDF5 snapshot file directly:
 
 ```bash
 mkdir -p arepo/run/examples/cosmo_box_star_formation_3d/output
@@ -122,9 +122,27 @@ Now, we will execute a render to highlight the temperature structure of the evol
 
 which should produce the image `frame_cosmo_box.png` as shown below:
 
-![ArepoVTK test_cosmo_box result](tests/frame_cosmo_box.png?raw=true "ArepoVTK test_cosmo_box result")
+![ArepoVTK test_cosmo_box](tests/frame_cosmo_box.png?raw=true "ArepoVTK test_cosmo_box")
 
 here we have switched away from an orthographic projection by setting `cameraType = perspective`, placing the camera at a distance from the box, pointed towards its center, and with a field of view of 18 degrees. We also use a constant `viStepSize = 20` (i.e. code units, `ckpc/h` in this case), which provides a better sampling of our narrow gaussian transfer functions. You can try setting `nTreeNGB = 16` to skip the Voronoi mesh construction and switch to a tree-based interpolation (with the same step size), or try setting `viStepSize = 0` to see the impact of only one sample per Voronoi cell, at this rather low resolution.
+
+As a final example, consider a cutout of a single galaxy from the high-resolution [TNG100-1](https://www.tng-project.org/data/) cosmological simulation -- you will need a [user account](https://www.tng-project.org/users/register/), and to be logged in, to download this data. In particular, we will take [subhalo 480230 at z=0](https://www.tng-project.org/api/TNG100-1/snapshots/99/subhalos/480230/) which is the central galaxy of a dark matter halo with a mass similar to our own Milky Way. Download a particle cutout of the positions, masses, and magnetic field strength of all the gas cells in the subhalo (this is all we need) with the following link:
+
+```
+https://www.tng-project.org/api/TNG100-1/snapshots/99/subhalos/480285/cutout.hdf5?gas=Coordinates,Masses,MagneticField,Density
+```
+
+Place the resulting `cutout_480285.hdf5` file into the `ArepoVTK/` directory, and execute a render:
+
+```bash
+./ArepoRT tests/config_tng100_cutout.txt
+```
+
+which should produce the image `frame_tng100_cutout.png` as shown below:
+
+![ArepoVTK test_tng100_cutout](tests/frame_tng100_cutout.png?raw=true "ArepoVTK test_tng100_cutout")
+
+here we have switched to a tree-based sampler, sampling every 0.1 kpc, with a transfer function defined by six discrete Gaussian components. Five of these trace density in dark colors, revealing gaseous spiral arms of a disk-like galaxy which is nearly edge-on. The last, in red, shows the location and structure of the magnetic field where it has a value of roughly 0.1 microGauss. To render this cutout from the large 75 cMpc/h cosmological (periodic) volume, we shift all the gas cells with `recenterBoxCoords = 8361 30797 14480` which recenters the galaxy, as defined by its `SubhaloPos`, to the center of our visualization box of 2 cMpc/h.
 
 
 ### Gallery of Examples
@@ -225,10 +243,10 @@ where currently `{quantity}` can be one of `cameraX, cameraY, cameraZ, lookAtX, 
 * `readPartType` - particle type to read from snapshot (0 = gas, 1 = dark matter). Currently only one particle type can be loaded and visualized at once.
 * `maskFileBase` - 
 * `maskPadFac` - 
-* `recenterBoxCoords` - 
-* `takeLogDens` - 
-* `takeLogUtherm` - 
-* `convertUthermToKelvin` - 
+* `recenterBoxCoords` - shift the snapshot to center the given `{x} {y} {z}` position at the middle of the box
+* `takeLogDens` - convert Density from linear to log (code units)
+* `takeLogUtherm` - convert Utherm (or temperature) from linear to log
+* `convertUthermToKelvin` - convert Utherm into Kelvin
 
 ### Interpolation/Sampling
 

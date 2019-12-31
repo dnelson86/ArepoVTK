@@ -31,10 +31,16 @@ public:
 		void Cleanup();
     bool LoadSnapshot();
 
+	void ComputeQuantityBounds();
+
+	float valMean(int valNum) { return valBounds[valNum*3+0]; }
+
 private:
 		// data
     string snapFilename;
 		string paramFilename;
+
+		float valBounds[TF_NUM_VALS*3];     // min,max,mean for each non-derived quantity
 };
 
 // ArepoMesh: expose the Voronoi data structures and encapsulate mesh related functions
@@ -42,7 +48,7 @@ class ArepoMesh {
 public:
 		// construction
 		ArepoMesh(const TransferFunction *tf);
-    ~ArepoMesh();
+		~ArepoMesh();
 		
 		// init for particular interp methods
 		void setupAuxMeshes();
@@ -50,7 +56,6 @@ public:
 
 		// preprocessing
 		int ComputeVoronoiEdges();
-		void ComputeQuantityBounds();
 		void LimitCellDensities();
 		
 		// methods
@@ -86,7 +91,6 @@ public:
 		// fluid data introspection
 		float calcNeighborHSML(int sphInd, Point &pt);
 		int subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int threadNum);
-		float valMean(int valNum) { return valBounds[valNum*3+0]; }
 		
 		// NNI_WATSON_SAMBRIDGE
 		inline bool needTet(int tt, point *pp, int *node_inds, int *nTet);
@@ -111,7 +115,6 @@ private:
     const TransferFunction *transferFunction;
 		
 		// units, etc
-		float valBounds[TF_NUM_VALS*3];     // min,max,mean for each non-derived quantity
 		float unitConversions[TF_NUM_VALS]; // mult factor from code units to ArepoVTK "units"
 		
 		// mesh

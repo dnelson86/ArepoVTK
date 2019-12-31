@@ -1018,6 +1018,8 @@ int ArepoMesh::subSampleCell(const Ray &ray, Point &pt, vector<float> &vals, int
 		// apply Voronoi stencil-based linear gradient (available for density)
 		// TODO: also available for velocity, pressure (and utherm if we enable MATERIALS/DEREFINE_GENTLY)
 		Vector sphDensGrad( SphP[sphInd].Grad.drho );
+		if(sphDensGrad.x == 0 && sphDensGrad.y == 0 && sphDensGrad.z == 0)
+			terminate("Not good! Zero gradient. Possibly unusual quantity?");
 
 		vals[TF_VAL_DENS] += Dot(sphDensGrad,offset);
 

@@ -277,6 +277,7 @@ int main (int argc, char* argv[])
   Arepo arepo = Arepo(Config.filename, Config.paramFilename);
   arepo.Init(&argc,&argv);
   arepo.LoadSnapshot();
+  arepo.ComputeQuantityBounds();
 
   cout << endl << "Arepo Load, Init, Meshing: [" << (float)timer.Time() << "] seconds." << endl;
 

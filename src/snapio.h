@@ -30,6 +30,7 @@ public:
 		int getDatasetTypeSize( string fileName,
                             string groupName,
 					  						    string objName );
+		bool hasGroupAttribute(string fileName, string groupName, string objName);
 		template<typename T> void readGroupAttribute( string fileName,
                                                   string groupName,
 																									string objName,

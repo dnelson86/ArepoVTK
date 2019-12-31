@@ -137,6 +137,8 @@ void ConfigSet::ReadFile(string cfgfile)
 		splitStrArray( readValue<string>("rgbAbsorb",   "0.0  0.0  0.0")  , &rgbAbsorb[0]  );
 		
 		// basic validation
+		if (!tfSet.size())
+			terminate("Config: no TFs specified, going to be a very boring image.");
 		//if (projColDens && !totNumJobs)
 		//	terminate("Config: ERROR! projColDens only with totNumJobs>0 (custom load).");
 		if (totNumJobs < 0 || totNumJobs > 16*16)

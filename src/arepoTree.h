@@ -43,10 +43,6 @@ private:
 		
 		//vector<int *> varNGBLists;
 		//int *varNGBList;
-		
-		// units, etc
-		float valBounds[TF_NUM_VALS*3];     // min,max,mean for each non-derived quantity
-		
 };
 
 #endif //AREPO_RT_AREPOTREE_H

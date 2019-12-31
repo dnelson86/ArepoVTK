@@ -193,6 +193,86 @@ bool Arepo::LoadSnapshot()
 		return true;
 }
 
+void Arepo::ComputeQuantityBounds()
+{
+		float pmax  = -INFINITY;
+		float pmin  = INFINITY;
+		float pmean = 0.0;
+		
+		float umax = -INFINITY;
+		float umin = INFINITY;
+		float umean = 0.0;
+
+		float vmax = -INFINITY;
+		float vmin = INFINITY;
+		float vmean = 0.0;
+
+		double bmax = -INFINITY;
+		double bmin = INFINITY;
+		double bmean = 0.0;
+		
+		for (int i=0; i < NumGas; i++) {
+				if (SphP[i].Density > pmax)
+						pmax = SphP[i].Density;
+				if (SphP[i].Density < pmin)
+						pmin = SphP[i].Density;
+				pmean += SphP[i].Density;
+				
+				if (SphP[i].Utherm > umax)
+						umax = SphP[i].Utherm;
+				if (SphP[i].Utherm < umin)
+						umin = SphP[i].Utherm;
+				umean += SphP[i].Utherm;
+
+				if (P[i].Vel[0] > vmax)
+						vmax = P[i].Vel[0];
+				if (P[i].Vel[0] < vmin)
+						vmin = P[i].Vel[0];
+				vmean += P[i].Vel[0];
+
+				// MagneticField magnitude
+				if (SphP[i].VelVertex[0] > bmax)
+				  bmax = SphP[i].VelVertex[0];
+				if (SphP[i].VelVertex[0] < bmin)
+				  bmin = SphP[i].VelVertex[0];
+				bmean += SphP[i].VelVertex[0];
+
+		}
+		
+		valBounds[TF_VAL_DENS*3 + 0] = pmin;
+		valBounds[TF_VAL_DENS*3 + 1] = pmax;
+		valBounds[TF_VAL_DENS*3 + 2] = pmean / NumGas;
+		
+		valBounds[TF_VAL_TEMP*3 + 0] = umin;
+		valBounds[TF_VAL_TEMP*3 + 1] = umax;
+		valBounds[TF_VAL_TEMP*3 + 2] = umean / NumGas;
+
+		valBounds[TF_VAL_VMAG*3 + 0] = vmin;
+		valBounds[TF_VAL_VMAG*3 + 1] = vmax;
+		valBounds[TF_VAL_VMAG*3 + 2] = vmean / NumGas;
+
+		valBounds[TF_VAL_BMAG*3 + 0] = bmin;
+		valBounds[TF_VAL_BMAG*3 + 1] = bmax;
+		valBounds[TF_VAL_BMAG*3 + 2] = bmean / NumGas;
+	
+	    if(Config.verbose)
+		{	
+		  cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0] 
+									<< " max = " << valBounds[TF_VAL_DENS*3 + 1] 
+									<< " mean = " << valBounds[TF_VAL_DENS*3 + 2] << endl;
+		  cout << " Temp    min = " << valBounds[TF_VAL_TEMP*3 + 0] 
+							 << " max = " << valBounds[TF_VAL_TEMP*3 + 1] 
+							 << " mean = " << valBounds[TF_VAL_TEMP*3 + 2] << endl;
+		  cout << " VelMag  min = " << valBounds[TF_VAL_VMAG*3 + 0] 
+							 << " max = " << valBounds[TF_VAL_VMAG*3 + 1] 
+							 << " mean = " << valBounds[TF_VAL_VMAG*3 + 2] << endl;
+		  cout << " BMag    min = " << valBounds[TF_VAL_BMAG*3 + 0]
+		       << " max = " << valBounds[TF_VAL_BMAG*3 + 1]
+		       << " mean = " << valBounds[TF_VAL_BMAG*3 + 2] << endl;
+
+		}
+}
+
 
 ArepoMesh::ArepoMesh(const TransferFunction *tf)
 {
@@ -239,7 +319,6 @@ ArepoMesh::ArepoMesh(const TransferFunction *tf)
 #endif		
 		
 		// preprocessing
-		ArepoMesh::ComputeQuantityBounds();
 		//ArepoMesh::LimitCellDensities();
 		
 		ArepoMesh::setupAuxMeshes();
@@ -905,8 +984,8 @@ bool ArepoMesh::AdvanceRayOneCellNew(const Ray &ray, double *t0, double *t1,
 					//TODO: try disabling this Tr*= below, and/or add modifier factor (seems much too 
 					//strong, e.g. stepTau=10 reduces this to zero and kills the ray, i.e. going through one 
 					//cell with Density ten times above rgbAbsorb)		
-					Tr *= Exp(-stepTau); // normal pbrt
-					//Tr -= localAlpha * Tr; // essentially density weighting
+					Tr *= Exp(-stepTau); // normal RT equation behavior
+					//Tr = Tr - localAlpha * Tr; // essentially density weighting
 							
 					// update raw column density integrals, same weighting procedure as in voronoi_makeimage_new()
 					// e.g. weight (Temp,Vmag,Ent,Metal) by rho*len and then normalize out at the end
@@ -1001,69 +1080,6 @@ void ArepoMesh::LimitCellDensities()
 				} // vertices
 		} //tetras
 
-}
-
-void ArepoMesh::ComputeQuantityBounds()
-{
-		float pmax  = -INFINITY;
-		float pmin  = INFINITY;
-		float pmean = 0.0;
-		
-		float umax = -INFINITY;
-		float umin = INFINITY;
-		float umean = 0.0;
-
-		float vmax = -INFINITY;
-		float vmin = INFINITY;
-		float vmean = 0.0;
-		
-		for (int i=0; i < NumGas; i++) {
-				if (SphP[i].Density > pmax)
-						pmax = SphP[i].Density;
-				if (SphP[i].Density < pmin)
-						pmin = SphP[i].Density;
-				pmean += SphP[i].Density;
-				
-				if (SphP[i].Utherm > umax)
-						umax = SphP[i].Utherm;
-				if (SphP[i].Utherm < umin)
-						umin = SphP[i].Utherm;
-				umean += SphP[i].Utherm;
-
-				if (P[i].Vel[0] > vmax)
-						vmax = P[i].Vel[0];
-				if (P[i].Vel[0] < vmin)
-						vmin = P[i].Vel[0];
-				vmean += P[i].Vel[0];
-
-		}
-		
-		valBounds[TF_VAL_DENS*3 + 0] = pmin;
-		valBounds[TF_VAL_DENS*3 + 1] = pmax;
-		valBounds[TF_VAL_DENS*3 + 2] = pmean / NumGas;
-		
-		valBounds[TF_VAL_TEMP*3 + 0] = umin;
-		valBounds[TF_VAL_TEMP*3 + 1] = umax;
-		valBounds[TF_VAL_TEMP*3 + 2] = umean / NumGas;
-
-		valBounds[TF_VAL_VMAG*3 + 0] = vmin;
-		valBounds[TF_VAL_VMAG*3 + 1] = vmax;
-		valBounds[TF_VAL_VMAG*3 + 2] = vmean / NumGas;
-	
-	        if(Config.verbose)
-		{	
-		  cout << " Density min = " << valBounds[TF_VAL_DENS*3 + 0] 
-									<< " max = " << valBounds[TF_VAL_DENS*3 + 1] 
-									<< " mean = " << valBounds[TF_VAL_DENS*3 + 2] << endl;
-									
-		  cout << " Temp  min = " << valBounds[TF_VAL_TEMP*3 + 0] 
-							 << " max = " << valBounds[TF_VAL_TEMP*3 + 1] 
-							 << " mean = " << valBounds[TF_VAL_TEMP*3 + 2] << endl;
-
-		  cout << " VelMag  min = " << valBounds[TF_VAL_VMAG*3 + 0] 
-							 << " max = " << valBounds[TF_VAL_VMAG*3 + 1] 
-							 << " mean = " << valBounds[TF_VAL_VMAG*3 + 2] << endl;
-		}
 }
 
 int ArepoMesh::ComputeVoronoiEdges()

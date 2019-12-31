@@ -1,0 +1,80 @@
+% Sample ArepoVTK Configuration File
+
+% Input/Output
+% ------------
+imageFile      = frame_tng100_cutout.png           % output: TGA/PNG image filename
+filename       = cutout_480285                     % input: snapshot file
+paramFilename  = tests/param_tng100_cutout.txt     % input: Arepo parameter file
+writeRGB8bit   = true                              % output 8 bit png
+writeRGB16bit  = false                             % output 16 bit png
+
+% General
+% -------
+nCores          = 0             % number of cores to use (0=all)
+nTasks          = 160           % number of tasks/threads to run (0=auto)
+quickRender     = false         % unused
+openWindow      = false         % unused
+verbose         = false         % report more information
+totNumJobs      = 0             % set >=1 to split single render across multiple jobs (0=disable)
+jobExpansionFac = 1             % increase number of jobs by this factor, only for render not mask (per dim)
+maskFileBase    =               % create/use maskfile for job based frustrum culling
+maskPadFac      = 0.0           % frustrum padding factor in code spatial units
+
+% Frame/Camera
+% ------------
+imageXPixels   = 1280                     % frame resolution (X), e.g. 1024, 1920
+imageYPixels   = 720                      % frame resolution (Y), e.g. 768, 1080
+swScale        = 50.0                     % screenWindow mult factor * [-1,1]
+cameraType     = ortho                    % ortho, perspective, fisheye, env, rift
+cameraFOV      = 0.0                      % degrees
+cameraPosition = 1000 1000 960            % (XYZ) camera position in world coord system
+cameraLookAt   = 1000 1000 1000           % (XYZ) we have shifted galaxy to box center
+cameraUp       = 0.0 1.0 0.0              % (XYZ) camera "up" vector
+
+% Data Processing
+% ---------------
+readPartType          = 0                  % 0=gas, 1=dm, 4=stars, 5=bhs
+recenterBoxCoords     = 8361 30797 14480   % (XYZ) SubhaloPos, i.e. shift galaxy to box center
+convertUthermToKelvin = true               % convert SphP.Utherm field to temp in Kelvin
+takeLogUtherm         = true               % convert K to log(K)
+takeLogDens           = false              % convert Density to log
+
+% Transfer Function
+% -----------------
+addTF_01 = gaussian_table BMag gist_heat 0 1.0 0.08 0.01 % linear microGauss
+%addTF_01 = gaussian_table BMag gist_heat 0 0.35 0.2 0.01
+%addTF_01 = gaussian_table BMag gist_heat 0 0.35 0.3 0.01
+%addTF_01 = gaussian BMag 0.8 0.005 1.0 1.0 1.0 % white at 0.8 uGauss
+
+addTF_01 = gaussian_table Density mpl_inferno 0 2e-4 1e-5 2e-6
+addTF_01 = gaussian_table Density mpl_inferno 0 2.5e-4 1e-4 1e-5
+addTF_01 = gaussian_table Density mpl_inferno 0 8.3e-4 5e-4 1e-5
+addTF_01 = gaussian_table Density mpl_inferno 0 1.3e-3 1e-3 1e-4
+addTF_01 = gaussian_table Density mpl_inferno 0 1e-2 7e-3 1e-3
+
+% Animation
+% ---------
+numFrames        = 1                 % single image
+
+% Render
+% ------
+drawBBox         = false             % draw simulation bounding box
+drawTetra        = false             % draw delaunay tetrahedra
+drawVoronoi      = false             % draw voronoi polyhedra faces
+drawSphere       = false             % draw test sphere lat/long lines
+projColDens      = false             % calculate/save raw line integrals
+nTreeNGB         = 32                % use tree-based search integrator instead of mesh (0=disabled)
+viStepSize       = 0.1               % volume integration sub-stepping size (0=disabled)
+rayMaxT          = 80.0              % maximum ray integration parametric length
+rgbLine          = 5.0 5.0 5.0       % (RGB) bounding box
+rgbTetra         = 0.0 0.0 0.0       % (RGB) tetra edges
+rgbVoronoi       = 0.0 0.0 0.0       % (RGB) voronoi edges
+rgbAbsorb        = 0 0 0             % (RGB) absorption, 0=none
+
+% alternative perspective camera render:
+
+%swScale        = 1.0                      % screenWindow mult factor * [-1,1]
+%cameraType     = persp                    % ortho, perspective, fisheye, env, rift
+%cameraFOV      = 50.0                     % degrees
+%cameraPosition = 1000 1000 900            % (XYZ) camera position in world coord system
+%rayMaxT        = 200.0                    % maximum ray integration parametric length

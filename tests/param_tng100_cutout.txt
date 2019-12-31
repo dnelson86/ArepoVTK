@@ -1,0 +1,106 @@
+% Arepo Parameter File (ArepoVTK Testing)
+
+% ---- Relevant for ArepoVTK: ----
+
+ICFormat          3           % inputs are HDF5 snapshots
+MaxMemSize        500         % sets maximum memory use in MByte
+%BoxSize           75000.0     % TNG100*
+BoxSize           2000.0      % we re-center to place the system at xyz=1000
+
+% ---- System of units ----
+
+UnitLength_in_cm              3.085678e21    %  1.0 kpc
+UnitMass_in_g                 1.989e43       %  1.0e10 solar masses
+UnitVelocity_in_cm_per_s      1e5            %  1 km/sec
+GravityConstantInternal       0
+
+% ---- Unused in ArepoVTK: ----
+
+InitCondFile        ./dummy
+OutputDir           ./output
+
+SnapshotFileBase    snap
+OutputListFilename  output_list.txt
+
+SnapFormat         3
+
+TimeLimitCPU              0
+CpuTimeBetRestartFile     0 % unused
+ResubmitOn                0 % unused
+ResubmitCommand           z % unused
+
+MultipleDomains 1
+TopNodeFactor   5
+ActivePartFracForNewDomainDecomp 0.1
+
+CellShapingFactor 0.2          % sets threshold for CM-displacement
+CellShapingSpeed  0.5          % sets speed of CM correction
+
+TimeBegin           0.0        % Begin of the simulation
+TimeMax	            1.0        % End of the simulation
+
+ComovingIntegrationOn    0
+PeriodicBoundariesOn     1
+CoolingOn		 0
+StarformationOn		 0
+
+Omega0	              0
+OmegaLambda           0
+OmegaBaryon           0
+HubbleParam           1.0
+
+OutputListOn              0
+TimeBetSnapshot           0.1
+TimeOfFirstSnapshot       0.0
+TimeBetStatistics         0.01
+NumFilesPerSnapshot       1
+NumFilesWrittenInParallel 1
+
+TypeOfTimestepCriterion  0
+ErrTolIntAccuracy        0.025 
+CourantFac               0.4
+MaxSizeTimestep          1e-2
+MinSizeTimestep          1e-10
+
+MinimumDensityOnStartUp               1.0e-20
+LimitUBelowThisDensity                1.0e-20
+LimitUBelowCertainDensityToThisValue  1.0
+
+InitGasTemp            0
+MinGasTemp             0
+MinEgySpec             0
+
+TypeOfOpeningCriterion       1
+ErrTolTheta                  0.7
+ErrTolForceAcc               0.0025
+
+DesNumNgb              32
+MaxNumNgbDeviation     2
+
+%---- Gravitational softening lengths
+
+GasSoftFactor      1.5
+
+SofteningComovingType0 1.0 % obsolete
+SofteningComovingType1 0.0
+SofteningComovingType2 0.0
+SofteningComovingType3 0.0
+SofteningComovingType4 0.0
+SofteningComovingType5 0.0
+
+SofteningMaxPhysType0  1.0
+SofteningMaxPhysType1  0.0
+SofteningMaxPhysType2  0.0
+SofteningMaxPhysType3  0.0
+SofteningMaxPhysType4  0.0
+SofteningMaxPhysType5  0.0
+
+SofteningTypeOfPartType0 0
+SofteningTypeOfPartType1 1
+SofteningTypeOfPartType2 1
+SofteningTypeOfPartType3 1
+SofteningTypeOfPartType4 1
+SofteningTypeOfPartType5 1
+
+% End
+
