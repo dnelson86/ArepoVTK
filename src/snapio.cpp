@@ -1367,22 +1367,31 @@ template<typename T> int ArepoSnapshot::writeGroupDataset( string fileName,
 																													 string groupName,
 																													 string objName,
 																													 vector<T> &Data,
-																													 int flag2d )
+																													 int flag2d, int dim0, int dim1 )
 {
 	HDF_Type = getDataType<T>();
 	
 	// open file and groups (make if necessary)
 	HDF_FileID = H5Fopen( fileName.c_str(), H5F_ACC_RDWR, H5P_DEFAULT );
-	HDF_GroupID = H5Gopen( HDF_FileID, groupName.c_str() );
+	if(groupName != "")
+	  HDF_GroupID = H5Gopen( HDF_FileID, groupName.c_str() );
+	else
+	  HDF_GroupID = HDF_FileID; // write dataset to root
 		
 	// make spaces
 	if( !flag2d ) {
 		HDF_Dims = Data.size();
 		HDF_DataspaceID = H5Screate_simple(1, &HDF_Dims, NULL);
 	} else {
-		HDF_Dims_2D[0] = HDF_Dims_2D[1] = sqrt( Data.size() );
-		if( HDF_Dims_2D[0] * HDF_Dims_2D[0] != Data.size() ) {
+		if(dim0 > 0 && dim1 > 0) {
+			HDF_Dims_2D[0] = dim0;
+			HDF_Dims_2D[1] = dim1;
+		} else {
+			HDF_Dims_2D[0] = HDF_Dims_2D[1] = sqrt( Data.size() );
+		}
+		if( (HDF_Dims_2D[0] * HDF_Dims_2D[1]) != Data.size() ) {
 			cout << "Error: writeGroupDataset requested in 2D with non-square Data." << endl;
+			cout << " HDF_DIMS_2D = [" << HDF_Dims_2D[0] << " " << HDF_Dims_2D[1] << "]" << endl;
 			cout << " [" << groupName << "/" << objName << "] Data.size() = " << Data.size() << endl;
 			exit(1198);
 		}
@@ -1404,6 +1413,7 @@ template<typename T> int ArepoSnapshot::writeGroupDataset( string fileName,
 						
   H5Dclose( HDF_DatasetID );
   H5Sclose( HDF_DataspaceID );
+  if(HDF_GroupID != HDF_FileID)
 	H5Gclose( HDF_GroupID );
   H5Fclose( HDF_FileID );
 
@@ -1415,7 +1425,7 @@ template int ArepoSnapshot::writeGroupDataset<float>( string fileName,
 																					 string groupName,
 																					 string objName,
 																					 vector<float> &Data,
-																					 int flag2d );	
+																					 int flag2d, int dim0, int dim1 );	
 
 void ArepoSnapshot::createNewFile( string fileName )
 {

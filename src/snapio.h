@@ -50,7 +50,7 @@ public:
                                                 string groupName,
 														  								  string objName,
 																							  vector<T> &Data,
-																							  int flag2d = 0);																		 
+																							  int flag2d = 0, int dim0 = 0, int dim1 = 0);																		 
 		void createNewFile( string fileName );
 		void createNewGroup( string fileName, string groupName);
 		

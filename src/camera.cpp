@@ -588,14 +588,6 @@ void Film::WriteIntegrals()
 	// make hdf5 file and groups for different fields
 	hdf5.createNewFile( filename );
 	
-	hdf5.createNewGroup( filename, "Density" );
-	hdf5.createNewGroup( filename, "Temp" );
-	hdf5.createNewGroup( filename, "VelMag" );
-	hdf5.createNewGroup( filename, "Entropy" );
-	hdf5.createNewGroup( filename, "Metal" );
-	hdf5.createNewGroup( filename, "SzY" );
-	hdf5.createNewGroup( filename, "XRay" );	
-		
 	// convert blockedarray of raw pixels into float vector
 	int nPix = xPixelCount * yPixelCount;
 	
@@ -609,8 +601,8 @@ void Film::WriteIntegrals()
 	q_szy.reserve( nPix );
 	q_xray.reserve( nPix );
 		
-	for (int y = 0; y < yPixelCount; ++y) {
-		for (int x = 0; x < xPixelCount; ++x) {
+	for (int x = 0; x < xPixelCount; ++x) {
+		for (int y = 0; y < yPixelCount; ++y) {
 			// verify weighting (one sample per pixel)
 			float wt = (*integrals)(x, y).weightSum;
 			
@@ -653,13 +645,13 @@ void Film::WriteIntegrals()
   */
 	
 	// add datasets to hdf5 file
-	hdf5.writeGroupDataset( filename, "Density", "Array", q_dens,  1 );
-	hdf5.writeGroupDataset( filename, "Temp",    "Array", q_temp,  1 );
-	hdf5.writeGroupDataset( filename, "VelMag",  "Array", q_vmag,  1 );
-	hdf5.writeGroupDataset( filename, "Entropy", "Array", q_entr,  1 );
-	hdf5.writeGroupDataset( filename, "Metal",   "Array", q_metal, 1 );
-	hdf5.writeGroupDataset( filename, "SzY",     "Array", q_szy,   1 );
-	hdf5.writeGroupDataset( filename, "XRay",    "Array", q_xray,  1 );
+	hdf5.writeGroupDataset( filename, "", "Density", q_dens,  1, xPixelCount, yPixelCount );
+	hdf5.writeGroupDataset( filename, "", "Temp",    q_temp,  1, xPixelCount, yPixelCount );
+	hdf5.writeGroupDataset( filename, "", "VelMag",  q_vmag,  1, xPixelCount, yPixelCount );
+	hdf5.writeGroupDataset( filename, "", "Entropy", q_entr,  1, xPixelCount, yPixelCount );
+	hdf5.writeGroupDataset( filename, "", "Metal",   q_metal, 1, xPixelCount, yPixelCount );
+	hdf5.writeGroupDataset( filename, "", "SzY",     q_szy,   1, xPixelCount, yPixelCount );
+	hdf5.writeGroupDataset( filename, "", "XRay",    q_xray,  1, xPixelCount, yPixelCount );
 	
 	if( Config.verbose )
 		cout << " Wrote: [" << filename << "]." << endl << endl;

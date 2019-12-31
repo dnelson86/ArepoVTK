@@ -62,7 +62,7 @@ drawBBox         = false             % draw simulation bounding box
 drawTetra        = false             % draw delaunay tetrahedra
 drawVoronoi      = false             % draw voronoi polyhedra faces
 drawSphere       = false             % draw test sphere lat/long lines
-projColDens      = false             % calculate/save raw line integrals
+projColDens      = true              % calculate/save raw line integrals
 nTreeNGB         = 32                % use tree-based search integrator instead of mesh (0=disabled)
 viStepSize       = 0.1               % volume integration sub-stepping size (0=disabled)
 rayMaxT          = 80.0              % maximum ray integration parametric length
