@@ -111,7 +111,7 @@ cd arepo/examples/
 ./test.py --print-all-output --no-cleanup cosmo_box_star_formation_3d
 ```
 
-this takes about 20-30 minutes to run (on 16 cores). It will produce, among other outputs, the `z=0` snapshot: `arepo/run/examples/cosmo_box_star_formation_3d/output/snap_005.hdf5`. If you don't want to awit that long, you can skip running this test and download the HDF5 snapshot file directly:
+this takes about 20-30 minutes to run (on 16 cores). It will produce, among other outputs, the `z=0` snapshot: `arepo/run/examples/cosmo_box_star_formation_3d/output/snap_005.hdf5`. If you don't want to wait that long, you can skip running this test and download the HDF5 snapshot file directly:
 
 ```bash
 mkdir -p arepo/run/examples/cosmo_box_star_formation_3d/output
@@ -132,7 +132,7 @@ here we have switched away from an orthographic projection by setting `cameraTyp
 
 -----
 
-As a final example, consider a cutout of a single galaxy from the high-resolution [TNG100-1](https://www.tng-project.org/data/) cosmological simulation -- you will need a [user account](https://www.tng-project.org/users/register/), and to be logged in, to download this data. In particular, we will take [subhalo 480230 at z=0](https://www.tng-project.org/api/TNG100-1/snapshots/99/subhalos/480230/) which is the central galaxy of a dark matter halo with a mass similar to our own Milky Way. Download a particle cutout of the positions, masses, and magnetic field strength of all the gas cells in the subhalo (this is all we need) with the following link:
+As a final example, consider a cutout of a single galaxy from the high-resolution [TNG100-1](https://www.tng-project.org/data/) cosmological simulation -- you will need a [user account](https://www.tng-project.org/users/register/), and to be logged in, to download this data. In particular, we will take [subhalo 480230 at z=0](https://www.tng-project.org/api/TNG100-1/snapshots/99/subhalos/480230/) which is the central galaxy of a dark matter halo with a mass similar to our own Milky Way. Download a particle cutout of the positions, masses, densities, and magnetic field strength of all the gas cells in the subhalo (this is all we need) with the following link:
 
 ```
 https://www.tng-project.org/api/TNG100-1/snapshots/99/subhalos/480285/cutout.hdf5?gas=Coordinates,Masses,MagneticField,Density
@@ -148,7 +148,7 @@ which should produce the image `frame_tng100_cutout.png` as shown below:
 
 ![ArepoVTK test_tng100_cutout](tests/frame_tng100_cutout.png?raw=true "ArepoVTK test_tng100_cutout")
 
-here we have switched to a tree-based sampler, sampling every 0.1 kpc, with a transfer function defined by six discrete Gaussian components. Five of these trace density in dark colors, revealing gaseous spiral arms of a disk-like galaxy which is nearly edge-on. The last, in red, shows the location and structure of the magnetic field where it has a value of roughly 0.1 microGauss. To render this cutout from the large 75 cMpc/h cosmological (periodic) volume, we shift all the gas cells with `recenterBoxCoords = 8361 30797 14480` which recenters the galaxy, as defined by its `SubhaloPos`, to the center of our visualization box of 2 cMpc/h.
+here we have switched to a tree-based sampler, sampling every 0.1 kpc, with a transfer function defined by six discrete Gaussian components. Five of these trace density in dark colors, revealing gaseous spiral arms of a disk-like galaxy which is nearly edge-on. The last, in red, shows the location and structure of the magnetic field where it has a value of roughly 0.1 microGauss. To render this cutout from the large 75 cMpc/h cosmological (periodic) volume, we have shifted all the gas cells with `recenterBoxCoords = 8361 30797 14480` which repositions the galaxy, as defined by its `SubhaloPos`, to the center of our visualization box of 2 cMpc/h.
 
 We have also set `projColDens = true` in this case, which produced an additional output file `frame_cosmo_box.png.hdf5`. This holds the raw line-of-sight integrals for available fluid quantities. We can inspect this file as
 
@@ -292,7 +292,7 @@ Key frames are added with a series of string specifications, similar to transfer
 
 where currently `{quantity}` can be one of `cameraX, cameraY, cameraZ, lookAtX, lookAtY, lookAtZ, rotXY, rotXZ` and `{interpMethod}` can be one of `linear, quadratic_inout`, the latter being a smooth easing function.
 
-Note that a multi-frame sequence could render a time-evolving series of simulation snapshots, or it could render a time-static (i.e. single snapshot) scene. To achieve the former, you can replace
+Note that a multi-frame sequence could render a time-evolving series of simulation snapshots, or it could render a time-static (i.e. single snapshot) scene. To achieve the former, you can replace the actual snapshot number in `{filename}` with "NUMM", and then pass in a snapshot number with the `-s` command-line option. This could, for example, increment simultaneously with the frame number, or else a more complex relationship can be established.
 
 ### Render Execution, Data Loading, Masking, Multi-Job Renders
 
@@ -301,8 +301,8 @@ Note that a multi-frame sequence could render a time-evolving series of simulati
 * `totNumJobs` - if specified and >1, then we are splitting a single render into many independent jobs by subdividing the image plane. For example, if this parameter is `64`, then each job will be responsible for 1/64th of the total number of pixels, and each will have an extent of 1/8 of the total along each direction. The spatial domain is decomposed and only a subset of cells are loaded which are sufficient to reconstruct the Voronoi mesh traced by rays from this job alone (see 'mask' below). The current job number is specified by the `-j` command-line option, e.g. by passing `-j ${SLURM_ARRAY_TASKID}` in a batch script.
 * `jobExpansionFac` - if {1,2,4}, then exponentiate the `totNumJobs` parameter by this value. For instance, in the above example of `totNumJobs=64` then setting 2 here would result in 4096 total 'expanded' jobs. These subdivide each task further, e.g. for very expensive renderings, while the load decomposition is unchanged and still set by the original `totNumJobs`. The current expanded job number is specified by the `-e` command-line option.
 * `readPartType` - particle type to read from snapshot (0 = gas, 1 = dark matter). Currently only one particle type can be loaded and visualized at once.
-* `maskFileBase` - if specified, create and use maskfile for job-based frustrum culling (if `totNumJobs>1`).
-* `maskPadFac` - if using job-based frustrum culling, the padding factor (additive, code units) to surround each domain decomposition by. For example, if using an orthographic camera parallel to a box axis, a 75 cMpc/h box with `totNumJobs=100` would effectively be decomposed into 7.5 x 7.5 x 75 Mpc/h thin columns/skewers. With `maskPadFac = 1000` a 1 cMpc/h ghost buffer would be added to the first two dimensions, which would generally be sufficient to accurately reconstruct the Voronoi mesh.
+* `maskFileBase` - if specified, create and use maskfile for job-based frustum culling (if `totNumJobs>1`).
+* `maskPadFac` - if using job-based frustum culling, the padding factor (additive, code units) to surround each domain decomposition by. For example, if using an orthographic camera parallel to a box axis, a 75 cMpc/h box with `totNumJobs=100` would effectively be decomposed into 7.5 x 7.5 x 75 Mpc/h thin columns/skewers. With `maskPadFac = 1000` a 1 cMpc/h ghost buffer would be added to the first two dimensions, which would generally be sufficient to accurately reconstruct the Voronoi mesh.
 * `recenterBoxCoords` - shift the snapshot to center the given `{x} {y} {z}` position at the middle of the box
 * `takeLogDens` - convert Density from linear to log (code units)
 * `takeLogUtherm` - convert Utherm (or temperature) from linear to log
@@ -328,8 +328,8 @@ Note that, for efficiency reasons, the interpolation algorithm is chosen via pre
 Further options:
 
 * `NO_GHOST_CONTRIBS` - only for SPHKERNEL, do not use ghosts for hsml/TF (i.e. for reflective BCs but we are doing periodic meshing, the ghosts are incorrect and should be skipped)
-* `NNI_DISABLE_EXACT` - for bruteforce NNI disable exact geometry computations
-* `NATURAL_NEIGHBOR_INNER` - for IDW, SPHKERNEL or NNI, do "neighbors of neighbors", i.e. extend the search and sampling from immediate neighbors of the parent cell to all neighors of those neighbors.
+* `NNI_DISABLE_EXACT` - for brute-force NNI disable exact geometry computations
+* `NATURAL_NEIGHBOR_INNER` - for IDW, SPHKERNEL or NNI, do "neighbors of neighbors", i.e. extend the search and sampling from immediate neighbors of the parent cell to all neighbors of those neighbors.
 * `BRUTE_FORCE` - for IDW or SPHKERNEL, calculate over all NumGas in the box (instead of N-nearest)
 * `POWER_PARAM` - exponent of distance, greater values assign more influence to values closest to the interpolating point, approaching piecewise constant for large POWER_PARAM.
 * `HSML_FAC` - use <1 for more smoothing, or >1 for less smoothing (at least some neighbors will not contribute, and if this is too big, the containing cell may also not contribute)
@@ -405,7 +405,7 @@ Current Version: 0.44.alpha1
  +v0.42
   - calculate raw line integrals (do not apply TF) in addition to images
   - goal: rendering 1820^3 box
-   - custom read_ic() with selective loading of only particles in camera frustrum
+   - custom read_ic() with selective loading of only particles in camera frustum
    - split camera/image into subchunks, each handled by a separate instance
    - maskfile approach to precompute which particles each instance needs to load
  
