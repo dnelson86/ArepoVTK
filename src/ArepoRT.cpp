@@ -132,7 +132,7 @@ int main (int argc, char* argv[])
 
   cout << endl << endl
        << "   v" << AREPO_RT_VERSION << " (" << __DATE__      << ")"
-       << ". Author: Dylan Nelson (dnelson@mpa-garching.mpg.de)" << endl << endl;
+       << ". Author: Dylan Nelson (dnelson@uni-heidelberg.de)" << endl << endl;
   IF_DEBUG(cout << "DEBUGGING ENALBED.\n\n");
   
   // command line arguments

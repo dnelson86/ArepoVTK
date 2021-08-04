@@ -256,7 +256,7 @@ ConditionVariable::ConditionVariable()
   if ((err = pthread_cond_init(&cond, NULL)) != 0)
     terminate("ERROR: cv pthread_cond_init: %d", err);
   if ((err = pthread_mutex_init(&mutex, NULL)) != 0)
-    terminate("ERROR: cv pthread_mutex_init: ", err);
+    terminate("ERROR: cv pthread_mutex_init: %d", err);
 }
 
 ConditionVariable::~ConditionVariable()

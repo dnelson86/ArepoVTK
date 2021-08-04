@@ -15,7 +15,7 @@ Future goals include: (i) combining the volume rendering approach with coinciden
 
 ### Installation
 
-First, make sure you have a recent C++ compiler (gcc or intel). On a standard cluster, load a set of required modules by executing `module load gcc gsl fftw-serial hdf5-serial impi`. If you are on a laptop or otherwise don't have the `module` command available, you must install these libraries (consult the [AREPO user documentation](https://gitlab.mpcdf.mpg.de/vrs/arepo/wikis/userguide/Getting%20started) for more details). 
+First, make sure you have a recent C++ compiler (gcc or intel). On a standard cluster, load a set of required modules by executing e.g. `module load intel gsl fftw hdf5-serial impi`. If you are on a laptop or otherwise don't have the `module` command available, you must install these libraries (consult the [AREPO user documentation](https://gitlab.mpcdf.mpg.de/vrs/arepo/wikis/userguide/Getting%20started) for more details). 
 
 Next, download the ArepoVTK source as well as the public AREPO source:
 
@@ -45,6 +45,7 @@ Finally, build ArepoVTK itself:
 
 ```bash
 cd ..
+mkdir build
 make -j
 ```
 
@@ -63,12 +64,24 @@ Executing `./ArepoRT` with no options should produce the following output:
      /:/  /       |:|  |        \:\__\                      \::/  /                |:|  |
      \/__/         \|__|         \/__/                       \/__/                  \|__|
 
-   v0.44 (Dec 25 2019). Author: Dylan Nelson (dnelson@mpa-garching.mpg.de)
+   v0.44 (Dec 25 2019). Author: Dylan Nelson (dnelson@uni-heidelberg.de)
 
 Usage: ArepoRT <configfile.txt> [-s snapNum] [-j jobNum] [-e expandedJobNum]
 
 ```
 
+If you see an error message about "error while loading shared libraries", you need to make sure that the paths to the external libraries are specified in the `LD_LIBRARY_PATH` environment variable, e.g.
+
+```bash
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HDF5_HOME/lib:$GSL_HOME/lib:$FFTW_HOME/lib
+```
+
+If you see an error message about "Fatal error in PMPI\_Init" or any other strange MPI initialization errors, you may need to unset the following two environment variables (for interactive/shell usage of MPI compiled codes):
+
+```bash
+unset I_MPI_HYDRA_BOOTSTRAP
+unset I_MPI_PMI_LIBRARY
+```
 
 ### Getting Started
 
@@ -82,7 +95,7 @@ this should produce a 600x600 pixel image `test_frame2.png` which is identical t
 
 ![ArepoVTK test2 result](tests/frame2.png?raw=true "ArepoVTK test2 result")
 
-This is a result of a simple ray-tracing through a small test setup of a uniform grid of 2^3 (i.e. eight) cells within a box [0,1], each with uniform mass. A ninth, central point at [0.5, 0.5, 0.5] is inserted with higher mass. As a result, the gas density field peaks in the center and falls off radially, modulo the imprint of the tessellation geometry. You can get a sense of the geometry with the [interactive WebGL Voronoi mesh visualizer](https://wwwmpa.mpa-garching.mpg.de/~dnelson/webgl/vormesh3.htm).
+This is a result of a simple ray-tracing through a small test setup of a uniform grid of 2^3 (i.e. eight) cells within a box [0,1], each with uniform mass. A ninth, central point at [0.5, 0.5, 0.5] is inserted with higher mass. As a result, the gas density field peaks in the center and falls off radially, modulo the imprint of the tessellation geometry. You can get a sense of the geometry with the [interactive WebGL Voronoi mesh visualizer](https://www.ita.uni-heidelberg.de/~dnelson/webgl/vormesh3.htm).
 
 The transfer function is defined in the configuration file: in this case, there is only one TF added and it is given by the string `constant_table Density idl_33_blue-red 0.5 20`. The 'constant' means that we will add light to a ray in linear proportion to the 'Density' field it samples. The color of the light is sampled from a 'table', which is specified by its name 'idl_33_blue-red'. This colormap is stretched between a minimum Density value of '0.5' and a maximum of '20' (code units), and outside of this range gas will not contribute to a ray.
 
@@ -197,19 +210,19 @@ which shows the simultaneously derived gas column density map (e.g. in units of 
 
 Previous use cases of ArepoVTK, showing some of the breadth of its possible visualization outputs:
 
-![Illustris Explorer Thumbnail](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_illustris_explorer2.png)
+![Illustris Explorer Thumbnail](https://www.ita.uni-heidelberg.de/~dnelson/ArepoVTK/thumb_illustris_explorer2.png)
 
 * All of the gas images of the [Illustris Explorer](https://www.illustris-project.org/explorer/) were generated with ArepoVTK, using the natural neighbor interpolation (NNI) method. The configuration files are available under `examples/illustris_box*`.
 
-![Universe in Gas Thumbnail](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_universe_in_gas.png)
+![Universe in Gas Thumbnail](https://www.ita.uni-heidelberg.de/~dnelson/ArepoVTK/thumb_universe_in_gas.png)
 
 * [The Universe in Gas](https://vimeo.com/77612968) (vimeo) video was made with ArepoVTK, showing gas iso-density and iso-temperature contours within a 20 Mpc/h cosmological volume, each using a set of `gaussian_table` transfer functions. The configuration files are available under `examples/cosmoRot*`.
 
-![Spoon3D Thumbnail](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_spoon3d.png)
+![Spoon3D Thumbnail](https://www.ita.uni-heidelberg.de/~dnelson/ArepoVTK/thumb_spoon3d.png)
 
 * [Stirring Coffee with a Spoon in 3D](https://vimeo.com/72435369) (vimeo) video was made with ArepoVTK, using gaussian transfer functions on gas density. It is made up of three sequences: the initial rotation, the time-evolving sequence, and the ending. The configuration files are available under `examples/spoon*`.
 
-![Spoon3D Thumbnail](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_nelson16_fig13.png)
+![Spoon3D Thumbnail](https://www.ita.uni-heidelberg.de/~dnelson/ArepoVTK/thumb_nelson16_fig13.png)
 
 * Figure 13 of [Nelson et al. (2016)](https://arxiv.org/abs/1503.02665) shows gas iso-temperature contours around a single galaxy halo. The configuration files are available under `examples/zoom_Nelson16*`.
 
@@ -218,14 +231,14 @@ Previous use cases of ArepoVTK, showing some of the breadth of its possible visu
 
 * The 4K and 8K [180 degree fulldome animation](https://www.illustris-project.org/media/) of the Illustris temperature evolution were made with ArepoVTK, as was the full [360 degree stereoscopic render](https://www.illustris-project.org/media/) (left/right) meant for a HMD like the Oculus Rift. These are picture above. The configuration files are available under `examples/illustris_subbox0*`.
 
-![ArepoVTK Dev Gallery](https://www.mpa-garching.mpg.de/~dnelson/ArepoVTK/thumb_gallery6.png)
+![ArepoVTK Dev Gallery](https://www.ita.uni-heidelberg.de/~dnelson/ArepoVTK/thumb_gallery6.png)
 
-* A gallery of test images during development is available on the [ArepoVTK Development Gallery](https://wwwmpa.mpa-garching.mpg.de/~dnelson/#arepovtkgal).
+* A gallery of test images during development is available on the [ArepoVTK Development Gallery](https://www.ita.uni-heidelberg.de/~dnelson/#arepovtkgal).
 
 
 ### Acknowledgments, Contributing, and Contact
 
-The principal author of ArepoVTK is Dylan Nelson (dnelson@mpa-garching.mpg.de). If you use this code in a publication, please cite the [Nelson et al. (2013)](http://ui.adsabs.harvard.edu/abs/2013MNRAS.429.3353N) paper where it first made its appearance.
+The principal author of ArepoVTK is Dylan Nelson (dnelson@uni-heidelberg.de). If you use this code in a publication, please cite the [Nelson et al. (2013)](http://ui.adsabs.harvard.edu/abs/2013MNRAS.429.3353N) paper where it first made its appearance.
 
 Please contact us with any questions or comments. If you make any changes, updates, fixes, or improvements to this code, please consider making your efforts available to the broader community by contributing back to this project. The most effective way to do so is by submitting an Issue or Pull Request on github.
 
